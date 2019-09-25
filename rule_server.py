@@ -8,7 +8,7 @@ from firstrl import AgentActiveMatter
 # CONFIG
 
 address = ('localhost', 22009)
-maxN    = 200;
+maxN    = 200*3;
 
 train_freq = 10
 
@@ -57,6 +57,9 @@ def get_dist_reltheta(A, B):
     dy = B[1] - A[1]
     dist = math.sqrt(dx*dx + dy*dy)
     rel_theta = math.atan2(dy, dx) - A[2]
+    # DEBUG NOT GOOOOOD
+    if np.isnan(rel_theta):
+      rel_theta = np.pi
     return dist, rel_theta
 
 
@@ -80,8 +83,13 @@ def serve():
             for frame in itertools.count():
                 data = connection.recv(8*maxN)
                 if data:
-                        
+
+                                        
                     data = np.array(struct.unpack(str(len(data)//8)+"d", data))
+
+                    if True:
+                      #print('data: {}'.format(data))
+                      print('data shape: {}'.format(data.shape))
 
                     lost, pos = parse_input(data)
                     obs, rewards = get_obs_rewards(pos)
