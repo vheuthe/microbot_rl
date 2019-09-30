@@ -151,15 +151,16 @@ class AgentActiveMatter():
     - new_obs is a numpy array of observables of all particles (N_particle, n_input_dim)
     - rewards is a numpy array defining the rewards of all particles (N_particle)
     '''
-    
-    for ID_lost in lost:
+
+    for ID_lost in sorted(lost, reverse=True):
       self.finish_path(True, ID_lost)
     
-    self.N -= len(lost)
+    # self.N -= len(lost) can subtract too much at the moment
     
     for i, (o, r) in enumerate(zip(new_obs, rewards)):
       o = o.reshape(1,self.input_dim)
-      if (i < self.N):
+      # if (i < self.N):
+      if i < len(self.particles): # should work as well?
         par = self.particles[i]
         v = self.critic(par.current).numpy()[0,0]
         par.add_obs_rew_val(o, r, v)
@@ -214,7 +215,13 @@ class AgentActiveMatter():
     signal, and the last action is discarded.
     """
     
-    assert ((ID >= 0) and (ID<=self.N)), 'impossible ID'
+    assert (ID >= 0), 'impossible ID'
+
+    #print(ID, "/", self.N)
+
+    if ID >= self.N: 
+      # particle was found and lost by matlab between two updates
+      return
 
     par = self.particles[ID]
     if (par.obs.shape[0] < 2):

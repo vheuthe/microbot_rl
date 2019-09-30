@@ -3,6 +3,7 @@ import struct
 import itertools
 import numpy as np
 import math
+import time
 from firstrl import AgentActiveMatter 
 
 # CONFIG
@@ -10,9 +11,21 @@ from firstrl import AgentActiveMatter
 address = ('localhost', 22009)
 maxN    = 200*3;
 
+epochs = 30;
+
 train_freq = 10
 
-parameters = {}
+parameters = {
+  'input_dim': 5,
+  'output_dim': 3,
+  'lrPI': 0.003,
+  'lrV': 0.003,
+  'gamma': 0.99,
+  'CL': 0.15,
+  'en_coeff': 0.0,
+  'lam': 0.98,
+  'target_kl': 0.02
+  }
 
 
 # ADDITIONAL ADDITIONAL FUNCTIONS
@@ -48,8 +61,8 @@ def get_obs_rewards(pos):
           #if dist < 15: 
           rewards[i]     += 2/(dist/5+5)*value_cone[n_cone]
           obs[i][n_cone] += 2/(dist/5+5)
-        if (obs[i] == 0).all(): rewards[i] -= 2
-                    #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
+    if (obs[i] == 0).all(): rewards[i] -= 2
+    #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
   return obs, rewards
       
 def get_dist_reltheta(A, B):
@@ -83,31 +96,35 @@ def serve():
             for frame in itertools.count():
                 data = connection.recv(8*maxN)
                 if data:
-
+                    #t0 = time.time()
                                         
                     data = np.array(struct.unpack(str(len(data)//8)+"d", data))
 
-                    if True:
-                      #print('data: {}'.format(data))
-                      print('data shape: {}'.format(data.shape))
-
                     lost, pos = parse_input(data)
                     obs, rewards = get_obs_rewards(pos)
+
+                    #print(time.time() - t0)
 
                     if frame == 0:
                         rl.initialize(obs)
                     elif frame % train_freq == 0:
                         rl.add_env_timeframe(lost, obs, rewards)
-                        rl.train_step()
+                        rl.train_step(epochs=epochs)
                         rl.initialize(obs)
                     else:
                         rl.add_env_timeframe(lost, obs, rewards)
 
+                    #print(time.time() - t0)
+
                     actions = rl.get_actions()
+
+                    #print(time.time() - t0)
 
                     connection.sendall(struct.pack(str(len(actions))+"d", *actions))
                     
-                    print("Recived some data and replied")
+                    #print(time.time() - t0)
+                    
+                    print("Average reward: {}".format(np.mean(rewards)))
  
                 else:
                     print("System call interrupted, Stopping Server")
