@@ -2,20 +2,16 @@ import socket
 import struct
 import itertools
 import numpy as np
-import math
-import time
-from firstrl import AgentActiveMatter 
+from firstrl import AgentActiveMatter
 
 # CONFIG
-
-address = ('localhost', 22009)
-maxN    = 200*3;
-
-epochs = 30;
-
-train_freq = 10
+# (should preferably be read in or at least saved to a file in the Run folder)
 
 parameters = {
+  'max_particles': 200,
+  'host_address': ('localhost', 22009),
+  'training_frequency': 12,
+  'training_epochs': 30,
   'input_dim': 5,
   'output_dim': 3,
   'lrPI': 0.003,
@@ -30,110 +26,74 @@ parameters = {
 
 # ADDITIONAL ADDITIONAL FUNCTIONS
 
-def parse_input(inputdata):
+def parse_input(inputdata, input_dim):
   '''
-  Takes a 1D array of shape (*, 3)
+  Takes a 1D array of shape (*, input_dim + 1)
   '''
-  lost = []
-  inputdata = np.reshape(np.array(inputdata),(-1, 3))
-  lost = np.reshape(np.argwhere(np.isnan(inputdata)[:, 0]), (-1,))
-  mask = ~np.isnan(inputdata)
-  inputdata = inputdata[mask]
-  lost = [index for index in lost]
-  return lost, np.reshape(inputdata,(-1,3))
-
-
-def get_obs_rewards(pos):
-  N = pos.shape[0]
-  # change here dimension of observables
-  obs = np.zeros((N,5))  # each particle has 5 slices of cone of sight
-  rewards = np.zeros((N,1))
-  value_cone=np.array((1.0, 1.0, 1.0, 1.0, 1.0))
-  for i in range(N):
-    for j in range(N):
-      if i!=j:
-        # here calculates distance between particle and relative orientation 
-        # respective to the first particle
-        dist, rel_theta = get_dist_reltheta(pos[i], pos[j])
-        # from here it is arbitrary rewards and observables
-        n_cone = math.floor((rel_theta/math.pi + 1.0)%(2.0)-0.5)
-        if n_cone > -1 and n_cone < 5: 
-          #if dist < 15: 
-          rewards[i]     += 2/(dist/5+5)*value_cone[n_cone]
-          obs[i][n_cone] += 2/(dist/5+5)
-    if (obs[i] == 0).all(): rewards[i] -= 2
-    #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
-  return obs, rewards
-      
-def get_dist_reltheta(A, B):
-    dx = B[0] - A[0]
-    dy = B[1] - A[1]
-    dist = math.sqrt(dx*dx + dy*dy)
-    rel_theta = math.atan2(dy, dx) - A[2]
-    # DEBUG NOT GOOOOOD
-    if np.isnan(rel_theta):
-      rel_theta = np.pi
-    return dist, rel_theta
+  # reshape to expected columns (input_dim observables + 1 reward)
+  inputdata = np.reshape(np.array(inputdata),(-1, input_dim + 1))
+  # get nan lines as 1D list
+  lost = np.argwhere(np.isnan(inputdata)[:, 0]).flatten().tolist();
+  # and remove them (reshape needed as logic indexing flattens the matrix)
+  inputdata = np.reshape(inputdata[~np.isnan(inputdata)], (-1, input_dim + 1))
+  # return lost, obs, rewards
+  return lost, inputdata[:, 0:input_dim], inputdata[:, input_dim:input_dim+1]
 
 
 # SERVER
 
-def serve():
+def serve(parameters):
 
-        rl = AgentActiveMatter(**parameters)
-        
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(address)
-        sock.listen(1)
+  # create RL Agent
+  rl = AgentActiveMatter(**parameters)
 
-        print("listening on {}:{}".format(*(address)))
+  # create TCP socket for communication
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  sock.bind(parameters['host_address'])
+  sock.listen(1)
+  print("listening on {}:{}".format(*(parameters['host_address'])))
 
-        connection, client_address = sock.accept()
+  # wait for matlab to connect
+  connection, client_address = sock.accept()
+  print("Client connected from {}:{}".format(*client_address))
 
-        print("Client connected from {}:{}".format(*client_address))
+  try:
+    for frame in itertools.count():
 
-        try:
-            for frame in itertools.count():
-                data = connection.recv(8*maxN)
-                if data:
-                    #t0 = time.time()
-                                        
-                    data = np.array(struct.unpack(str(len(data)//8)+"d", data))
+      # wait for matlab to send data
+      data = connection.recv(8 * parameters['max_particles'] * (parameters['input_dim'] + 1))
 
-                    lost, pos = parse_input(data)
-                    obs, rewards = get_obs_rewards(pos)
+      if data:
+        # cast bytestream to double array
+        data = np.array(struct.unpack(str(len(data)//8)+"d", data))
 
-                    #print(time.time() - t0)
+        # parse 1d array
+        lost, obs, rewards = parse_input(data, parameters['input_dim'])
 
-                    if frame == 0:
-                        rl.initialize(obs)
-                    elif frame % train_freq == 0:
-                        rl.add_env_timeframe(lost, obs, rewards)
-                        rl.train_step(epochs=epochs)
-                        rl.initialize(obs)
-                    else:
-                        rl.add_env_timeframe(lost, obs, rewards)
+        # feed data to RL network
+        if frame == 0:
+          rl.initialize(obs)
+        elif frame % parameters['training_frequency'] == 0:
+          rl.add_env_timeframe(lost, obs, rewards)
+          rl.train_step(parameters['training_epochs'])
+          rl.initialize(obs)
+        else:
+          rl.add_env_timeframe(lost, obs, rewards)
 
-                    #print(time.time() - t0)
+        # get actions
+        actions = rl.get_actions()
+        # and send them (as bytestream)
+        connection.sendall(struct.pack(str(len(actions))+"d", *actions))
 
-                    actions = rl.get_actions()
+      else:
+        print("System call interrupted, Stopping Server")
+        break
 
-                    #print(time.time() - t0)
-
-                    connection.sendall(struct.pack(str(len(actions))+"d", *actions))
-                    
-                    #print(time.time() - t0)
-                    
-                    print("Average reward: {}".format(np.mean(rewards)))
- 
-                else:
-                    print("System call interrupted, Stopping Server")
-                    break
-        finally:
-            connection.close()
+  finally:
+      connection.close()
 
 
 if __name__ == "__main__":
-    serve()
+    serve(parameters)
 
 
