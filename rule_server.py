@@ -13,7 +13,7 @@ parameters = {
   'training_frequency': 12,
   'training_epochs': 30,
   'input_dim': 5,
-  'output_dim': 3,
+  'output_dim': 4,
   'lrPI': 0.003,
   'lrV': 0.003,
   'gamma': 0.99,
@@ -31,9 +31,13 @@ def parse_input(inputdata, input_dim):
   Takes a 1D array of shape (*, input_dim + 1)
   '''
   # reshape to expected columns (input_dim observables + 1 reward)
-  inputdata = np.reshape(np.array(inputdata),(-1, input_dim + 1))
+  inputdata = np.array(inputdata).reshape((-1, input_dim + 1))
   # get nan lines as 1D list
   lost = np.argwhere(np.isnan(inputdata)[:, 0]).flatten().tolist();
+
+  if len(np.argwhere(np.isnan(inputdata))) > 0:
+    print(inputdata)
+
   # and remove them (reshape needed as logic indexing flattens the matrix)
   inputdata = np.reshape(inputdata[~np.isnan(inputdata)], (-1, input_dim + 1))
   # return lost, obs, rewards
