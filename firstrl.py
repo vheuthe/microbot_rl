@@ -1,12 +1,8 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers
 import scipy.signal
 
 tf.keras.backend.set_floatx('float32')
-
-
-
 
 # Ausiliary functions
 
@@ -76,7 +72,7 @@ class AgentActiveMatter():
   Complete class for Reinforcement Learning.
   Contains two Neural Networks for Actor and Critic, tracks and stores the trajectories
   '''
-  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, **unused_parameters):
+  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, **unused_parameters):
 
     # internal knowledge
     self.input_dim = input_dim
@@ -95,33 +91,46 @@ class AgentActiveMatter():
     self.particles = []
     self.reset_batch()                             # initialize memory (to zero)
 
+    self.critic_path = models_rootname+'_critic/'
+    self.policy_path = models_rootname+'_policy/'
+  
     # ------------------------------------------
+    if (restart_models):
+      self.critic = tf.keras.models.load_model(critic_path)
+      self.policy = tf.keras.models.load_model(policy_path)
+      print('Restarting models, real input and output dimensions should be checked versus inputs: TODO.')
+    else
+      # create actor
+      self.policy = tf.keras.Sequential([
+      # Adds a densely-connected layer:
+      tf.keras.layers.Dense(16, activation='tanh', input_shape=(self.input_dim,)),
+      # Add another dense layer:
+      tf.keras.layers.Dense(8, activation='tanh'),
+      # Add an output layer with n_actions output units:
+      tf.keras.layers.Dense(self.n_actions, activation='linear')])
+      # ------------------------------------------
 
-    # ------------------------------------------
-    # create actor
-    self.policy = tf.keras.Sequential([
-    # Adds a densely-connected layer:
-    layers.Dense(16, activation='tanh', input_shape=(self.input_dim,)),
-    # Add another dense layer:
-    layers.Dense(8, activation='tanh'),
-    # Add an output layer with n_actions output units:
-    layers.Dense(self.n_actions, activation='linear')])
-    # ------------------------------------------
-
-    # ------------------------------------------
-    # create critic
-    self.critic = tf.keras.Sequential([
-    # Adds a densely-connected layer with 6 units to the model:
-    layers.Dense(16, activation='relu', input_shape=(self.input_dim,), kernel_initializer='zeros'),
-    # Add another:
-    layers.Dense(16, activation='relu'),
-    # Add an output layer with 4 output units:
-    layers.Dense(1, activation='linear')])
-    # ------------------------------------------
-    self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
-    # ------------------------------------------
+      # ------------------------------------------
+      # create critic
+      self.critic = tf.keras.Sequential([
+      # Adds a densely-connected layer with 6 units to the model:
+      tf.keras.layers.Dense(16, activation='relu', input_shape=(self.input_dim,), kernel_initializer='zeros'),
+      # Add another:
+      tf.keras.layers.Dense(16, activation='relu'),
+      # Add an output layer with 4 output units:
+      tf.keras.layers.Dense(1, activation='linear')])
+      # ------------------------------------------
+      self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
+      # ------------------------------------------
 
 #  -----------------------------
+  def save_models(self):
+    '''
+    Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
+    '''
+    tf.keras.models.save_model(self.critic, self.critic_path)
+    rf.keras.models.save_model(self.policy, self.policy_path)
+
   def reset_batch(self):
     '''
     set batch of memory to null
