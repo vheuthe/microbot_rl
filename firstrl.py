@@ -96,8 +96,8 @@ class AgentActiveMatter():
   
     # ------------------------------------------
     if (restart_models):
-      self.critic = tf.keras.models.load_model(critic_path)
-      self.policy = tf.keras.models.load_model(policy_path)
+      self.critic = tf.keras.models.load_model(self.critic_path)
+      self.policy = tf.keras.models.load_model(self.policy_path)
       print('Restarting models, real input and output dimensions should be checked versus inputs: TODO.')
     else
       # create actor
