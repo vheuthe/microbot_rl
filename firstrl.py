@@ -98,7 +98,13 @@ class AgentActiveMatter():
     if (restart_models):
       self.critic = tf.keras.models.load_model(self.critic_path)
       self.policy = tf.keras.models.load_model(self.policy_path)
-      print('Restarting models, real input and output dimensions should be checked versus inputs: TODO.')
+
+      loaded_input_dim = self.critic.layers[0].input_shape[1]
+      loaded_output_dim = self.policy.layers[-1].input_shape[1]
+      
+      assert (loaded_input_dim == self.input_dim) 'input dimension does not match with loaded model'
+      assert (loaded_output_dim == self.n_ations) 'action dimension does not match with loaded model'
+
     else
       # create actor
       self.policy = tf.keras.Sequential([
