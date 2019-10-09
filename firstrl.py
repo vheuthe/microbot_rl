@@ -1,3 +1,4 @@
+
 import numpy as np
 import tensorflow as tf
 import scipy.signal
@@ -87,6 +88,7 @@ class AgentActiveMatter():
     self.batch_size = batch_size                            # batch_size
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.N = None
+    self.checkpointID = 0                                   # counter for model checkpoints
 
     self.particles = []
     self.reset_batch()                             # initialize memory (to zero)
@@ -130,12 +132,19 @@ class AgentActiveMatter():
       # ------------------------------------------
 
 #  -----------------------------
-  def save_models(self):
+  def save_models(self, final_save = False):
     '''
     Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
     '''
-    tf.keras.models.save_model(self.critic, self.critic_path)
-    rf.keras.models.save_model(self.policy, self.policy_path)
+    if (final_save):
+      tf.keras.models.save_model(self.critic, self.critic_path)
+      tf.keras.models.save_model(self.policy, self.policy_path)
+    else:
+      cpath = self.critic_path+'checkpoints/ckpt-'+str(self.checkpointID)
+      ppath = self.policy_path+'checkpoints/ckpt-'+str(self.checkpointID)
+      self.critic.save_weights(cpath)
+      self.policy.save_weights(ppath)
+      self.checkpointID += 1
 
   def reset_batch(self):
     '''
