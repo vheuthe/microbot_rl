@@ -135,7 +135,7 @@ class AgentActiveMatter():
     Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
     '''
     tf.keras.models.save_model(self.critic, self.critic_path)
-    rf.keras.models.save_model(self.policy, self.policy_path)
+    tf.keras.models.save_model(self.policy, self.policy_path)
 
   def reset_batch(self):
     '''
