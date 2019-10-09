@@ -146,6 +146,7 @@ class AgentActiveMatter():
       self.policy.save_weights(ppath)
       self.checkpointID += 1
 
+
   def reset_batch(self):
     '''
     set batch of memory to null
