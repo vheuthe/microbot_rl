@@ -27,7 +27,7 @@ import sys
 #===============================================================================
 
 class MD():
-    def __init__(self, index=0, N=10, size=10, steps=20):
+    def __init__(self, index=0, N=10, size=10, steps=20, md_type):
 
         self.dt = 0.2
         self.vel_prey = 0.5
@@ -39,11 +39,13 @@ class MD():
 
         self.Dt = 0.014
         self.Dr = 1.0 / 350.0
-        self.Rm = math.sqrt(2*self.Dm/self.dt)
+        self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
 
         self.filexyz='traj'+str(index)+'.xyz'
         self.particles = self.reinitialize_random_for_MD(index)
+        self.md_type = md_type
+        assert self.md_type in ['group', 'demix'], 'MD type not recognized'
         
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi] 
@@ -76,7 +78,7 @@ class MD():
             xyz_file.write('p '+str(p[i,0])+ ' '+str(p[i,1])+' 0.0 ' + str(p[i,2]) + '\n')
             #xyz_file.write('p '+str(predator[0,0])+ ' '+str(predator[0,1])+' 0.0 ' + str(predator[0,2]) + '\n')
 
-    def get_obs_rewards(self):
+    def get_o_r_group(self):
         p = self.particles
         obs = np.zeros((self.N,5))  # each particle has 5 slices of cone of sight
         rewards = np.zeros((self.N,1))
@@ -92,6 +94,30 @@ class MD():
             if (obs[i] == 0).all(): rewards[i] -= 2
                     #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
         return obs, rewards
+
+    def get_o_r_demix(self):
+        p = self.particles
+        obs = np.zeros((self.N,10))  # each particle has 5 slices of cone of sight
+        rewards = np.zeros((self.N,1))
+        value_cone=np.array((1.0, 1.0, 1.0, 1.0, 1.0))
+        for i in range(self.N):
+            for j in range(self.N):
+                if i!=j:
+                	  other = (i//(N//2) + j//(N//2))%2
+                    n_cone, dist = get_cone_sight(p[i], p[j])
+                    if n_cone > -1 and n_cone < 5: 
+                        #if dist < 15: 
+                        rewards[i]     += 2/(dist/5+10)*value_cone[n_cone] * (-2*other + 1)
+                        obs[i][n_cone+5*other] += 2/(dist/5+10)
+            if (obs[i,:5] == 0).all(): rewards[i] -= 2
+                    #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
+        return obs, rewards
+
+    def get_obs_rewards(self):
+        if self.md_type == 'group':
+        	   return get_o_r_group()
+        elif self.md_type == 'demix':
+        	   return get_o_r_demix()
     
     
 
