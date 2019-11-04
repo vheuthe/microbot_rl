@@ -27,7 +27,7 @@ import sys
 #===============================================================================
 
 class MD():
-    def __init__(self, index=0, N=10, size=10, steps=20, md_type):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20):
 
         self.dt = 0.2
         self.vel_prey = 0.5
@@ -103,11 +103,14 @@ class MD():
         for i in range(self.N):
             for j in range(self.N):
                 if i!=j:
-                	  other = (i//(N//2) + j//(N//2))%2
+                    other = (i//(self.N//2) + j//(self.N//2))%2
                     n_cone, dist = get_cone_sight(p[i], p[j])
                     if n_cone > -1 and n_cone < 5: 
                         #if dist < 15: 
-                        rewards[i]     += 2/(dist/5+10)*value_cone[n_cone] * (-2*other + 1)
+                        if (other == 1):
+                            rewards[i]     += 2/(dist/5+10)*value_cone[n_cone] * -0.1
+                        else:
+                            rewards[i]     += 2/(dist/5+10)*value_cone[n_cone]
                         obs[i][n_cone+5*other] += 2/(dist/5+10)
             if (obs[i,:5] == 0).all(): rewards[i] -= 2
                     #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
@@ -115,10 +118,9 @@ class MD():
 
     def get_obs_rewards(self):
         if self.md_type == 'group':
-        	   return get_o_r_group()
+        	   return self.get_o_r_group()
         elif self.md_type == 'demix':
-        	   return get_o_r_demix()
-    
+        	   return self.get_o_r_demix()
     
 
     def evolve_MD(self, action):
