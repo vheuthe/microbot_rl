@@ -27,10 +27,10 @@ import sys
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel=0.5, dt=0.2):
 
-        self.dt = 0.2
-        self.vel_prey = 0.5
+        self.dt = dt
+        self.vel_prey = vel
         self.torque_prey = 1.0 / 350.0 * 25.0 # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
         
         self.N = N
@@ -112,7 +112,7 @@ class MD():
                         else:
                             rewards[i]     += 2/(dist/5+10)*value_cone[n_cone]
                         obs[i][n_cone+5*other] += 2/(dist/5+10)
-            if (obs[i,:5] == 0).all(): rewards[i] -= 2
+            #if (obs[i,:5] == 0).all(): rewards[i] -= 2
                     #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
         return obs, rewards
 
