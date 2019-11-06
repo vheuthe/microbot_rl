@@ -105,7 +105,7 @@ class AgentActiveMatter():
       loaded_output_dim = self.policy.layers[-1].input_shape[1]
       
       assert (loaded_input_dim == self.input_dim), 'input dimension does not match with loaded model'
-      assert (loaded_output_dim == self.n_ations), 'action dimension does not match with loaded model'
+      assert (loaded_output_dim == self.n_actions), 'action dimension does not match with loaded model'
 
     else:
       # create actor
