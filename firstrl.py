@@ -167,32 +167,39 @@ class AgentActiveMatter():
     self.particles = [SAM(o.reshape(1,self.input_dim)) for o in obs]    # creates list of SAM objects, where to store individual particles
     self.N = obs.shape[0]
 
-  def add_env_timeframe(self, lost, new_obs, rewards):
+  def add_env_timeframe(self, lost, new_obs, rewards, isdone):
     '''
     receives information about the present time step
     from the outside world:
     - lost is list of IDs of particles that have been lost in tracking !! AS NUMBERED IN THE PREVIOUS FRAME!!
     - new_obs is a numpy array of observables of all particles (N_particle, n_input_dim)
-    - rewards is a numpy array defining the rewards of all particles (N_particle)
     '''
 
     for ID_lost in sorted(lost, reverse=True):
       self.finish_path(True, ID_lost)
 
-    # self.N -= len(lost) can subtract too much at the moment
-
-    for i, (o, r) in enumerate(zip(new_obs, rewards)):
-      o = o.reshape(1,self.input_dim)
+    if (not isdone):
+      # self.N -= len(lost) can subtract too much at the moment
+      for i, (o, r) in enumerate(zip(new_obs, rewards)):
+        o = o.reshape(1,self.input_dim)
       # if (i < self.N):
-      if i < len(self.particles): # should work as well?
-        par = self.particles[i]
-        v = self.critic(par.current).numpy()[0,0]
-        par.add_obs_rew_val(o, r, v)
-      else:
-        self.add_in_memory(o)
+        if i < len(self.particles): # should work as well?
+          par = self.particles[i]
+          v = self.critic(par.current).numpy()[0,0]
+          par.add_obs_rew_val(o, r, v)
+        else:
+          self.add_in_memory(o)
+      # new number of particles
+      self.N = new_obs.shape[0]
 
-    # new number of particles
-    self.N = new_obs.shape[0]
+    else: # if trajectory is DONE
+      for i, (o, r) in reversed(list(enumerate(zip(new_obs,rewards)))):
+        o = o.reshape(1,self.input_dim)
+        if i < len(self.particles):
+          par = self.particles[i]
+          v = self.critic(par.current).numpy()[0,0]
+          par.add_obs_rew_val(o, r, v)
+          self.finish_path(False, i, isdone=True, last_reward=r)
 
   def add_in_memory(self, o):
     self.particles.append(SAM(o))
@@ -214,11 +221,13 @@ class AgentActiveMatter():
       a = from_policy_to_actions(pi_logp)
       logp = pi_logp[0, a]
       par.add_act_logp(a, logp)
+      #print('HERE #par.actions: {}'.format(len(par.act)))
+      #print('HERE #par.rewards: {}'.format(len(par.rew)))
       actions = np.append(actions, a)
 
     return actions
 
-  def finish_path(self, lost = False, ID = -1):
+  def finish_path(self, lost = False, ID = -1, isdone=False, last_reward=0.0):
     """
     - FROM SPINNING UP's PPO CODE -
     Call this at the end of a trajectory, or when one gets cut off
@@ -257,7 +266,8 @@ class AgentActiveMatter():
     last_val = 0.0
     if (not lost):
       last_val = self.critic(par.current).numpy()[0,0]
-
+    if (isdone):
+      last_val = last_reward
 
     # finish trajectory adding to memory the entire set of (obs, actions, logp, target)
     rews = np.append(par.rew, last_val)
@@ -284,6 +294,7 @@ class AgentActiveMatter():
 
     # deletes the particle from memory
     self.particles.pop(ID) # CHECK IF THIS MESSES ORDER DURING TRAIN OR BETTER NOT DO HERE
+    #print('FINISHING PATHS, HERE actions are: {}'.format(self.actions))
 
   def normalize_adv(self):
     '''
@@ -293,8 +304,7 @@ class AgentActiveMatter():
 
   def train_step(self, epochs=10):
     '''
-    train step, to be called after batch_size examples are taken,
-    or the episode is done.
+    train step, to be called after batch_size examples are taken.
     In the first part, the (normalized) General Advantages Estimations are
     calculated.
     Then, it calculates the derivative for the clipped-PPO
@@ -313,7 +323,8 @@ class AgentActiveMatter():
     # ----------------------------------
     self.normalize_adv()
     adv = self.adv
-
+    #DEBUG
+    #print('HERE. act: {}, obs: {}, adv: {}'.format(act, obs, adv))
 
     for i in range(epochs):
       with tf.GradientTape() as tape:
@@ -334,7 +345,7 @@ class AgentActiveMatter():
       opt.apply_gradients(zip(grads, self.policy.trainable_variables))   #HOW MUCH???
       approx_kl = tf.reduce_mean(old_logp - new_logp_reduced)
       if (approx_kl > 1.5 * self.target_kl):
-        print('iter: {}, approx_kl: {}'.format(i, approx_kl))
+        #print('iter: {}, approx_kl: {}'.format(i, approx_kl))
         break
 
     # -- CRITIC FITTING --------------------------

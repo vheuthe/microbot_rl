@@ -27,11 +27,11 @@ import sys
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel=0.5, dt=0.2):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0):
 
         self.dt = dt
         self.vel_prey = vel
-        self.torque_prey = 1.0 / 350.0 * 25.0 # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+        self.torque_prey = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
         
         self.N = N
         self.size = size
@@ -108,7 +108,7 @@ class MD():
                     if n_cone > -1 and n_cone < 5: 
                         #if dist < 15: 
                         if (other == 1):
-                            rewards[i]     += 2/(dist/5+10)*value_cone[n_cone] * -0.1
+                            rewards[i]     += 2/(dist/5+10)*value_cone[n_cone] * -0.5
                         else:
                             rewards[i]     += 2/(dist/5+10)*value_cone[n_cone]
                         obs[i][n_cone+5*other] += 2/(dist/5+10)
