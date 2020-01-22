@@ -1,4 +1,6 @@
 import socket
+import sys
+import traceback
 import struct
 import itertools
 import numpy as np
@@ -20,7 +22,9 @@ parameters = {
   'CL': 0.15,
   'en_coeff': 0.0,
   'lam': 0.98,
-  'target_kl': 0.02
+  'target_kl': 0.02,
+  'save_models': False,
+  'models_rootname': './model'
   }
 
 
@@ -91,6 +95,10 @@ def serve(parameters):
 
       else:
         print("System call interrupted, Stopping Server")
+
+        if parameters['save_models'] :
+          rl.save_models(True)
+        
         break
 
   finally:
@@ -98,6 +106,13 @@ def serve(parameters):
 
 
 if __name__ == "__main__":
+  try:
+    if len(sys.argv) > 1:
+      parameters['models_rootname'] = sys.argv[1] + 'model'
+      parameters['save_models'] = True
     serve(parameters)
+  except:
+    traceback.print_exc(file=sys.stdout)
+    input("Press Enter to continue...")
 
 
