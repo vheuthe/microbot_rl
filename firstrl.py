@@ -92,14 +92,13 @@ class AgentActiveMatter():
 
     self.particles = []
     self.reset_batch()                             # initialize memory (to zero)
-
-    self.critic_path = models_rootname+'_critic/'
-    self.policy_path = models_rootname+'_policy/'
   
     # ------------------------------------------
     if (restart_models):
-      self.critic = tf.keras.models.load_model(self.critic_path)
-      self.policy = tf.keras.models.load_model(self.policy_path)
+      print('Loading from ' + models_rootname)
+        
+      self.critic = tf.keras.models.load_model(models_rootname+'_critic/')
+      self.policy = tf.keras.models.load_model(models_rootname+'_policy/')
 
       loaded_input_dim = self.critic.layers[0].input_shape[1]
       loaded_output_dim = self.policy.layers[-1].output_shape[1]
@@ -132,16 +131,16 @@ class AgentActiveMatter():
       # ------------------------------------------
 
 #  -----------------------------
-  def save_models(self, final_save = False):
+  def save_models(self, path, final_save = False):
     '''
     Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
     '''
     if (final_save):
-      tf.keras.models.save_model(self.critic, self.critic_path)
-      tf.keras.models.save_model(self.policy, self.policy_path)
+      tf.keras.models.save_model(self.critic, path+'_critic/')
+      tf.keras.models.save_model(self.policy, path+'_policy/')
     else:
-      cpath = self.critic_path+'checkpoints/ckpt-'+str(self.checkpointID)
-      ppath = self.policy_path+'checkpoints/ckpt-'+str(self.checkpointID)
+      cpath = path+'_critic/checkpoints/ckpt-'+str(self.checkpointID)
+      ppath = path+'_policy/checkpoints/ckpt-'+str(self.checkpointID)
       self.critic.save_weights(cpath)
       self.policy.save_weights(ppath)
       self.checkpointID += 1

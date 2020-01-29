@@ -23,8 +23,7 @@ parameters = {
   'en_coeff': 0.0,
   'lam': 0.98,
   'target_kl': 0.02,
-  'save_models': False,
-  'models_rootname': './model'
+  'save_models': False
   }
 
 
@@ -82,11 +81,11 @@ def serve(parameters):
         if frame == 0:
           rl.initialize(obs)
         elif frame % parameters['training_frequency'] == 0:
-          rl.add_env_timeframe(lost, obs, rewards)
+          rl.add_env_timeframe(lost, obs, rewards, False)
           rl.train_step(parameters['training_epochs'])
           rl.initialize(obs)
         else:
-          rl.add_env_timeframe(lost, obs, rewards)
+          rl.add_env_timeframe(lost, obs, rewards, False)
 
         # get actions
         actions = rl.get_actions()
@@ -97,7 +96,8 @@ def serve(parameters):
         print("System call interrupted, Stopping Server")
 
         if parameters['save_models'] :
-          rl.save_models(True)
+          print('Saving models to ' + parameters['models_savepath'])
+          rl.save_models(parameters['models_savepath'], True)
         
         break
 
@@ -108,8 +108,11 @@ def serve(parameters):
 if __name__ == "__main__":
   try:
     if len(sys.argv) > 1:
-      parameters['models_rootname'] = sys.argv[1] + 'model'
+      parameters['models_savepath'] = sys.argv[1]
       parameters['save_models'] = True
+    if len(sys.argv) > 2:
+      parameters['models_rootname'] = sys.argv[2]
+      parameters['restart_models'] = True
     serve(parameters)
   except:
     traceback.print_exc(file=sys.stdout)
