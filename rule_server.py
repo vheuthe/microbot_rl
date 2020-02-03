@@ -1,14 +1,14 @@
 import socket
 import sys
+import os
+import json
 import traceback
 import struct
 import itertools
 import numpy as np
 from firstrl import AgentActiveMatter
 
-# CONFIG
-# (should preferably be read in or at least saved to a file in the Run folder)
-
+# DEFAULT CONFIG
 parameters = {
   'max_particles': 200,
   'host_address': ('localhost', 22009),
@@ -56,7 +56,7 @@ def serve(parameters):
 
   # create TCP socket for communication
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  sock.bind(parameters['host_address'])
+  sock.bind(tuple(parameters['host_address'])) # field might be a list due to json parsing
   sock.listen(1)
   print("listening on {}:{}".format(*(parameters['host_address'])))
 
@@ -98,7 +98,7 @@ def serve(parameters):
         if parameters['save_models'] :
           print('Saving models to ' + parameters['models_savepath'])
           rl.save_models(parameters['models_savepath'], True)
-        
+
         break
 
   finally:
@@ -107,15 +107,13 @@ def serve(parameters):
 
 if __name__ == "__main__":
   try:
-    if len(sys.argv) > 1:
-      parameters['models_savepath'] = sys.argv[1]
-      parameters['save_models'] = True
-    if len(sys.argv) > 2:
-      parameters['models_rootname'] = sys.argv[2]
-      parameters['restart_models'] = True
+    if os.path.isfile("./rl-parameters.json"):
+      with open("./rl-parameters.json") as paramfile:
+        parameters.update(json.load(paramfile))
+    with open("./rl-parameters.json", 'w', encoding='utf-8') as paramfile:
+      json.dump(parameters, paramfile, ensure_ascii=False, indent=4)
     serve(parameters)
   except:
     traceback.print_exc(file=sys.stdout)
-    input("Press Enter to continue...")
 
 
