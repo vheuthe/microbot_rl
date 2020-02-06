@@ -92,21 +92,22 @@ class AgentActiveMatter():
 
     self.particles = []
     self.reset_batch()                             # initialize memory (to zero)
-  
+
     # ------------------------------------------
     if (restart_models):
       print('Loading from ' + models_rootname)
-        
+
       self.critic = tf.keras.models.load_model(models_rootname+'_critic/')
       self.policy = tf.keras.models.load_model(models_rootname+'_policy/')
 
       loaded_input_dim = self.critic.layers[0].input_shape[1]
       loaded_output_dim = self.policy.layers[-1].output_shape[1]
-      
+
       assert (loaded_input_dim == self.input_dim), 'input dimension does not match with loaded model'
       assert (loaded_output_dim == self.n_actions), 'action dimension does not match with loaded model'
 
     else:
+      print('Starting new model')
       # create actor
       self.policy = tf.keras.Sequential([
       # Adds a densely-connected layer:
