@@ -1,6 +1,3 @@
-# THIS IS JUST THE MOLECULAR DYNAMICS THAT I USE FOR THE FIRST TRIALS
-
-
 # ---------------------------------------
 import numpy as np
 import math
@@ -58,13 +55,13 @@ class MD():
         pos = np.array([[i,j,0] for i in np.arange(-sN//2-1,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
         for i in range(sN):
             for j in range(sN):
-                if (i*sN+j+1) < self.N :
+                if (i*sN+j) < self.N :
                   oo = np.random.randint(pos.shape[0])
-                  particles[i*sN+j+1,:] += pos[oo]*5.0
+                  particles[i*sN+j,:] += pos[oo]*10.0
                   pos = np.delete(pos, oo, axis=0)
         open(self.filexyz, "w") 
         return particles
-        
+
   # PRINT TRAJECTORY
     def print_xyz(self):
         p = self.particles
@@ -74,33 +71,25 @@ class MD():
             if self.md_type == 'demix':
                 xyz_file.write(str(i//(self.N/2))+' '+str(p[i,0])+' '+str(p[i,1])+' 0.0 '+str(np.cos(p[i,2]))+' '+str(np.sin(p[i,2]))+'\n')
             #xyz_file.write('p '+str(predator[0,0])+ ' '+str(predator[0,1])+' 0.0 ' + str(predator[0,2]) + '\n')
+            elif self.md_type == 'group':
+                xyz_file.write('0 '+str(p[i,0])+' '+str(p[i,1])+' 0.0 '+str(np.cos(p[i,2]))+' '+str(np.sin(p[i,2]))+'\n')
 
-    def get_o_r_group(self):
-        p = self.particles
-        obs = np.zeros((self.N,5))  # each particle has 5 slices of cone of sight
-        rewards = np.zeros((self.N,1))
-        value_cone=np.array((1.0, 1.0, 1.0, 1.0, 1.0))
-        for i in range(self.N):
-            for j in range(self.N):
-                if i!=j:
-                    n_cone, dist = get_cone_sight(p[i], p[j])
-                    if n_cone > -1 and n_cone < 5: 
-                        #if dist < 15: 
-                        rewards[i]     += 2/(dist/5+10)*value_cone[n_cone]
-                        obs[i][n_cone] += 2/(dist/5+10)
-            if (obs[i] == 0).all(): rewards[i] -= 2
-                    #HERE I SHOULD USE A SATURATING VALUE OF SOMETHING. PERHAPS THE SAME AS IN CLEMEN'S WORK
-        return obs, rewards
-  
     def get_o_r_demix_fortran(self):
         t0 = time.time()    
         p = self.particles 
-        obs, rewards = evolve.get_o_r_demix(p[:,0],p[:,1],p[:,2],1.0,self.N) #0.75 is cost associated to having "others" in sight
+        obs, rewards = evolve.get_o_r_demix(p[:,0],p[:,1],p[:,2],1.0,self.N) #1.0 is cost associated to having "others" in sight
         return obs, rewards
+
+    def get_o_r_group_fortran(self):
+        t0 = time.time()
+        p = self.particles
+        obs, rewards = evolve.get_o_r_group(p[:,0],p[:,1],p[:,2],self.N)
+        return obs, rewards
+
 
     def get_obs_rewards(self):
         if self.md_type == 'group':
-        	   return self.get_o_r_group()
+        	   return self.get_o_r_group_fortran()
         elif self.md_type == 'demix':
         	   return self.get_o_r_demix_fortran()
     
