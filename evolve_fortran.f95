@@ -16,7 +16,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     real :: dx, dy, r2
     ! =======================================
     ! force parameters
-    real :: eps = 1., ss = 4.8, ss2, ss6, ss12, ff
+    real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff
     ! =======================================
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
@@ -147,14 +147,15 @@ subroutine get_o_r_demix(X,Y,Theta,cost,N,Obs,Rew)
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor((th + 0.5)*5) + 1
-            val = 2.0/(r/5.0+10.0)
+            val = (6.8/r)**2
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val
                 Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
             ! j to i
-            dtheta = dtheta + PI
-            n_cone = floor( (mod(((dtheta - Theta(j)) / PI + 1.0),2.)-0.5) * 5)+1
+            th = (dtheta + PI - Theta(j))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(j,n_cone+other*5) = Obs(j,n_cone+other*5)+val
                 Rew(j) = Rew(j)+val*(1.-other*(1+cost))
@@ -164,3 +165,155 @@ subroutine get_o_r_demix(X,Y,Theta,cost,N,Obs,Rew)
     return
 
 end subroutine
+
+
+subroutine get_o_r_demix_repulse(X,Y,Theta,cost,N,Obs,Rew)
+! ===========================================
+! gets observables and rewards from positions
+! ===========================================
+    implicit none
+    real , intent(in) :: X(N), Y(N), Theta(N), cost
+    integer, intent(in) :: N
+    real , intent(out) :: Obs(N,10), Rew(N)
+    integer :: i, j, other, n_cone
+    real :: dx, dy, r, dtheta, val_o, val_r, th
+    real, parameter :: PI = 3.14159265358979323846264
+
+    Obs = 0
+    Rew = 0
+    do i = 1, N-1
+        do j = i+1, N
+            other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
+            dx = X(j)-X(i)
+            dy = Y(j)-Y(i)
+            r = sqrt(dx*dx + dy*dy)
+            dtheta = atan2(dy,dx)
+            ! i to j 
+            th = (dtheta - Theta(i))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
+            val_o = 2.0/(r/5.0+10.0)
+            val_r = -500.0*(r**2-6.0*r-20.0)/(-(r+10.0)**4)
+            if ((n_cone < 6) .and. (n_cone>0)) then
+                Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val_o
+                if (other < 0.5) then
+                    Rew(i) = Rew(i)+val_r
+                else
+                    Rew(i) = Rew(i)-val_o*cost 
+                endif                   
+            endif
+            ! j to i
+            th = (dtheta + PI - Theta(j))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
+            if ((n_cone < 6) .and. (n_cone>0)) then
+                Obs(j,n_cone+other*5) = Obs(j,n_cone+other*5)+val_o
+                if (other < 0.5) then
+                    Rew(i) = Rew(i)+val_r
+                else
+                    Rew(i) = Rew(i)-val_o*cost
+                endif
+            endif
+        enddo
+    enddo
+    return
+
+end subroutine
+
+subroutine get_o_r_group_repulse(X,Y,Theta,N,Obs,Rew)
+! ===========================================
+! gets observables and rewards from positions
+! ===========================================
+    implicit none
+    real , intent(in) :: X(N), Y(N), Theta(N)
+    integer, intent(in) :: N
+    real , intent(out) :: Obs(N,5), Rew(N)
+    integer :: i, j, n_cone
+    real :: dx, dy, r, dtheta, val_o, val_r, th
+    real, parameter :: PI = 3.14159265358979323846264
+
+    Obs = 0
+    Rew = 0
+    do i = 1, N-1
+        do j = i+1, N
+            dx = X(j)-X(i)
+            dy = Y(j)-Y(i)
+            r = sqrt(dx*dx + dy*dy)
+            dtheta = atan2(dy,dx)
+            ! i to j 
+            th = (dtheta - Theta(i))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
+            val_o = 2.0/(r/5.0+10.0)
+            val_r = -500.0*(r**2-6.0*r-20.0)/(-(r+10.0)**4)
+            if ((n_cone < 6) .and. (n_cone>0)) then
+                Obs(i,n_cone) = Obs(i,n_cone)+val_o
+                Rew(i) = Rew(i)+val_r
+            endif
+            ! j to i
+            th = (dtheta + PI - Theta(j))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
+            if ((n_cone < 6) .and. (n_cone>0)) then
+                Obs(j,n_cone) = Obs(j,n_cone)+val_o
+                Rew(j) = Rew(j)+val_r
+            endif
+        enddo
+    enddo
+
+    do i = 1, N
+       if ( sum(Obs(i,:)) .eq. 0 ) Rew(i) = -2
+    enddo
+
+    return
+
+end subroutine
+
+subroutine get_o_r_group(X,Y,Theta,N,Obs,Rew)
+! ===========================================
+! gets observables and rewards from positions
+! ===========================================
+    implicit none
+    real , intent(in) :: X(N), Y(N), Theta(N)
+    integer, intent(in) :: N
+    real , intent(out) :: Obs(N,5), Rew(N)
+    integer :: i, j, n_cone
+    real :: dx, dy, r, dtheta, val, th
+    real, parameter :: PI = 3.14159265358979323846264
+
+    Obs = 0
+    Rew = 0
+    do i = 1, N-1
+        do j = i+1, N
+            dx = X(j)-X(i)
+            dy = Y(j)-Y(i)
+            r = sqrt(dx*dx + dy*dy)
+            dtheta = atan2(dy,dx)
+            ! i to j 
+            th = (dtheta - Theta(i))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
+            val = (6.8/r)**2
+            if ((n_cone < 6) .and. (n_cone>0)) then
+                Obs(i,n_cone) = Obs(i,n_cone)+val
+                Rew(i) = Rew(i)+val
+            endif
+            ! j to i
+            th = (dtheta + PI - Theta(j))/2./PI
+            th = th - floor(th + 0.5)
+            n_cone = floor((th + 0.5)*5) + 1
+            if ((n_cone < 6) .and. (n_cone>0)) then
+                Obs(j,n_cone) = Obs(j,n_cone)+val
+                Rew(j) = Rew(j)+val
+            endif
+        enddo
+    enddo
+
+    do i = 1, N
+       if ( sum(Obs(i,:)) .eq. 0 ) Rew(i) = -2
+    enddo
+
+    return
+
+end subroutine
+
