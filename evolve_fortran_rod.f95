@@ -267,12 +267,15 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, N, Nrod, Obs, 
             val =  (6.8/r)**2
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+5) = Obs(i,n_cone+5)+val
-                Rew(i) = Rew(i) + dRod * cos(a-b) /( ((r-ss*0.8)/ss) )
            endif
 
         enddo
-
+        dx = cmRod(1) - X(i)
+        dy = cmRod(2) - Y(i)
+        r = sqrt(dx*dx + dy*dy)
+        Rew(i) = dRod * cos(a-b) / (r/ss)
 
     enddo
+
     return
 end subroutine
