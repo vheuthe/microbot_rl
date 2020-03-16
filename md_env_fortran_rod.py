@@ -27,7 +27,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0):
+    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, traj=False):
 
         self.dt = dt
         self.vel_prey = vel
@@ -44,7 +44,8 @@ class MD_ROD():
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
 
-        self.filexyz='traj'+str(index)+'.xyz'
+        if (traj):
+            self.filexyz='traj'+str(index)+'.xyz'
         self.particles, self.rod = self.reinitialize_random_for_MD(index)
         self.old_rod = self.rod
 # --------------------------
@@ -65,14 +66,15 @@ class MD_ROD():
 
   # PRINT TRAJECTORY
     def print_xyz(self):
-        p = self.particles
-        rod = self.rod
-        xyz_file = open(self.filexyz, "a") 
-        xyz_file.write('\n\n')
-        for i in range(self.N):
-            xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i] ) )
-        for i in range(self.Nrod):
-            xyz_file.write('1 {} {} 0.0 0.0 0.0 0.0\n'.format(rod[i,0], rod[i,1]) )
+        if traj:
+            p = self.particles
+            rod = self.rod
+            xyz_file = open(self.filexyz, "a") 
+            xyz_file.write('\n\n')
+            for i in range(self.N):
+                xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i] ) )
+            for i in range(self.Nrod):
+                xyz_file.write('1 {} {} 0.0 0.0 0.0 0.0\n'.format(rod[i,0], rod[i,1]) )
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_o_r_rod_fortran(self):

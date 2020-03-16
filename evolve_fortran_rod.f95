@@ -34,6 +34,7 @@ subroutine evolve_MD_rod(X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
     
     new_XY_rod(:,1) = Xrod
     new_XY_rod(:,2) = Yrod
+    massRod = 1.5d0 / Nrod
 
     rodXcm = SUM(new_XY_rod(:,1))/Nrod
     rodYcm = SUM(new_XY_rod(:,2))/Nrod
@@ -146,7 +147,7 @@ subroutine evolve_MD_rod(X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
 
       rodXcm = rodXcm + dt*velXrod/Nrod/massRod
       rodYcm = rodYcm + dt*velXrod/Nrod/massRod
-      rodtheta = rodtheta + dt*torquerod/Nrod/Nrod/5 ! FAKE Inertia
+      rodtheta = rodtheta + dt*torquerod/Irod ! FAKE Inertia
 
     ! =============================
     ! transform rod 
