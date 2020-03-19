@@ -190,7 +190,7 @@ contains
 end subroutine
 
 
-subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, N, Nrod, Obs, Rew, mode)
+subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -222,6 +222,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, N, Nrod, Obs, 
 
     rotRod = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1)) - &
              atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1))
+    rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
     ! =============================
     ! seeing other particles
@@ -288,8 +289,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, N, Nrod, Obs, 
                 Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
             case (3)
                 Rew(i) = reward_rotate(rotRod, torque, near)
-        end select
-
+            end select
     enddo
 
     return
