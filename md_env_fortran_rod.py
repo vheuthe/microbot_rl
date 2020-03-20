@@ -27,7 +27,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, massRod=10., traj=False, case=1):
+    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1):
 
         self.dt = dt
         self.vel_prey = vel
@@ -49,7 +49,7 @@ class MD_ROD():
         # 1 - move rod
         # 2 - move rod along -x direction
         # 3 - rotate rod
-        self.case = case
+        self.mode = mode
         self.traj = traj
 
         if (self.traj):
@@ -91,7 +91,7 @@ class MD_ROD():
         p = self.particles 
         r = self.rod
         olr = self.old_rod
-        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.case, self.N, self.Nrod)
+        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.N, self.Nrod)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
