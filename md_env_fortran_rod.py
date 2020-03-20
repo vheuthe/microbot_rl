@@ -29,33 +29,41 @@ import evolve_fortran_rod as evolve
 class MD_ROD():
     def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1):
 
-        self.dt = dt
-        self.vel_prey = vel
-        self.torque_prey = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
-        
+        # internal knowledge of system
         self.N = N
         self.Nrod = Nrod
         self.size = size
-        self.n_MD_steps =steps
+        self.n_MD_steps = steps
+        # cone of sight. 5x particles, 5x rod particles
+        self.Nobs = 10
         self.rewards = np.zeros(N)
 
+        # type of task.
+        # determines reward function, and observation space.
+        # 1 - move rod
+        # 2 - move rod along -x direction
+        # 3 - rotate rod
+        self.mode = mode
+        if (self.mode == 2): #directional pushing
+            self.Nobs = 12
+            
+        # parameters of dynamics
+        self.dt = dt
         self.Dt = 0.014
         self.Dr = 1.0 / 350.0
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.massRod = massRod
-
-        # type of rewards
-        # 1 - move rod
-        # 2 - move rod along -x direction
-        # 3 - rotate rod
-        self.mode = mode
+        self.vel_prey = vel
+        self.torque_prey = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+        
+        # output trjectory
         self.traj = traj
-
         if (self.traj):
             self.filexyz='traj'+str(index)+'.xyz'
         self.particles, self.rod = self.reinitialize_random_for_MD(index)
         self.old_rod = self.rod
+
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi] 
     def reinitialize_random_for_MD(self, index):
@@ -91,7 +99,7 @@ class MD_ROD():
         p = self.particles 
         r = self.rod
         olr = self.old_rod
-        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.N, self.Nrod)
+        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.N, self.Nobs, self.Nrod)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
@@ -116,17 +124,4 @@ class MD_ROD():
 # ------------------------------------
 # End of class MD
 # ------------------------------------
-
-# CHECK FOR CONE OF SIGHT
-def minus_0p5pi_to_1p5pi_mod(theta1):
-    return (theta1 + math.pi)%(2*math.pi)-math.pi/2.0
-
-def get_cone_sight(A, B):
-    dx = B[0] - A[0]
-    dy = B[1] - A[1]
-    dist = math.sqrt(dx*dx + dy*dy)
-    dist_theta = math.atan2(dy, dx)
-    rel_theta = ((dist_theta - A[2])/math.pi + 1.0)%(2.0)-0.5
-    n_cone = math.floor(rel_theta*5) 
-    return int(n_cone), dist
 	

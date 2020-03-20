@@ -190,7 +190,7 @@ contains
 end subroutine
 
 
-subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nrod, Obs, Rew)
+subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nobs, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -198,8 +198,8 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nrod,
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod)
-    integer, intent(in) :: N, Nrod, mode
-    real, intent(out)   :: Obs(N,10), Rew(N)
+    integer, intent(in) :: N, Nrod, Nobs, mode
+    real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, n_cone
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
     real :: dRodtheta, dRod, rotRod
@@ -287,6 +287,8 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nrod,
                 Rew(i) = reward_move(r/ss, dRod, a, b, near)
             case (2)
                 Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
+                Obs(i, 11) = cos(a)
+                Obs(i, 12) = sin(a)
             case (3)
                 Rew(i) = reward_rotate(rotRod, torque, near)
             end select
