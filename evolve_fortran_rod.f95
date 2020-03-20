@@ -190,7 +190,7 @@ contains
 end subroutine
 
 
-subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nobs, Nrod, Obs, Rew)
+subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, Nobs, N, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -238,7 +238,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nobs,
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor((th + 0.5)*5) + 1
-            val = (6.8/r)**2
+            val = (ss/r)
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone) = Obs(i,n_cone)+val
             endif
@@ -269,7 +269,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, N, Nobs,
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor((th + 0.5)*5) + 1
-            val =  (6.8/r)**2
+            val =  (ss/r)
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+5) = Obs(i,n_cone+5)+val
                 if (r < 2.*ss) near = 1.

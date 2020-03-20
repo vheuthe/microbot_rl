@@ -99,7 +99,7 @@ class MD_ROD():
         p = self.particles 
         r = self.rod
         olr = self.old_rod
-        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.N, self.Nobs, self.Nrod)
+        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.Nobs, self.N, self.Nrod)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
