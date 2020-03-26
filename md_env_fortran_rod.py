@@ -27,7 +27,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1):
+    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1, rotDirection=0):
 
         # internal knowledge of system
         self.N = N
@@ -46,7 +46,11 @@ class MD_ROD():
         self.mode = mode
         if (self.mode == 2): #directional pushing
             self.Nobs = 12
-            
+        
+        if (self.mode == 4): #rotation with direction    
+            self.
+            self.Nobs = 11
+        
         # parameters of dynamics
         self.dt = dt
         self.Dt = 0.014

@@ -190,7 +190,7 @@ contains
 end subroutine
 
 
-subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, Nobs, N, Nrod, Obs, Rew)
+subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_direction, Nobs, N, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -198,7 +198,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, Nobs, N,
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod)
-    integer, intent(in) :: N, Nrod, Nobs, mode
+    integer, intent(in) :: N, Nrod, Nobs, mode, rot_direction
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, n_cone
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
@@ -289,8 +289,11 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, Nobs, N,
                 Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
                 Obs(i, 11) = cos(a)
                 Obs(i, 12) = sin(a)
-            case (3)
-                Rew(i) = reward_rotate(rotRod, torque, near)
+            case (3) ! reward positive irrespective to direction of rotation
+                Rew(i) = reward_rotate(abs(rotRod), torque, near)
+            case (4) ! reward positive only if clockwise (-1) or anti-clockwise (+1)
+                Rew(i) = reward_rotate(rotRod*rot_direction, torque, near)
+                Obs(i, 11) = rot_direction
             end select
     enddo
 
@@ -312,7 +315,7 @@ contains
       implicit none
       !  real :: rand ! using old generator
       real :: rss, a, b, near, dRod
-      reward_move_back =  -cos(b) * dRod * cos(a-b) / rss * near
+      reward_move_back =  -cos(b) * dRod * cos(a)**2 / rss * near
       return
     end function reward_move_back    
     
