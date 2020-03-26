@@ -282,19 +282,23 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
         torque = cos(a)*dy - sin(a)*dx
         
         ! different reward functions to choose from
-        select case (mode)
-            case (1)
-                Rew(i) = reward_move(r/ss, dRod, a, b, near)
-            case (2)
-                Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
-                Obs(i, 11) = cos(a)
-                Obs(i, 12) = sin(a)
-            case (3) ! reward positive irrespective to direction of rotation
-                Rew(i) = reward_rotate(abs(rotRod), torque, near)
-            case (4) ! reward positive only if clockwise (-1) or anti-clockwise (+1)
-                Rew(i) = reward_rotate(rotRod*rot_direction, torque, near)
-                Obs(i, 11) = rot_direction
-            end select
+        if (near == 1) then
+            select case (mode)
+                case (1)
+                    Rew(i) = reward_move(r/ss, dRod, a, b, near)
+                case (2)
+                    Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
+                    Obs(i, 11) = cos(a)
+                    Obs(i, 12) = sin(a)
+                case (3) ! reward positive irrespective to direction of rotation
+                    Rew(i) = reward_rotate(abs(rotRod), torque, near)
+                case (4) ! reward positive only if clockwise (-1) or anti-clockwise (+1)
+                    Rew(i) = reward_rotate(rotRod*rot_direction, torque, near)
+                    Obs(i, 11) = rot_direction
+                end select
+        else
+            Rew(i) = -0.1
+        endif
     enddo
 
     return
