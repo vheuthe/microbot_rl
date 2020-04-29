@@ -310,7 +310,7 @@ contains
       implicit none
       !  real :: rand ! using old generator
       real :: rotRod, tq, near
-      reward_rotate =  rotRod * tq * near
+      reward_rotate =  rotRod * tq * near * 10.
       return
     end function reward_rotate    
 
@@ -319,7 +319,7 @@ contains
       implicit none
       !  real :: rand ! using old generator
       real :: rss, a, b, near, dRod
-      reward_move_back =  -cos(b) * dRod * cos(a)**2 / rss * near
+      reward_move_back =  -cos(b) * dRod * cos(a)**2 / rss * near * 10.
       return
     end function reward_move_back    
     
@@ -328,7 +328,7 @@ contains
       implicit none
       !  real :: rand ! using old generator
       real :: rss, a, b, near, dRod
-      reward_move = dRod * cos(a-b) / rss * near
+      reward_move = dRod * cos(a-b) / rss * near * 10.
       return
     end function reward_move
     
