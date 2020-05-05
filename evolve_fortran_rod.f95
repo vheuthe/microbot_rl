@@ -1,5 +1,5 @@
-subroutine evolve_MD_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
-                     nsteps, tor, vel, N, Nrod, new_XYT, new_XY_rod)
+subroutine evolve_md_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
+                     nsteps, tor, vel_act, vel_tor, N, Nrod, new_XYT, new_XY_rod)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -8,11 +8,11 @@ subroutine evolve_MD_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
     real,    intent(in) :: Xrod(Nrod), Yrod(Nrod)
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
-    real,    intent(in) :: Rm, Rr, tor, vel, dt, mR
+    real,    intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt, mR
     ! =======================================
     real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
     ! =======================================
-    real :: velX(N), velY(N), velR(N)
+    real :: velX(N), velY(N), velR(N), v
     real :: velXrod, velYrod, torquerod, rodXcm, rodYcm, rodtheta
     integer :: i, j, it
     real :: dx, dy, r2, drodx, drody
@@ -64,11 +64,17 @@ subroutine evolve_MD_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
             velR(i) = gran()*Rr
 
             if (act(i)>0) then
-                velX(i) = velX(i) + cos(new_XYT(i,3))*vel
-                velY(i) = velY(i) + sin(new_XYT(i,3))*vel
+                ! ========================
+                ! Action includes rotation
+                ! ========================
+                v = vel_act
                 if (act(i)>1) then
+                    v = vel_tor
                     velR(i) = velR(i) - 2*tor*(act(i)-2.5)
                 endif
+                velX(i) = velX(i) + cos(new_XYT(i,3))*v
+                velY(i) = velY(i) + sin(new_XYT(i,3))*v
+
             endif
          enddo
 
@@ -238,7 +244,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor((th + 0.5)*5) + 1
-            val = (ss/r)
+            val = (ss/r)**2
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone) = Obs(i,n_cone)+val
             endif
@@ -255,8 +261,8 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
     ! seeing the rod particles + rewards
     do i = 1, N
 
-        a = Theta(i)
-        b = dRodtheta
+        a = Theta(i)  ! orientation of particle respect to x-axis.
+        b = dRodtheta ! direction of motion of rod.
  
         near = 0
 
@@ -269,7 +275,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor((th + 0.5)*5) + 1
-            val =  (ss/r)
+            val =  (ss/r)**2
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+5) = Obs(i,n_cone+5)+val
                 if (r < 2.*ss) near = 1.
@@ -308,27 +314,28 @@ contains
     real FUNCTION reward_rotate(rotRod, tq, near)
     ! reward function for linear translation
       implicit none
-      !  real :: rand ! using old generator
+      !
       real :: rotRod, tq, near
       reward_rotate =  rotRod * tq * near * 10.
       return
     end function reward_rotate    
 
     real FUNCTION reward_move_back(rss, dRod, a, b, near)
-    ! reward function for linear translation
-      implicit none
-      !  real :: rand ! using old generator
+    ! reward function for linear translation in direction (-x)
+      implicit none 
+      !
       real :: rss, a, b, near, dRod
       reward_move_back =  -cos(b) * dRod * cos(a)**2 / rss * near * 10.
       return
     end function reward_move_back    
     
     real FUNCTION reward_move(rss, dRod, a, b, near)
-    ! reward function for linear translation
+    ! Reward function for linear translation in any direction. 
+    ! Maximum reward when particle is aligned with rod direction.
       implicit none
       !  real :: rand ! using old generator
       real :: rss, a, b, near, dRod
-      reward_move = dRod * cos(a-b) / rss * near * 10.
+      reward_move = dRod * cos(2*(a-b)) / rss * near * 10.
       return
     end function reward_move
     

@@ -27,7 +27,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1, rotDirection=0):
+    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1, rotDirection=0):
 
         # internal knowledge of system
         self.N = N
@@ -59,8 +59,9 @@ class MD_ROD():
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.massRod = massRod
-        self.vel_prey = vel
-        self.torque_prey = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+        self.vel_act = vel_act
+        self.vel_tor = vel_tor
+        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
         
         # output trjectory
         self.traj = traj
@@ -121,7 +122,7 @@ class MD_ROD():
         Xrod = self.rod[:,0]
         Yrod = self.rod[:,1]
         mRod = self.massRod
-        self.particles, self.rod = evolve.evolve_md_rod(mRod, X, Y, T, Xrod, Yrod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque_prey, self.vel_prey, self.N, self.Nrod)
+        self.particles, self.rod = evolve.evolve_md_rod(mRod, X, Y, T, Xrod, Yrod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards()
         self.old_rod = self.rod
         return obs, rewards, done, {}
