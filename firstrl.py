@@ -111,7 +111,9 @@ class AgentActiveMatter():
       # create actor
       self.policy = tf.keras.Sequential([
       # Adds a densely-connected layer:
-      tf.keras.layers.Dense(16, activation='tanh', input_shape=(self.input_dim,)),
+       tf.keras.layers.Dense(16, activation='tanh', input_shape=(self.input_dim,)),
+      # # Add another dense layer:
+      # tf.keras.layers.Dense(16, activation='tanh'),
       # Add another dense layer:
       tf.keras.layers.Dense(8, activation='tanh'),
       # Add an output layer with n_actions output units:

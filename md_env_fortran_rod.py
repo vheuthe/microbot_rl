@@ -47,9 +47,9 @@ class MD_ROD():
         if (self.mode == 2): #directional pushing
             self.Nobs = 12
 
-        self.rotDirection = rotDirection
-        if (self.mode == 4): #rotation with direction    
-            self.rotDirection
+        if (self.mode == 4): #rotation with direction 
+            assert rotDirection in [-1,1]        
+            self.rotDirection = rotDirection
             self.Nobs = 11
         
         # parameters of dynamics
@@ -92,12 +92,14 @@ class MD_ROD():
         if (self.traj):
             p = self.particles
             rod = self.rod
+            olr = self.old_rod
+            deltacm = np.mean(rod, axis=0) - np.mean(olr, axis=0)
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i] ) )
             for i in range(self.Nrod):
-                xyz_file.write('1 {} {} 0.0 0.0 0.0 0.0\n'.format(rod[i,0], rod[i,1]) )
+                xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_o_r_rod_fortran(self):
@@ -106,6 +108,7 @@ class MD_ROD():
         r = self.rod
         olr = self.old_rod
         obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.rotDirection, self.Nobs, self.N, self.Nrod)
+        print(obs)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
@@ -122,9 +125,9 @@ class MD_ROD():
         Xrod = self.rod[:,0]
         Yrod = self.rod[:,1]
         mRod = self.massRod
+        self.old_rod = self.rod
         self.particles, self.rod = evolve.evolve_md_rod(mRod, X, Y, T, Xrod, Yrod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards()
-        self.old_rod = self.rod
         return obs, rewards, done, {}
 #
 # ------------------------------------

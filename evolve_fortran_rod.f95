@@ -18,7 +18,7 @@ subroutine evolve_md_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
     real :: dx, dy, r2, drodx, drody
     ! =======================================
     ! force parameters
-    real :: eps = 1., ss = 4.8, ss2, ss6, ss12, ff, epsRod=2.
+    real :: eps = 1., ss = 4.8, ss2, ss6, ss12, ff, epsRod=1.0
     ! =======================================
     ! rod parameters
     real :: Irod = 0.d0, Lrod2 = 0.d0, massRod
@@ -151,7 +151,7 @@ subroutine evolve_md_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
     ! =============================
 
       rodXcm = rodXcm + dt*velXrod/Nrod/massRod
-      rodYcm = rodYcm + dt*velXrod/Nrod/massRod
+      rodYcm = rodYcm + dt*velYrod/Nrod/massRod
       rodtheta = rodtheta + dt*torquerod/Irod ! FAKE Inertia
 
     ! =============================
@@ -243,15 +243,15 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
             ! i to j
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            val = (ss/r)**2
+            n_cone = floor(th*10+0.5) + 3
+            val = (ss/r)
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone) = Obs(i,n_cone)+val
             endif
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
+            n_cone = floor(th*10+0.5) + 3
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(j,n_cone) = Obs(j,n_cone)+val
             endif
@@ -274,8 +274,9 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
             ! particle sees rod 
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            val =  (ss/r)**2
+            n_cone = floor(th*10+0.5) + 3
+            !print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
+            val =  (ss/r) / Nrod
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+5) = Obs(i,n_cone+5)+val
                 if (r < 2.*ss) near = 1.
@@ -288,23 +289,25 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
         torque = cos(a)*dy - sin(a)*dx
         
         ! different reward functions to choose from
-        if (near == 1) then
-            select case (mode)
-                case (1)
-                    Rew(i) = reward_move(r/ss, dRod, a, b, near)
-                case (2)
-                    Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
-                    Obs(i, 11) = cos(a)
-                    Obs(i, 12) = sin(a)
-                case (3) ! reward positive irrespective to direction of rotation
-                    Rew(i) = reward_rotate(abs(rotRod), torque, near)
-                case (4) ! reward positive only if clockwise (-1) or anti-clockwise (+1)
-                    Rew(i) = reward_rotate(rotRod*rot_direction, torque, near)
-                    Obs(i, 11) = rot_direction
-                end select
-        else
-            Rew(i) = -0.1
-        endif
+        select case (mode)
+            case (1)
+                Rew(i) = reward_move(r/ss, dRod, a, b, near)
+                !print*, i, 'x ', X(i),'y ', Y(i), ' theta ', a, 'rodtheta ', b,&
+                !       'a-b ', a-b, ' mod2pi ', ((a-b) - floor((a-b)/2.d0/PI+0.5d0)*2*PI), &
+                !       reward_move(r/ss, dRod, a, b, near)
+            case (2)
+                Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
+                Obs(i, 11) = cos(a)
+                Obs(i, 12) = sin(a)
+            case (3) ! reward positive irrespective to direction of rotation
+                Rew(i) = reward_rotate(abs(rotRod), torque, near)
+            case (4) ! reward positive only if clockwise (-1) or anti-clockwise (+1)
+                Rew(i) = reward_rotate(rotRod*rot_direction, torque, near)
+                Obs(i, 11) = rot_direction
+            case (5) ! debug reward for contact
+                Rew(i) = r/ss * near
+        end select
+        Rew(i) = Rew(i) + sum(Obs(i,6:10))
     enddo
 
     return
@@ -316,6 +319,8 @@ contains
       implicit none
       !
       real :: rotRod, tq, near
+      !
+      rotRod = max(0., rotRod)
       reward_rotate =  rotRod * tq * near * 10.
       return
     end function reward_rotate    
@@ -334,8 +339,9 @@ contains
     ! Maximum reward when particle is aligned with rod direction.
       implicit none
       !  real :: rand ! using old generator
-      real :: rss, a, b, near, dRod
-      reward_move = dRod * cos(2*(a-b)) / rss * near * 10.
+      real :: rss, a, b, near, dRod, ab_half
+      ab_half = ((a-b) - floor((a-b)/2./PI+0.5)*2*PI)/2.
+      reward_move = dRod * cos(ab_half) / rss * near * 10.
       return
     end function reward_move
     
