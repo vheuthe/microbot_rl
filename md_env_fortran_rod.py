@@ -82,7 +82,7 @@ class MD_ROD():
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*5.0
                   pos = np.delete(pos, oo, axis=0)
-        rod = np.array([[(sN+1.0)*5.0, (i-(self.Nrod-1)/2.0)*1.] for i in np.arange(self.Nrod)])
+        rod = np.array([[(sN+1.0)*5.0, (i-(self.Nrod-1)/3)*1.] for i in np.arange(self.Nrod)])
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -108,7 +108,6 @@ class MD_ROD():
         r = self.rod
         olr = self.old_rod
         obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.rotDirection, self.Nobs, self.N, self.Nrod)
-        print(obs)
         # DEGUB
         self.rewards = rewards
         return obs, rewards

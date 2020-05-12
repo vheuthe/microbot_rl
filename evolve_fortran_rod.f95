@@ -248,6 +248,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone) = Obs(i,n_cone)+val
             endif
+            
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             th = th - floor(th + 0.5)

@@ -1,5 +1,5 @@
 subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
-                     nsteps, tor, vel, N, new_XYT)
+                     nsteps, tor, vel_act, vel_tor, N, new_XYT)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -7,11 +7,11 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     real , intent(in) :: X(N), Y(N), Theta(N)
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, nsteps
-    real, intent(in) :: Rm, Rr, tor, vel, dt
+    real, intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt
     ! =======================================
     real , intent(out) :: new_XYT(N,3)
     ! =======================================
-    real :: velX(N), velY(N), velR(N)
+    real :: velX(N), velY(N), velR(N), v
     integer :: i, j, it
     real :: dx, dy, r2
     ! =======================================
@@ -36,18 +36,24 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     ! =============================
     ! thermal motion + activity
     ! =============================
-
+         
         do i = 1, N
             velX(i) = gran()*Rm
             velY(i) = gran()*Rm
             velR(i) = gran()*Rr
 
             if (act(i)>0) then
-                velX(i) = velX(i) + cos(new_XYT(i,3))*vel
-                velY(i) = velY(i) + sin(new_XYT(i,3))*vel
+                ! ========================
+                ! Action includes rotation
+                ! ========================
+                v = vel_act
                 if (act(i)>1) then
+                    v = vel_tor
                     velR(i) = velR(i) - 2*tor*(act(i)-2.5)
                 endif
+                velX(i) = velX(i) + cos(new_XYT(i,3))*v
+                velY(i) = velY(i) + sin(new_XYT(i,3))*v
+
             endif
          enddo
 
@@ -119,17 +125,16 @@ contains
 
 end subroutine
 
-
-
-
-subroutine get_o_r_demix(X,Y,Theta,cost,N,Obs,Rew)
+subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, N, NObs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
+! mode indicates whether mix (mode = 1), demix (mode = 2) or switch (mode = 3)
+! switch determines wheter to mix (1 = mixing) or demix (0 = demix)
 ! ===========================================
     implicit none
     real , intent(in) :: X(N), Y(N), Theta(N), cost
-    integer, intent(in) :: N
-    real , intent(out) :: Obs(N,10), Rew(N)
+    integer, intent(in) :: N, NObs, switch, mode
+    real , intent(out) :: Obs(N,NObs), Rew(N)
     integer :: i, j, other, n_cone
     real :: dx, dy, r, dtheta, val, th
     real, parameter :: PI = 3.14159265358979323846264
@@ -138,7 +143,9 @@ subroutine get_o_r_demix(X,Y,Theta,cost,N,Obs,Rew)
     Rew = 0
     do i = 1, N-1
         do j = i+1, N
+        
             other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
+            
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
@@ -146,130 +153,57 @@ subroutine get_o_r_demix(X,Y,Theta,cost,N,Obs,Rew)
             ! i to j 
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            val = (6.8/r)**2
+            n_cone = floor(th*10+0.5) + 3
+            val = (6.8/r)
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val
-                Rew(i) = Rew(i)+val*(1.-other*(1+cost))
+            !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
+            
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
+            n_cone = floor(th*10+0.5) + 3
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(j,n_cone+other*5) = Obs(j,n_cone+other*5)+val
-                Rew(j) = Rew(j)+val*(1.-other*(1+cost))
+            !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
+
         enddo
     enddo
-    return
-
-end subroutine
-
-
-subroutine get_o_r_demix_repulse(X,Y,Theta,cost,N,Obs,Rew)
-! ===========================================
-! gets observables and rewards from positions
-! ===========================================
-    implicit none
-    real , intent(in) :: X(N), Y(N), Theta(N), cost
-    integer, intent(in) :: N
-    real , intent(out) :: Obs(N,10), Rew(N)
-    integer :: i, j, other, n_cone
-    real :: dx, dy, r, dtheta, val_o, val_r, th
-    real, parameter :: PI = 3.14159265358979323846264
-
-    Obs = 0
-    Rew = 0
-    do i = 1, N-1
-        do j = i+1, N
-            other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
-            dx = X(j)-X(i)
-            dy = Y(j)-Y(i)
-            r = sqrt(dx*dx + dy*dy)
-            dtheta = atan2(dy,dx)
-            ! i to j 
-            th = (dtheta - Theta(i))/2./PI
-            th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            val_o = 2.0/(r/5.0+10.0)
-            val_r = -500.0*(r**2-6.0*r-20.0)/(-(r+10.0)**4)
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val_o
-                if (other < 0.5) then
-                    Rew(i) = Rew(i)+val_r
+    
+    
+    do i = 1, N
+        select case (mode)
+            case (1) ! pure mixing
+                Rew(i) = sum(Obs(i, 1:5)) + cost*sum(Obs(i, 6:10)) &
+                  &- abs(sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10)))
+            case (2) ! pure demixing
+                Rew(i) = sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10))
+            case (3) ! switch mixing/demixing
+                if (switch == 0) then 
+                    Rew(i) = sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10))
+                else if (switch == 1) then
+                    Rew(i) = sum(Obs(i, 1:5)) + cost*sum(Obs(i, 6:10)) &
+                      &- abs(sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10)))
                 else
-                    Rew(i) = Rew(i)-val_o*cost 
-                endif                   
-            endif
-            ! j to i
-            th = (dtheta + PI - Theta(j))/2./PI
-            th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(j,n_cone+other*5) = Obs(j,n_cone+other*5)+val_o
-                if (other < 0.5) then
-                    Rew(i) = Rew(i)+val_r
-                else
-                    Rew(i) = Rew(i)-val_o*cost
+                    print*, 'Error: SWITCH variable not recognized.'
+                    STOP
                 endif
-            endif
-        enddo
+                Obs(i, 11) = switch
+        end select
     enddo
-    return
-
-end subroutine
-
-subroutine get_o_r_group_repulse(X,Y,Theta,N,Obs,Rew)
-! ===========================================
-! gets observables and rewards from positions
-! ===========================================
-    implicit none
-    real , intent(in) :: X(N), Y(N), Theta(N)
-    integer, intent(in) :: N
-    real , intent(out) :: Obs(N,5), Rew(N)
-    integer :: i, j, n_cone
-    real :: dx, dy, r, dtheta, val_o, val_r, th
-    real, parameter :: PI = 3.14159265358979323846264
-
-    Obs = 0
-    Rew = 0
-    do i = 1, N-1
-        do j = i+1, N
-            dx = X(j)-X(i)
-            dy = Y(j)-Y(i)
-            r = sqrt(dx*dx + dy*dy)
-            dtheta = atan2(dy,dx)
-            ! i to j 
-            th = (dtheta - Theta(i))/2./PI
-            th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            val_o = 2.0/(r/5.0+10.0)
-            val_r = -500.0*(r**2-6.0*r-20.0)/(-(r+10.0)**4)
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone) = Obs(i,n_cone)+val_o
-                Rew(i) = Rew(i)+val_r
-            endif
-            ! j to i
-            th = (dtheta + PI - Theta(j))/2./PI
-            th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(j,n_cone) = Obs(j,n_cone)+val_o
-                Rew(j) = Rew(j)+val_r
-            endif
-        enddo
-    enddo
-
+    
     do i = 1, N
        if ( sum(Obs(i,:)) .eq. 0 ) Rew(i) = -2
     enddo
-
+    
     return
 
 end subroutine
 
-subroutine get_o_r_group(X,Y,Theta,N,Obs,Rew)
+
+subroutine get_o_r_group_task(X,Y,Theta,N,Obs,Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -289,19 +223,21 @@ subroutine get_o_r_group(X,Y,Theta,N,Obs,Rew)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
+
             ! i to j 
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
-            val = (6.8/r)**2
+            n_cone = floor(th*10+0.5) + 3
+            val = (6.8/r)
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone) = Obs(i,n_cone)+val
                 Rew(i) = Rew(i)+val
             endif
+            
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor((th + 0.5)*5) + 1
+            n_cone = floor(th*10+0.5) + 3
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(j,n_cone) = Obs(j,n_cone)+val
                 Rew(j) = Rew(j)+val

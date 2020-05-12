@@ -4,7 +4,7 @@ import math
 import sys
 from scipy.spatial.distance import cdist
 import time
-import evolve
+import evolve_fortran as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -27,25 +27,47 @@ import evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel=0.5, dt=0.2, torque=25.0):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, traj=True):
 
-        self.dt = dt
-        self.vel_prey = vel
-        self.torque_prey = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
         
         self.N = N
+        self.rewards = np.zeros(N)
+
         self.size = size
         self.n_MD_steps =steps
 
+        # Parameters of Dynamics
+        self.dt = dt
         self.Dt = 0.014
         self.Dr = 1.0 / 350.0
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
-
+        self.vel_act = vel_act
+        self.vel_tor = vel_tor
+        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)   
+        
+        
+        # output trjectory
+        self.traj = traj
+        if (self.traj):
+            self.filexyz='traj'+str(index)+'.xyz'
         self.filexyz='traj'+str(index)+'.xyz'
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
-        assert self.md_type in ['group', 'demix'], 'MD type not recognized'
+        assert self.md_type in ['group', 'mix', 'demix', 'switch'], 'MD type not recognized'
+
+        # Observables
+        if (md_type in ['group']):
+            self.Nobs = 10
+        if (md_type in ['mix']):
+            self.Nobs = 10
+            self.mode = 1
+        if (md_type in ['demix']):
+            self.Nobs = 10
+            self.mode = 2
+        if (md_type in ['switch']):
+            self.Nobs = 11
+            self.mode = 3
         
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi] 
@@ -63,45 +85,48 @@ class MD():
         return particles
 
   # PRINT TRAJECTORY
-    def print_xyz(self):
-        p = self.particles
-        xyz_file = open(self.filexyz, "a") 
-        xyz_file.write('\n\n')
-        for i in range(self.N):
-            if self.md_type == 'demix':
-                xyz_file.write(str(i//(self.N/2))+' '+str(p[i,0])+' '+str(p[i,1])+' 0.0 '+str(np.cos(p[i,2]))+' '+str(np.sin(p[i,2]))+'\n')
-            #xyz_file.write('p '+str(predator[0,0])+ ' '+str(predator[0,1])+' 0.0 ' + str(predator[0,2]) + '\n')
-            elif self.md_type == 'group':
-                xyz_file.write('0 '+str(p[i,0])+' '+str(p[i,1])+' 0.0 '+str(np.cos(p[i,2]))+' '+str(np.sin(p[i,2]))+'\n')
+    def print_xyz(self, switch=0):
+        if (self.traj):
+            p = self.particles
+            xyz_file = open(self.filexyz, "a") 
+            xyz_file.write('\n\n')
+            for i in range(self.N):
+                if (self.md_type in ['demix']):
+                    xyz_file.write('{} {} {} 0.0 {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
+                #xyz_file.write('p '+str(predator[0,0])+ ' '+str(predator[0,1])+' 0.0 ' + str(predator[0,2]) + '\n')
+                elif (self.md_type in ['switch']):
+                    xyz_file.write('{} {} {} 0.0 {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i]))
+                elif self.md_type == 'group':
+                    xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
 
-    def get_o_r_demix_fortran(self):
+    def get_o_r_mix_tasks_fortran(self, switch):
         t0 = time.time()    
         p = self.particles 
-        obs, rewards = evolve.get_o_r_demix(p[:,0],p[:,1],p[:,2],1.0,self.N) #1.0 is cost associated to having "others" in sight
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], 1.0, self.mode, switch, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight
         return obs, rewards
 
     def get_o_r_group_fortran(self):
         t0 = time.time()
         p = self.particles
-        obs, rewards = evolve.get_o_r_group(p[:,0],p[:,1],p[:,2],self.N)
+        obs, rewards = evolve.get_o_r_group_task(p[:,0],p[:,1],p[:,2],self.N)
         return obs, rewards
 
-
-    def get_obs_rewards(self):
+    def get_obs_rewards(self, switch):gnup
         if self.md_type == 'group':
-        	   return self.get_o_r_group_fortran()
-        elif self.md_type == 'demix':
-        	   return self.get_o_r_demix_fortran()
+        	return self.get_o_r_group_fortran()
+        elif (self.md_type in ['demix', 'switch']):
+        	return self.get_o_r_mix_tasks_fortran(switch)
     
 
-    def evolve_MD(self, action):
+    def evolve_MD(self, action, switch=-1):
         t0 = time.time()
         done = False
         X = self.particles[:,0]        
         Y = self.particles[:,1]
         T = self.particles[:,2]
-        self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque_prey, self.vel_prey, self.N)
-        obs, rewards = self.get_obs_rewards()
+        self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
+        obs, rewards = self.get_obs_rewards(switch)
+        self.rewards = rewards
         return obs, rewards, done, {}
 #
 # ------------------------------------
