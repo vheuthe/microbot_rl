@@ -1,7 +1,8 @@
-
 import numpy as np
 import tensorflow as tf
 import scipy.signal
+import pydot
+import graphviz
 
 tf.keras.backend.set_floatx('float32')
 
@@ -72,8 +73,10 @@ class AgentActiveMatter():
   '''
   Complete class for Reinforcement Learning.
   Contains two Neural Networks for Actor and Critic, tracks and stores the trajectories
+  If seq_flag is False, the NN recognize the last input number as "non-visual" observable.
+  This is utilized as a switch for mixed behaviours.
   '''
-  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, **unused_parameters):
+  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', seq_flag=True, restart_models = False, **unused_parameters):
 
     # internal knowledge
     self.input_dim = input_dim
@@ -99,41 +102,81 @@ class AgentActiveMatter():
 
       self.critic = tf.keras.models.load_model(models_rootname+'_critic/')
       self.policy = tf.keras.models.load_model(models_rootname+'_policy/')
+      
+      if (seq_flag == True):
+          loaded_input_dim = self.critic.layers[0].input_shape[1]
+          loaded_output_dim = self.policy.layers[-1].output_shape[1]
 
-      loaded_input_dim = self.critic.layers[0].input_shape[1]
-      loaded_output_dim = self.policy.layers[-1].output_shape[1]
-
-      assert (loaded_input_dim == self.input_dim), 'input dimension does not match with loaded model'
-      assert (loaded_output_dim == self.n_actions), 'action dimension does not match with loaded model'
+          assert (loaded_input_dim == self.input_dim), 'input dimension does not match with loaded model'
+          assert (loaded_output_dim == self.n_actions), 'action dimension does not match with loaded model'
 
     else:
-      print('Starting new model')
-      # create actor
-      self.policy = tf.keras.Sequential([
-      # Adds a densely-connected layer:
-       tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,)),
-      # # Add another dense layer:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add another dense layer:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add an output layer with n_actions output units:
-      tf.keras.layers.Dense(self.n_actions, activation='linear')])
-      # ------------------------------------------
+        if (seq_flag == True):
+            print('Starting new model')
+            # create actor
+            self.policy = tf.keras.Sequential([
+            # Adds a densely-connected layer:
+            tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,)),
+            # # Add another dense layer:
+            tf.keras.layers.Dense(16, activation='relu'),
+            # Add another dense layer:
+            tf.keras.layers.Dense(16, activation='relu'),
+            # Add an output layer with n_actions output units:
+            tf.keras.layers.Dense(self.n_actions, activation='linear')])
+            # ------------------------------------------
 
-      # ------------------------------------------
-      # create critic
-      self.critic = tf.keras.Sequential([
-      # Adds a densely-connected layer with 6 units to the model:
-      tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,), kernel_initializer='zeros'),
-      # Add another:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add another:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add an output layer with 1 output units:
-      tf.keras.layers.Dense(1, activation='linear')])
-      # ------------------------------------------
-      self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
-      # ------------------------------------------
+            # ------------------------------------------
+            # create critic
+            self.critic = tf.keras.Sequential([
+            # Adds a densely-connected layer with 6 units to the model:
+            tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,), kernel_initializer='zeros'),
+            # Add another:
+            tf.keras.layers.Dense(16, activation='relu'),
+            # Add another:
+            tf.keras.layers.Dense(16, activation='relu'),
+            # Add an output layer with 1 output units:
+            tf.keras.layers.Dense(1, activation='linear')])
+            # ------------------------------------------
+            self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
+            # ------------------------------------------
+        else:
+            # ------------------------------------------
+            input_all = tf.keras.Input(shape=(self.input_dim,))
+            print(input_all.shape)
+            input_obs = tf.keras.layers.Lambda(lambda x: x[:,:-2])(input_all)
+            input_rew = tf.keras.layers.Lambda(lambda x: x[:,-2:])(input_all)
+            print(input_obs.shape)
+            print(input_rew.shape)
+
+            p0 = tf.keras.layers.Dense(32, activation='relu')(input_obs)
+            p1 = tf.keras.layers.Dense(16, activation='relu')(p0)
+            p2 = tf.keras.layers.Concatenate(axis=1)([p1, input_rew])
+            p3 = tf.keras.layers.Dense(16, activation='relu')(p2)
+            actions = tf.keras.layers.Dense(self.n_actions, activation='linear')(p3)
+
+            self.policy = tf.keras.Model(inputs=input_all, outputs=actions)
+            self.policy.summary()
+
+            # -------------------------------------------
+            
+            # ------------------------------------------
+            input_all = tf.keras.Input(shape=(self.input_dim,))
+            print(input_all.shape)
+            input_obs = tf.keras.layers.Lambda(lambda x: x[:,:-2])(input_all)
+            input_rew = tf.keras.layers.Lambda(lambda x: x[:,-2:])(input_all)
+
+            c0 = tf.keras.layers.Dense(32, activation='relu')(input_obs)
+            c1 = tf.keras.layers.Dense(16, activation='relu')(c0)
+            c2 = tf.keras.layers.Concatenate(axis=1)([c1, input_rew])
+            c3 = tf.keras.layers.Dense(16, activation='relu')(c2)
+            value = tf.keras.layers.Dense(1, activation='linear')(c3)
+
+            self.critic = tf.keras.Model(inputs=input_all, outputs=value)
+            self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
+            self.critic.summary()
+            # -------------------------------------------
+              
+      
 
 #  -----------------------------
   def save_models(self, path, final_save = False):
@@ -234,7 +277,6 @@ class AgentActiveMatter():
         return actions, pi_logp_all
     else:
         return actions
-    
 
   def finish_path(self, lost = False, ID = -1, isdone=False, last_reward=0.0):
     """

@@ -154,7 +154,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, N, NObs, Obs, Rew)
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor(th*10+0.5) + 3
-            val = (6.8/r)
+            val = (6.8/r)**2
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
@@ -176,26 +176,26 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, N, NObs, Obs, Rew)
     do i = 1, N
         select case (mode)
             case (1) ! pure mixing
-                Rew(i) = sum(Obs(i, 1:5)) + cost*sum(Obs(i, 6:10)) &
-                  &- abs(sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10)))
+                Rew(i) = sum(Obs(i, 1:5)) + sum(Obs(i, 6:10)) &
+                    &- cost*sum(abs(Obs(i, 1:5) - Obs(i, 6:10)))
             case (2) ! pure demixing
                 Rew(i) = sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10))
             case (3) ! switch mixing/demixing
                 if (switch == 0) then 
                     Rew(i) = sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10))
                 else if (switch == 1) then
-                    Rew(i) = sum(Obs(i, 1:5)) + cost*sum(Obs(i, 6:10)) &
-                      &- abs(sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10)))
+                    Rew(i) = (sum(Obs(i, 1:5)) + sum(Obs(i, 6:10))) &
+                        &- cost*sum(abs(Obs(i, 1:5) - Obs(i, 6:10)))
                 else
                     print*, 'Error: SWITCH variable not recognized.'
                     STOP
                 endif
-                Obs(i, 11) = switch
+                Obs(i, 11+switch) = 1
         end select
     enddo
     
     do i = 1, N
-       if ( sum(Obs(i,:)) .eq. 0 ) Rew(i) = -2
+       if ( sum(Obs(i,1:10)) .eq. 0 ) Rew(i) = -2
     enddo
     
     return

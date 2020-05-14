@@ -27,7 +27,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1, rotDirection=0):
+    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1):
 
         # internal knowledge of system
         self.N = N
@@ -47,15 +47,14 @@ class MD_ROD():
         if (self.mode == 2): #directional pushing
             self.Nobs = 12
 
-        if (self.mode == 4): #rotation with direction 
-            assert rotDirection in [-1,1]        
-            self.rotDirection = rotDirection
-            self.Nobs = 11
+        if (self.mode == 4): #rotation with direction s      
+            self.Nobs = 12
         
         # parameters of dynamics
         self.dt = dt
         self.Dt = 0.014
         self.Dr = 1.0 / 350.0
+        
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.massRod = massRod
@@ -75,14 +74,16 @@ class MD_ROD():
     def reinitialize_random_for_MD(self, index):
         sN = np.int(np.sqrt(self.N))+1
         particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
-        pos = np.array([[i,j,0] for i in np.arange(-sN//2-1,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
+        pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
         for i in range(sN):
             for j in range(sN):
                 if (i*sN+j) < self.N :
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*5.0
                   pos = np.delete(pos, oo, axis=0)
-        rod = np.array([[(sN+1.0)*5.0, (i-(self.Nrod-1)/3)*1.] for i in np.arange(self.Nrod)])
+        particles[particles[:,0] <= 0]  -= [5.0, 0, 0]
+        particles[particles[:,0] > 0]  += [5.0, 0, 0]
+        rod = np.array([[0.0, (i-(self.Nrod-1)/2)*2] for i in np.arange(self.Nrod)])
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -100,22 +101,43 @@ class MD_ROD():
                 xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i] ) )
             for i in range(self.Nrod):
                 xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
+                
+                
+    def print_xyz_action(self, actions, logp):
+        if (self.traj):
+            p = self.particles
+            rod = self.rod
+            olr = self.old_rod
+            deltacm = np.mean(rod, axis=0) - np.mean(olr, axis=0)
+            # calculate probability of different actions
+            prob = np.exp(logp)
+            # 
+            xyz_file = open(self.filexyz, "a") 
+            xyz_file.write('\n\n')
+            for i in range(self.N):
+                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), 
+                np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3] ) )
+            for i in range(self.Nrod):
+                xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_o_r_rod_fortran(self):
+    def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0):
         t0 = time.time()    
         p = self.particles 
         r = self.rod
         olr = self.old_rod
-        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, self.rotDirection, self.Nobs, self.N, self.Nrod)
+        if (self.mode == 4):
+            assert rotDir in [-1,1]
+            assert old_rotDir in [-1,1]
+        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, rotDir, old_rotDir, self.Nobs, self.N, self.Nrod)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
 
-    def get_obs_rewards(self):
-        return self.get_o_r_rod_fortran()
+    def get_obs_rewards(self, rotDir=0, old_rotDir=0):
+        return self.get_o_r_rod_fortran(rotDir, old_rotDir)
 
-    def evolve_MD(self, action):
+    def evolve_MD(self, action, rotDir=0, old_rotDir=0):
         t0 = time.time()
         done = False
         X = self.particles[:,0]        
@@ -126,7 +148,7 @@ class MD_ROD():
         mRod = self.massRod
         self.old_rod = self.rod
         self.particles, self.rod = evolve.evolve_md_rod(mRod, X, Y, T, Xrod, Yrod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
-        obs, rewards = self.get_obs_rewards()
+        obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
 #
 # ------------------------------------

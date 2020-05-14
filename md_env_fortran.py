@@ -27,7 +27,7 @@ import evolve_fortran as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, traj=True):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., traj=True):
 
         
         self.N = N
@@ -55,8 +55,9 @@ class MD():
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
         assert self.md_type in ['group', 'mix', 'demix', 'switch'], 'MD type not recognized'
-
-        # Observables
+        
+        # Observables and reward functions & parameters
+        self.cost = cost
         if (md_type in ['group']):
             self.Nobs = 10
         if (md_type in ['mix']):
@@ -66,7 +67,7 @@ class MD():
             self.Nobs = 10
             self.mode = 2
         if (md_type in ['switch']):
-            self.Nobs = 11
+            self.Nobs = 12
             self.mode = 3
         
 # --------------------------
@@ -85,24 +86,30 @@ class MD():
         return particles
 
   # PRINT TRAJECTORY
-    def print_xyz(self, switch=0):
+    def print_xyz(self, switch=-1):
         if (self.traj):
             p = self.particles
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
-                if (self.md_type in ['demix']):
+                if (self.md_type in ['demix', 'mix']):
                     xyz_file.write('{} {} {} 0.0 {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
-                #xyz_file.write('p '+str(predator[0,0])+ ' '+str(predator[0,1])+' 0.0 ' + str(predator[0,2]) + '\n')
                 elif (self.md_type in ['switch']):
                     xyz_file.write('{} {} {} 0.0 {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i]))
-                elif self.md_type == 'group':
+                elif self.md_type in ['group']:
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
 
-    def get_o_r_mix_tasks_fortran(self, switch):
+    def get_o_r_switch_task_fortran(self, switch=-1):
         t0 = time.time()    
         p = self.particles 
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], 1.0, self.mode, switch, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight
+        assert switch >= 0
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
+        return obs, rewards
+        
+    def get_o_r_mix_tasks_fortran(self):
+        t0 = time.time()    
+        p = self.particles 
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
         return obs, rewards
 
     def get_o_r_group_fortran(self):
@@ -111,11 +118,13 @@ class MD():
         obs, rewards = evolve.get_o_r_group_task(p[:,0],p[:,1],p[:,2],self.N)
         return obs, rewards
 
-    def get_obs_rewards(self, switch):gnup
+    def get_obs_rewards(self, switch=-1):
         if self.md_type == 'group':
         	return self.get_o_r_group_fortran()
-        elif (self.md_type in ['demix', 'switch']):
-        	return self.get_o_r_mix_tasks_fortran(switch)
+        elif (self.md_type == 'switch'):
+        	return self.get_o_r_switch_task_fortran(switch)
+        elif (self.md_type in ['demix', 'mix']):
+        	return self.get_o_r_mix_tasks_fortran()
     
 
     def evolve_MD(self, action, switch=-1):
@@ -132,17 +141,3 @@ class MD():
 # ------------------------------------
 # End of class MD
 # ------------------------------------
-
-# CHECK FOR CONE OF SIGHT
-def minus_0p5pi_to_1p5pi_mod(theta1):
-    return (theta1 + math.pi)%(2*math.pi)-math.pi/2.0
-
-def get_cone_sight(A, B):
-    dx = B[0] - A[0]
-    dy = B[1] - A[1]
-    dist = math.sqrt(dx*dx + dy*dy)
-    dist_theta = math.atan2(dy, dx)
-    rel_theta = ((dist_theta - A[2])/math.pi + 1.0)%(2.0)-0.5
-    n_cone = math.floor(rel_theta*5) 
-    return int(n_cone), dist
-	

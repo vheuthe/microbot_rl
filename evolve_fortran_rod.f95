@@ -196,7 +196,7 @@ contains
 end subroutine
 
 
-subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_direction, Nobs, N, Nrod, Obs, Rew)
+subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, old_rotDir, Nobs, N, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -204,7 +204,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod)
-    integer, intent(in) :: N, Nrod, Nobs, mode, rot_direction
+    integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, n_cone
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
@@ -277,6 +277,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
             th = th - floor(th + 0.5)
             n_cone = floor(th*10+0.5) + 3
             !print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
+
             val =  (ss/r) / Nrod
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+5) = Obs(i,n_cone+5)+val
@@ -300,15 +301,19 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
                 Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
                 Obs(i, 11) = cos(a)
                 Obs(i, 12) = sin(a)
-            case (3) ! reward positive irrespective to direction of rotation
+            case (3) 
+                ! reward positive irrespective to direction of rotation
+                ! no penalty for translation of center of mass.
                 Rew(i) = reward_rotate(abs(rotRod), torque, near)
-            case (4) ! reward positive only if clockwise (-1) or anti-clockwise (+1)
-                Rew(i) = reward_rotate(rotRod*rot_direction, torque, near)
-                Obs(i, 11) = rot_direction
+            case (4) 
+                ! reward positive only if clockwise (-1) or anti-clockwise (+1).
+                ! with penalty for translation of center of mass.
+                Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, near)
+                Obs(i, 11 + int((rotDir+1)/2)) = 1.
             case (5) ! debug reward for contact
                 Rew(i) = r/ss * near
         end select
-        Rew(i) = Rew(i) + sum(Obs(i,6:10))
+        Rew(i) = Rew(i) !+ sum(Obs(i,6:10))
     enddo
 
     return
@@ -316,13 +321,11 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rot_dire
 contains
 
     real FUNCTION reward_rotate(rotRod, tq, near)
-    ! reward function for linear translation
+    ! reward function for rotation on the spot
       implicit none
       !
       real :: rotRod, tq, near
-      !
-      rotRod = max(0., rotRod)
-      reward_rotate =  rotRod * tq * near * 10.
+      reward_rotate =  (rotRod * tq) * near * 10.! - dRod
       return
     end function reward_rotate    
 
