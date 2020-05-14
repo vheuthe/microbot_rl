@@ -3,6 +3,7 @@ import numpy as np
 import math
 import sys
 from scipy.spatial.distance import cdist
+from scipy.stats import entropy
 import time
 import evolve_fortran_rod as evolve
 # ---------------------------------------
@@ -81,9 +82,9 @@ class MD_ROD():
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*5.0
                   pos = np.delete(pos, oo, axis=0)
-        particles[particles[:,0] <= 0]  -= [5.0, 0, 0]
-        particles[particles[:,0] > 0]  += [5.0, 0, 0]
-        rod = np.array([[0.0, (i-(self.Nrod-1)/2)*2] for i in np.arange(self.Nrod)])
+        # particles[particles[:,0] <= 0]  -= [5.0, 0, 0]
+        # particles[particles[:,0] > 0]  += [5.0, 0, 0]
+        rod = np.array([[(sN//2+5)*5, (i-(self.Nrod-1)/2)*2] for i in np.arange(self.Nrod)])
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -111,12 +112,13 @@ class MD_ROD():
             deltacm = np.mean(rod, axis=0) - np.mean(olr, axis=0)
             # calculate probability of different actions
             prob = np.exp(logp)
+            s_entropy = entropy(prob, axis=1)
             # 
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
-                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), 
-                np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3] ) )
+                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), 
+                np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i] ) )
             for i in range(self.Nrod):
                 xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
 

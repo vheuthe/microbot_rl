@@ -3,6 +3,7 @@ import numpy as np
 import math
 import sys
 from scipy.spatial.distance import cdist
+from scipy.stats import entropy
 import time
 import evolve_fortran as evolve
 # ---------------------------------------
@@ -98,6 +99,23 @@ class MD():
                     xyz_file.write('{} {} {} 0.0 {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i]))
                 elif self.md_type in ['group']:
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
+                    
+    def print_xyz_action(self, actions, logp, switch=-1):
+        if (self.traj):
+            p = self.particles
+            # calculate probability of different actions
+            prob = np.exp(logp)
+            s_entropy = entropy(prob, axis=1)
+            # 
+            xyz_file = open(self.filexyz, "a") 
+            xyz_file.write('\n\n')
+            for i in range(self.N):
+                if (self.md_type in ['demix', 'mix']):
+                    xyz_file.write('{} {} {} 0.0 {} {} {} {} {} {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i] ))
+                elif (self.md_type in ['switch']):
+                    xyz_file.write('{} {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i]))
+                elif self.md_type in ['group']:
+                    xyz_file.write('P {} {} 0.0 {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i]))
 
     def get_o_r_switch_task_fortran(self, switch=-1):
         t0 = time.time()    
