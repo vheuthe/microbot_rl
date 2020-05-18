@@ -28,11 +28,19 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, Nrod=3, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, massRod=10., traj=False, mode=1):
+    def __init__(self, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, sizeRod=3, massRod=10., distRod=2., traj=False, mode=1):
 
         # internal knowledge of system
         self.N = N
-        self.Nrod = Nrod
+
+        # Rod geometry parameters
+        # total lenght "sizeRod" and bead distance "distRod" dictates number of beads "Nrod"
+        # if sizeRod not exactly multiple of distRod, sizeRod is conserved.
+        self.sizeRod = sizeRod
+        self.Nrod = int(sizeRod / distRod + 1)
+        self.distRod = sizeRod / (self.Nrod - 1)
+        self.massRod = massRod
+
         self.size = size
         self.n_MD_steps = steps
         # cone of sight. 5x particles, 5x rod particles
@@ -58,7 +66,6 @@ class MD_ROD():
         
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
-        self.massRod = massRod
         self.vel_act = vel_act
         self.vel_tor = vel_tor
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
@@ -82,9 +89,9 @@ class MD_ROD():
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*5.0
                   pos = np.delete(pos, oo, axis=0)
-        # particles[particles[:,0] <= 0]  -= [5.0, 0, 0]
-        # particles[particles[:,0] > 0]  += [5.0, 0, 0]
-        rod = np.array([[(sN//2+5)*5, (i-(self.Nrod-1)/2)*2] for i in np.arange(self.Nrod)])
+        particles[particles[:,0] <= 0]  -= [5.0, 0, 0]
+        particles[particles[:,0] > 0]  += [5.0, 0, 0]
+        rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -142,6 +149,7 @@ class MD_ROD():
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
         t0 = time.time()
         done = False
+        print('gradi per sec {}'.format(self.torque/np.pi*180))
         X = self.particles[:,0]        
         Y = self.particles[:,1]
         T = self.particles[:,2]

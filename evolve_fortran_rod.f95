@@ -313,7 +313,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
             case (5) ! debug reward for contact
                 Rew(i) = r/ss * near
         end select
-        Rew(i) = Rew(i) !+ sum(Obs(i,6:10))
+        Rew(i) = Rew(i) + sum(Obs(i,6:10))
     enddo
 
     return
