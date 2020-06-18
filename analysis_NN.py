@@ -71,7 +71,16 @@ angles = np.linspace(np.pi/3., 4./3.*np.pi, 15, endpoint=False)
 for ia,a in enumerate(angles):
     p2[ia+16,:3] = 20*np.array([np.cos(a), np.sin(a), 0])
 
-
+def load_scenario(name_file, x, y):
+    sc = open(name_file, "r")
+    pxy = np.loadtxt(name_file)
+    N = pxy.shape[0] + 2
+    assert N%2 == 0 
+    p = np.zeros((N,4))
+    p[N//2:,3]=1
+    p[1:-1,:2]=pxy 
+    p[-1,:] = [x,y,0,1]
+    p[0 ,:] = [x,y,0,0]
 
 # From Fake Scenario to observables
 # Particle in the middle rotates
