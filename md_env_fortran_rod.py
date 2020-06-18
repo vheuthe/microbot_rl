@@ -28,7 +28,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, sizeRod=3, massRod=10., distRod=2., traj=False, mode=1):
+    def __init__(self, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, sizeRod=3, massRod=10., inertiaRod=1., distRod=2., traj=False, mode=1):
 
         # internal knowledge of system
         self.N = N
@@ -39,12 +39,13 @@ class MD_ROD():
         self.sizeRod = sizeRod
         self.Nrod = int(sizeRod / distRod + 1)
         self.distRod = sizeRod / (self.Nrod - 1)
-        self.massRod = massRod
+        self.massRod = massRod # total mass of object
+        self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia
 
         self.size = size
         self.n_MD_steps = steps
-        # cone of sight. 5x particles, 5x rod particles
-        self.Nobs = 10
+        # cone of sight. 10x particles (5x normal, 5x beyond rod), 5x rod particles
+        self.Nobs = 15
         self.rewards = np.zeros(N)
 
         # type of task.
@@ -54,10 +55,10 @@ class MD_ROD():
         # 3 - rotate rod
         self.mode = mode
         if (self.mode == 2): #directional pushing
-            self.Nobs = 12
+            self.Nobs = 17
 
         if (self.mode == 4): #rotation with direction s      
-            self.Nobs = 12
+            self.Nobs = 17
         
         # parameters of dynamics
         self.dt = dt
@@ -149,15 +150,15 @@ class MD_ROD():
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
         t0 = time.time()
         done = False
-        print('gradi per sec {}'.format(self.torque/np.pi*180))
         X = self.particles[:,0]        
         Y = self.particles[:,1]
         T = self.particles[:,2]
         Xrod = self.rod[:,0]
         Yrod = self.rod[:,1]
         mRod = self.massRod
+        IRod = self.inertiaRod
         self.old_rod = self.rod
-        self.particles, self.rod = evolve.evolve_md_rod(mRod, X, Y, T, Xrod, Yrod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
+        self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, X, Y, T, Xrod, Yrod, self.distRod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
 #

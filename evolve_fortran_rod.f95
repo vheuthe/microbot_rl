@@ -1,14 +1,14 @@
-subroutine evolve_md_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
+subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, distRod, act, Rm, Rr, dt, &
                      nsteps, tor, vel_act, vel_tor, N, Nrod, new_XYT, new_XY_rod)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
     real,    intent(in) :: X(N), Y(N), Theta(N)
-    real,    intent(in) :: Xrod(Nrod), Yrod(Nrod)
+    real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), distRod
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
-    real,    intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt, mR
+    real,    intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt, mR, IR
     ! =======================================
     real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
     ! =======================================
@@ -41,7 +41,7 @@ subroutine evolve_md_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
     rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1))
 
     Lrod2 = (new_XY_rod(Nrod,2)-new_XY_rod(1,2))**2 + (new_XY_rod(Nrod,1)-new_XY_rod(1,1))**2
-    Irod = 1. / 12. * massRod * Nrod * Lrod2
+    Irod = 1. / 12. * massRod * Nrod * Lrod2 * IR ! INERTIA multiplied by IR factor
 
     do it = 1, nsteps
 
@@ -159,8 +159,8 @@ subroutine evolve_md_rod(mR, X,Y,Theta, Xrod, Yrod, act, Rm, Rr, dt, &
     ! =============================
 
       do i = 1, Nrod
-          new_XY_rod(i,1) = (i-(Nrod+1)/2.0)*cos(rodtheta)*1.0 + rodXcm
-          new_XY_rod(i,2) = (i-(Nrod+1)/2.0)*sin(rodtheta)*1.0 + rodYcm
+          new_XY_rod(i,1) = (i-(Nrod+1)/2.0)*cos(rodtheta)*distRod + rodXcm
+          new_XY_rod(i,2) = (i-(Nrod+1)/2.0)*sin(rodtheta)*distRod + rodYcm
       enddo 
 
     enddo
@@ -206,7 +206,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod)
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
-    integer :: i, j, n_cone
+    integer :: i, j, n_cone, side
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
     real :: dRodtheta, dRod, rotRod
     real :: a, b, ss=4.8, near, torque
@@ -230,12 +230,17 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
              atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1))
     rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
+
     ! =============================
     ! seeing other particles
     ! =============================
 
     do i = 1, N-1
         do j = i+1, N
+        
+            side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
+                            Yrod(1),Xrod(Nrod),Yrod(Nrod))
+    
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
@@ -246,7 +251,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
             n_cone = floor(th*10+0.5) + 3
             val = (ss/r)
             if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone) = Obs(i,n_cone)+val
+                Obs(i,n_cone+5*side) = Obs(i,n_cone+5*side)+val
             endif
             
             ! j to i
@@ -254,8 +259,9 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
             th = th - floor(th + 0.5)
             n_cone = floor(th*10+0.5) + 3
             if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(j,n_cone) = Obs(j,n_cone)+val
+                Obs(j,n_cone+5*side) = Obs(j,n_cone+5*side)+val
             endif
+
         enddo
     enddo
 
@@ -280,7 +286,7 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
 
             val =  (ss/r) / Nrod
             if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone+5) = Obs(i,n_cone+5)+val
+                Obs(i,n_cone+10) = Obs(i,n_cone+10)+val
                 if (r < 2.*ss) near = 1.
            endif
 
@@ -293,14 +299,14 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
         ! different reward functions to choose from
         select case (mode)
             case (1)
-                Rew(i) = reward_move(r/ss, dRod, a, b, near)
+                Rew(i) = reward_move(r/ss, dRod, a, b, rotRod, near)
                 !print*, i, 'x ', X(i),'y ', Y(i), ' theta ', a, 'rodtheta ', b,&
                 !       'a-b ', a-b, ' mod2pi ', ((a-b) - floor((a-b)/2.d0/PI+0.5d0)*2*PI), &
                 !       reward_move(r/ss, dRod, a, b, near)
             case (2)
                 Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
-                Obs(i, 11) = cos(a)
-                Obs(i, 12) = sin(a)
+                Obs(i, 16) = cos(a)
+                Obs(i, 17) = sin(a)
             case (3) 
                 ! reward positive irrespective to direction of rotation
                 ! no penalty for translation of center of mass.
@@ -309,16 +315,35 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! with penalty for translation of center of mass.
                 Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, near)
-                Obs(i, 11 + int((rotDir+1)/2)) = 1.
+                Obs(i, 16 + int((rotDir+1)/2)) = 1.
             case (5) ! debug reward for contact
                 Rew(i) = r/ss * near
         end select
-        Rew(i) = Rew(i) + sum(Obs(i,6:10))
+        !Rew(i) = Rew(i) + sum(Obs(i,11:15))
     enddo
 
     return
 
 contains
+
+    real FUNCTION ff(x,y,x1,y1,x2,y2)
+      implicit none 
+      real :: x1,y1,x2,y2,x,y
+      ff = (x-x1)*(y2-y1) - (y-y1)*(x2-x1)
+      return 
+    end function
+
+    integer FUNCTION crossing(x1,y1,x2,y2,rx1,ry1,rx2,ry2)
+    ! returns value 1 if particles are on the other side of rod
+      implicit none
+      real :: x1,y1,x2,y2,rx1,ry1,rx2,ry2
+      crossing = 0
+      if (ff(rx1,ry1,x1,y1,x2,y2)*ff(rx2,ry2,x1,y1,x2,y2)< 0 ) then
+        if (ff(x1,y1,rx1,ry1,rx2,ry2)*ff(x2,y2,rx1,ry1,rx2,ry2)< 0 ) then
+          crossing = 1
+        endif
+      endif
+    end function
 
     real FUNCTION reward_rotate(rotRod, tq, near)
     ! reward function for rotation on the spot
@@ -338,14 +363,14 @@ contains
       return
     end function reward_move_back    
     
-    real FUNCTION reward_move(rss, dRod, a, b, near)
+    real FUNCTION reward_move(rss, dRod, a, b, rot, near)
     ! Reward function for linear translation in any direction. 
     ! Maximum reward when particle is aligned with rod direction.
+    ! substracts a cost for rotation
       implicit none
-      !  real :: rand ! using old generator
-      real :: rss, a, b, near, dRod, ab_half
+      real :: rss, a, b, near, dRod, ab_half, rot
       ab_half = ((a-b) - floor((a-b)/2./PI+0.5)*2*PI)/2.
-      reward_move = dRod * cos(ab_half) / rss * near * 10.
+      reward_move = (dRod * cos(ab_half) / rss * near  - abs(rot)) * 10.
       return
     end function reward_move
     
