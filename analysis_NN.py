@@ -1,4 +1,6 @@
-# Analysis
+#!/usr/bin/env python
+
+import sys
 import numpy as np
 import tensorflow as tf
 from scipy.stats import entropy as sk_entropy
@@ -27,6 +29,11 @@ policy_first_layer=tf.keras.models.Model(inputs=policy.input, outputs=dense_0_po
 policy_second_layer=tf.keras.models.Model(inputs=policy.input, outputs=dense_1_policy)
 # -----------------------------------------------
 
+def load_models(models_rootname):
+    critic = tf.keras.models.load_model(models_rootname+'_critic/')
+    policy = tf.keras.models.load_model(models_rootname+'_policy/')
+    return critic, policy
+
 def Pi_PiEntropy(obs):
     logp = policy(np.array([obs]))
     prob = np.exp(logp)
@@ -38,8 +45,6 @@ def Pi_PiEntropy(obs):
 # 30 particles around
 # 1 particle is in the center
 # 1 particle is "just behind it": needed to have even numbers, it is not seen
-
-
 
 # Scenario 0: half / half
 N = 32
@@ -81,17 +86,26 @@ def load_scenario(name_file, x, y):
     p[1:-1,:2]=pxy 
     p[-1,:] = [x,y,0,1]
     p[0 ,:] = [x,y,0,0]
-
+    return p
 # From Fake Scenario to observables
 # Particle in the middle rotates
-angles = np.linspace(-np.pi/2., 3/2.*np.pi, 100)
-for ip, p in enumerate([p0, p1, p2]):
+
+if __name__ == "__main__":
+    input_scenario = sys.argv[1]
+    xpos = float(sys.argv[2])
+    ypos = float(sys.argv[3])
+    models_rootname = sys.argv[4]
+    p = load_scenario(input_scenario, xpos, ypos)
+
+    # From Scenario to Observables
+    # Particle in the middle rotates from -Pi/2 to 3/2 Pi in 100 steps
+    angles = np.linspace(-np.pi/2., 3/2.*np.pi, 100) 
     N = p.shape[0]
-    result = open('results_scenario{}.dat'.format(ip), "w")
-    np.savetxt('scenario{}.dat'.format(ip), p)
+    result = open('results_{}'.format(input_scenario), "w")
+    
     for a in angles:
         p[-1,2] = a
-        p[0,:3] = [-np.cos(a),-np.sin(a), 0] # shadow particle to 
+        p[0,:3] = [xpos-np.cos(a), ypos-np.sin(a), 0] # shadow particle just for keeping even number 
         obs, rewards = evolve.get_o_r_mix_tasks(
             p[:,0], p[:,1], p[:,2],   # X , Y, Theta    respectively
             1.0, 2, -1,               # mixing cost, demixing mode, switch_flag
@@ -99,4 +113,4 @@ for ip, p in enumerate([p0, p1, p2]):
         # Only last particle actions are of interest
         ob = obs[-1]
         pi, pientropy = Pi_PiEntropy(ob)
-        result.write('{} {} {} {} {} {} {}\n'.format(a, np.argmax(pi[0]), pi[0,0], pi[0,1], pi[0,2], pi[0,3], pientropy/np.log(4.)))
+        result.write('{} {} {} {} {} {} {}\n'.format(a, np.argmax(pi[0]), pi[0,0], pi[0,1], pi[0,2], pi[0,3], pientropy/np.log(4.))) # angle, most_probable_actions, policy x 4, entropy
