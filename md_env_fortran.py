@@ -28,7 +28,7 @@ import evolve_fortran as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., traj=True):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., obs_type='1overR', traj=True):
 
         
         self.N = N
@@ -45,7 +45,14 @@ class MD():
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
         self.vel_tor = vel_tor
-        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)   
+        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
+        
+        if (obs_type == '1overR'):
+            self.obs_type=1
+        elif (obs_type == '1overR2'):
+            self.obs_type=2
+        else:
+            print('error in receiving obs_type: only "1overR" and "1overR2" accepted. Got {}'.format(obs_type))
         
         
         # output trjectory
@@ -118,20 +125,17 @@ class MD():
                     xyz_file.write('P {} {} 0.0 {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i]))
 
     def get_o_r_switch_task_fortran(self, switch=-1):
-        t0 = time.time()    
         p = self.particles 
         assert switch >= 0
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, self.obs_type, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
         return obs, rewards
         
-    def get_o_r_mix_tasks_fortran(self):
-        t0 = time.time()    
+    def get_o_r_mix_tasks_fortran(self, obs_type):
         p = self.particles 
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, obs_type, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
         return obs, rewards
 
     def get_o_r_group_fortran(self):
-        t0 = time.time()
         p = self.particles
         obs, rewards = evolve.get_o_r_group_task(p[:,0],p[:,1],p[:,2],self.N)
         return obs, rewards
@@ -142,11 +146,10 @@ class MD():
         elif (self.md_type == 'switch'):
         	return self.get_o_r_switch_task_fortran(switch)
         elif (self.md_type in ['demix', 'mix']):
-        	return self.get_o_r_mix_tasks_fortran()
+        	return self.get_o_r_mix_tasks_fortran(self.obs_type)
     
 
     def evolve_MD(self, action, switch=-1):
-        t0 = time.time()
         done = False
         X = self.particles[:,0]        
         Y = self.particles[:,1]

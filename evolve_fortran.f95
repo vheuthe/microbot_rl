@@ -125,7 +125,7 @@ contains
 
 end subroutine
 
-subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, N, NObs, Obs, Rew)
+subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, N, NObs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! mode indicates whether mix (mode = 1), demix (mode = 2) or switch (mode = 3)
@@ -133,7 +133,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, N, NObs, Obs, Rew)
 ! ===========================================
     implicit none
     real , intent(in) :: X(N), Y(N), Theta(N), cost
-    integer, intent(in) :: N, NObs, switch, mode
+    integer, intent(in) :: N, NObs, switch, mode, obs_type
     real , intent(out) :: Obs(N,NObs), Rew(N)
     integer :: i, j, other, n_cone
     real :: dx, dy, r, dtheta, val, th
@@ -154,7 +154,13 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, N, NObs, Obs, Rew)
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
             n_cone = floor(th*10+0.5) + 3
-            val = (6.8/r)**2
+            
+            if (obs_type == 1) then 
+                val = (6.8/r)
+            else if (obs_type == 2) then
+                val = (6.8/r**2)
+            endif
+            
             if ((n_cone < 6) .and. (n_cone>0)) then
                 Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
