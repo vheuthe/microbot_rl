@@ -125,22 +125,36 @@ contains
 
 end subroutine
 
-subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, N, NObs, Obs, Rew)
+subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_angle, N, NObs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! mode indicates whether mix (mode = 1), demix (mode = 2) or switch (mode = 3)
 ! switch determines wheter to mix (1 = mixing) or demix (0 = demix)
 ! ===========================================
     implicit none
-    real , intent(in) :: X(N), Y(N), Theta(N), cost
+    real , intent(in) :: X(N), Y(N), Theta(N), cost, cone_angle
     integer, intent(in) :: N, NObs, switch, mode, obs_type
     real , intent(out) :: Obs(N,NObs), Rew(N)
-    integer :: i, j, other, n_cone
-    real :: dx, dy, r, dtheta, val, th
+    integer :: i, j, other, n_cone, cones=-1
+    real :: dx, dy, r, dtheta, val, th, cone_angle_reduced
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
+    
+    ! cone_angle must be a positive angle in radiants
+    cone_angle_reduced = cone_angle / 2. / PI
+    
+    ! calculate real number of sight cones
+    select case (mode)
+    case (1) ! pure mixing
+        cones = NObs / 2
+    case (2) ! pure demixing
+        cones = NObs / 2
+    case (3) ! switch mixing/demixing
+        cones = (NObs - 2) / 2
+    end select
+    
     do i = 1, N-1
         do j = i+1, N
         
@@ -152,26 +166,38 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, N, NObs,
             dtheta = atan2(dy,dx)
             ! i to j 
             th = (dtheta - Theta(i))/2./PI
+            ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
+
+            ! n_cone = 1 .. n_cone
+            ! for theta in range [ -cone_angle , cone_angle]
+            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             
             if (obs_type == 1) then 
                 val = (6.8/r)
             else if (obs_type == 2) then
                 val = (6.8/r**2)
+            else 
+                print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                STOP
             endif
             
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone+other*5) = Obs(i,n_cone+other*5)+val
+            if ((n_cone < cones+1) .and. (n_cone>0)) then
+                Obs(i,n_cone+other*cones) = Obs(i,n_cone+other*cones)+val
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
             
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
+            ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(j,n_cone+other*5) = Obs(j,n_cone+other*5)+val
+
+            ! n_cone = 1 .. n_cone
+            ! for theta in range [ -cone_angle , cone_angle]
+            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
+            
+            if ((n_cone < cones+1) .and. (n_cone>0)) then
+                Obs(j,n_cone+other*cones) = Obs(j,n_cone+other*cones)+val
             !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
 
@@ -182,26 +208,26 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, N, NObs,
     do i = 1, N
         select case (mode)
             case (1) ! pure mixing
-                Rew(i) = sum(Obs(i, 1:5)) + sum(Obs(i, 6:10)) &
-                    &- cost*sum(abs(Obs(i, 1:5) - Obs(i, 6:10)))
+                Rew(i) = sum(Obs(i, 1:cones)) + sum(Obs(i, (cones+1):(cones*2))) &
+                    &- cost*sum(abs(Obs(i, 1:cones) - Obs(i, (cones+1):(cones*2))))
             case (2) ! pure demixing
-                Rew(i) = sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10))
+                Rew(i) = sum(Obs(i, 1:cones)) - cost*sum(Obs(i, (cones+1):(cones*2)))
             case (3) ! switch mixing/demixing
                 if (switch == 0) then 
-                    Rew(i) = sum(Obs(i, 1:5)) - cost*sum(Obs(i, 6:10))
+                    Rew(i) = sum(Obs(i, 1:cones)) - cost*sum(Obs(i, (cones+1):(cones*2)))
                 else if (switch == 1) then
-                    Rew(i) = (sum(Obs(i, 1:5)) + sum(Obs(i, 6:10))) &
-                        &- cost*sum(abs(Obs(i, 1:5) - Obs(i, 6:10)))
+                    Rew(i) = (sum(Obs(i, 1:cones)) + sum(Obs(i, (cones+1):(cones*2)))) &
+                        &- cost*sum(abs(Obs(i, 1:cones) - Obs(i, (cones+1):(cones*2))))
                 else
                     print*, 'Error: SWITCH variable not recognized.'
                     STOP
                 endif
-                Obs(i, 11+switch) = 1
+                Obs(i, (2*cones+1)+switch) = 1
         end select
     enddo
     
     do i = 1, N
-       if ( sum(Obs(i,1:10)) .eq. 0 ) Rew(i) = -2
+       if ( sum(Obs(i,1:(2*cones))) .eq. 0 ) Rew(i) = -2
     enddo
     
     return

@@ -28,7 +28,7 @@ import evolve_fortran as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., obs_type='1overR', traj=True):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., obs_type='1overR', cone_angle=180., cones=5, traj=True):
 
         
         self.N = N
@@ -46,6 +46,7 @@ class MD():
         self.vel_act = vel_act
         self.vel_tor = vel_tor
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
+        self.cone_angle = np.abs(cone_angle)/180.*np.pi / 2. # sight is [-cone_angle/2, cone_angle/2], in radiants
         
         if (obs_type == '1overR'):
             self.obs_type=1
@@ -67,15 +68,15 @@ class MD():
         # Observables and reward functions & parameters
         self.cost = cost
         if (md_type in ['group']):
-            self.Nobs = 10
+            self.Nobs = 2*cones
         if (md_type in ['mix']):
-            self.Nobs = 10
+            self.Nobs = 2*cones
             self.mode = 1
         if (md_type in ['demix']):
-            self.Nobs = 10
+            self.Nobs = 2*cones
             self.mode = 2
         if (md_type in ['switch']):
-            self.Nobs = 12
+            self.Nobs = 2*cones+2
             self.mode = 3
         
 # --------------------------
@@ -127,12 +128,12 @@ class MD():
     def get_o_r_switch_task_fortran(self, switch=-1):
         p = self.particles 
         assert switch >= 0
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, self.obs_type, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, self.obs_type, self.cone_angle, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
         return obs, rewards
         
     def get_o_r_mix_tasks_fortran(self, obs_type):
         p = self.particles 
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, obs_type, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, obs_type, self.cone_angle, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
         return obs, rewards
 
     def get_o_r_group_fortran(self):
