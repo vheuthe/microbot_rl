@@ -196,26 +196,27 @@ contains
 end subroutine
 
 
-subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, old_rotDir, Nobs, N, Nrod, Obs, Rew)
+subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, old_rotDir, &
+                       side_flag, obs_type, cones, cone_angle, N, Nrod,  Nobs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod)
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
+    integer, intent(in) :: side_flag, obs_type, cones
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, n_cone, side
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
-    real :: dRodtheta, dRod, rotRod
+    real :: dRodtheta, dRod, rotRod, cone_angle_reduced
     real :: a, b, ss=4.8, near, torque
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
   
-    
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
 
@@ -230,9 +231,43 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
              atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1))
     rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
+    ! cone_angle must be a positive angle in radiants
+    cone_angle_reduced = cone_angle / 2. / PI
+
 
     ! =============================
-    ! seeing other particles
+    ! CONSISTENCY CHECK ON N_OBS == 
+    select case (mode)
+        case (1)
+            if (.not.(NObs == (2+side_flag)*cones)) then
+                print*, 'ERROR consistency NObs'
+                STOP
+            endif
+        case (2)
+            if (.not.(NObs == (2+side_flag)*cones+2)) then
+                print*, 'ERROR consistency NObs'
+                STOP
+            endif
+        case (3) 
+            if (.not.(NObs == (2+side_flag)*cones)) then
+                print*, 'ERROR consistency  NObs'
+                STOP
+            endif
+        case (4) 
+            if (.not.(NObs == (2+side_flag)*cones+2)) then
+                print*, 'ERROR consistency NObs'
+                STOP
+            endif
+        case (5) 
+            if (.not.(NObs == (2+side_flag)*cones)) then
+                print*, 'ERROR consistency NObs'
+                STOP
+            endif
+    end select
+    ! =============================
+
+    ! =============================
+    ! seeing other particles ======
     ! =============================
 
     do i = 1, N-1
@@ -241,27 +276,45 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
             side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
                             Yrod(1),Xrod(Nrod),Yrod(Nrod))
     
-            dx = X(j)-X(i)
-            dy = Y(j)-Y(i)
-            r = sqrt(dx*dx + dy*dy)
-            dtheta = atan2(dy,dx)
-            ! i to j
-            th = (dtheta - Theta(i))/2./PI
-            th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
-            val = (ss/r)
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone+5*side) = Obs(i,n_cone+5*side)+val
+            if ((side == 0).or.(side_flag == 1)) then
+                dx = X(j)-X(i)
+                dy = Y(j)-Y(i)
+                r = sqrt(dx*dx + dy*dy)
+                dtheta = atan2(dy,dx)
+                ! particle i to particle j
+                th = (dtheta - Theta(i))/2./PI
+                th = th - floor(th + 0.5)
+                
+                ! n_cone = 1 .. n_cone
+                ! for theta in range [ -cone_angle , cone_angle]
+                n_cone = floor( (th + cone_angle_reduced)/&
+                        (2.*cone_angle_reduced) * cones )+1
+                
+                if (obs_type == 1) then 
+                    val = (6.8/r)
+                else if (obs_type == 2) then
+                    val = (6.8/r**2)
+                else 
+                    print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                    STOP
+                endif
+                
+                if ((n_cone < (cones+1)) .and. (n_cone>0)) then
+                    Obs(i,n_cone+cones*side) = &
+                        Obs(i,n_cone+cones*side)+val
+                endif
+                
+                ! particle j to particle i
+                th = (dtheta + PI - Theta(j))/2./PI
+                th = th - floor(th + 0.5)
+                n_cone = floor( (th + cone_angle_reduced)/&
+                        (2.*cone_angle_reduced) * cones )+1
+                
+                if ((n_cone < (cones+1)) .and. (n_cone>0)) then
+                    Obs(j,n_cone+cones*side) = &
+                        Obs(j,n_cone+cones*side)+val
+                endif
             endif
-            
-            ! j to i
-            th = (dtheta + PI - Theta(j))/2./PI
-            th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(j,n_cone+5*side) = Obs(j,n_cone+5*side)+val
-            endif
-
         enddo
     enddo
 
@@ -281,12 +334,22 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
             ! particle sees rod 
             th = (dtheta - Theta(i))/2./PI
             th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
-            !print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
+            
+            ! -----------------------------
+            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
+            ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
-            val =  (ss/r) / Nrod
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone+10) = Obs(i,n_cone+10)+val
+            if (obs_type == 1) then 
+                val = (6.8/r/Nrod)
+            else if (obs_type == 2) then
+                val = (6.8/r**2/Nrod)
+            else 
+                print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                STOP
+            endif
+            
+            if ((n_cone < (cones+1)) .and. (n_cone>0)) then
+                Obs(i,n_cone+2*cones) = Obs(i,n_cone+2*cones)+val
                 if (r < 2.*ss) near = 1.
            endif
 
@@ -305,8 +368,8 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
                 !       reward_move(r/ss, dRod, a, b, near)
             case (2)
                 Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
-                Obs(i, 16) = cos(a)
-                Obs(i, 17) = sin(a)
+                Obs(i, 3*cones+1) = cos(a)
+                Obs(i, 3*cones+2) = sin(a)
             case (3) 
                 ! reward positive irrespective to direction of rotation
                 ! no penalty for translation of center of mass.
@@ -315,11 +378,11 @@ subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, 
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! with penalty for translation of center of mass.
                 Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, near)
-                Obs(i, 16 + int((rotDir+1)/2)) = 1.
+                Obs(i, 3*cones+1 + int((rotDir+1)/2)) = 1.
             case (5) ! debug reward for contact
                 Rew(i) = r/ss * near
         end select
-        !Rew(i) = Rew(i) + sum(Obs(i,11:15))
+        !Rew(i) = Rew(i) + sum(Obs(i,(2*cones+1):(3*cones) ))
     enddo
 
     return

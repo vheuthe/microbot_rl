@@ -305,6 +305,7 @@ class AgentActiveMatter():
     self.particles.pop(ID) # CHECK IF THIS MESSES ORDER DURING TRAIN OR BETTER NOT DO HERE
     #print('FINISHING PATHS, HERE actions are: {}'.format(self.actions))
 
+
   def normalize_adv(self):
     '''
     simple normalization trick of advantages for better convergence
@@ -322,8 +323,9 @@ class AgentActiveMatter():
     '''
 
     # FINISH ALL TRAJECTORIES
-    for _ in self.particles:
+    for _ in range(len(self.particles)):
       self.finish_path(lost=False, ID=0)  # CHECK THIS AS ABOVE!
+      print('#P {}'.format(len(self.particles)))
 
     obs = self.obs
     opt = self.optimizer
@@ -333,8 +335,7 @@ class AgentActiveMatter():
     self.normalize_adv()
     adv = self.adv
     #DEBUG
-    #print('HERE. act: {}, obs: {}, adv: {}'.format(act, obs, adv))
-
+    
     for i in range(epochs):
       with tf.GradientTape() as tape:
 

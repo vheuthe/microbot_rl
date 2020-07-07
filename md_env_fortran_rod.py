@@ -28,10 +28,27 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, sizeRod=3, massRod=10., inertiaRod=1., distRod=2., traj=False, mode=1):
+    def __init__(self, index=0, N=10, size=10, 
+                steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, 
+                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., 
+                obs_type=1, cones=5, cone_angle=180., side_flag=True,
+                traj=False, mode=1):
 
         # internal knowledge of system
         self.N = N
+        self.size = size
+
+        # sight characterization:
+        # obs_type -> 1/r, 1/r^2
+        # cones -> number of cones
+        # cone angle -> [-cone_angle, cone_angle] sight, in °
+        # side_flag -> whether particles can see through the rod!
+        self.obs_type = obs_type
+        self.cones = cones
+        self.cone_angle = cone_angle
+        self.side_flag = int(side_flag)
+        self.Nobs = cones*(2+side_flag)
+        
 
         # Rod geometry parameters
         # total lenght "sizeRod" and bead distance "distRod" dictates number of beads "Nrod"
@@ -40,31 +57,26 @@ class MD_ROD():
         self.Nrod = int(sizeRod / distRod + 1)
         self.distRod = sizeRod / (self.Nrod - 1)
         self.massRod = massRod # total mass of object
-        self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia
+        self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia, NOT true inertia
 
-        self.size = size
-        self.n_MD_steps = steps
-        # cone of sight. 10x particles (5x normal, 5x beyond rod), 5x rod particles
-        self.Nobs = 15
-        self.rewards = np.zeros(N)
 
         # type of task.
         # determines reward function, and observation space.
         # 1 - move rod
         # 2 - move rod along -x direction
         # 3 - rotate rod
+        self.rewards = np.zeros(N)
         self.mode = mode
         if (self.mode == 2): #directional pushing
-            self.Nobs = 17
-
+            self.Nobs += 2
         if (self.mode == 4): #rotation with direction s      
-            self.Nobs = 17
+            self.Nobs += 2
         
         # parameters of dynamics
+        self.n_MD_steps = steps
         self.dt = dt
         self.Dt = 0.014
         self.Dr = 1.0 / 350.0
-        
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
@@ -131,7 +143,7 @@ class MD_ROD():
                 xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0):
+    def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, side_flag=0, obs_type=1):
         t0 = time.time()    
         p = self.particles 
         r = self.rod
@@ -139,13 +151,17 @@ class MD_ROD():
         if (self.mode == 4):
             assert rotDir in [-1,1]
             assert old_rotDir in [-1,1]
-        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], r[:,0], r[:,1], olr[:,0],olr[:,1], self.mode, rotDir, old_rotDir, self.Nobs, self.N, self.Nrod)
+        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
+                                          r[:,0], r[:,1], olr[:,0],olr[:,1], 
+                                          self.mode, rotDir, old_rotDir, 
+                                          side_flag, obs_type, cones, cone_angle, 
+                                          self.N, self.Nrod, self.Nobs)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
 
     def get_obs_rewards(self, rotDir=0, old_rotDir=0):
-        return self.get_o_r_rod_fortran(rotDir, old_rotDir)
+        return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.side_flag, obs_type=self.obs_type)
 
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
         t0 = time.time()
