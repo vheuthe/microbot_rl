@@ -63,12 +63,13 @@ class MD():
         self.filexyz='traj'+str(index)+'.xyz'
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
-        assert self.md_type in ['group', 'mix', 'demix', 'switch'], 'MD type not recognized'
+        assert self.md_type in ['group', 'mix', 'demix', 'switch', 'predator'], 'MD type not recognized'
         
         # Observables and reward functions & parameters
         self.cost = cost
         if (md_type in ['group']):
             self.Nobs = 2*cones
+            self.mode = 0
         if (md_type in ['mix']):
             self.Nobs = 2*cones
             self.mode = 1
@@ -78,6 +79,9 @@ class MD():
         if (md_type in ['switch']):
             self.Nobs = 2*cones+2
             self.mode = 3
+        if (md_type in ['predator']):
+            self.Nobs = 2*cones
+            self.mode = 4
         
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi] 
@@ -143,20 +147,31 @@ class MD():
 
     def get_obs_rewards(self, switch=-1):
         if self.md_type == 'group':
-        	return self.get_o_r_group_fortran()
+        	return get_o_r_group_fortran()
         elif (self.md_type == 'switch'):
         	return self.get_o_r_switch_task_fortran(switch)
         elif (self.md_type in ['demix', 'mix']):
         	return self.get_o_r_mix_tasks_fortran(self.obs_type)
-    
+            
+    def get_obs_rewards_predator(self, XP=0, YP=0):
+        return self.get_o_r_group_predator_task_fortran(XP, YP)  
 
-    def evolve_MD(self, action, switch=-1):
+    def get_o_r_group_predator_task_fortran(self, XP, YP):
+        p = self.particles 
+        obs, rewards = evolve.get_o_r_group_predator_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle,
+        True, XP, YP, self.Nobs, self.N) 
+        return obs, rewards          
+
+    def evolve_MD(self, action, switch=-1, XP=-100., YP=-100.):
         done = False
-        X = self.particles[:,0]        
+        X = self.particles[:,0]
         Y = self.particles[:,1]
         T = self.particles[:,2]
         self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
-        obs, rewards = self.get_obs_rewards(switch)
+        if (self.md_type in ['group', 'switch', 'demix', 'mix']):
+            obs, rewards = self.get_obs_rewards(switch)
+        elif (self.md_type in ['predator']):
+            obs, rewards = self.get_obs_rewards_predator(XP, YP)
         self.rewards = rewards
         return obs, rewards, done, {}
 #

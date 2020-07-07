@@ -105,7 +105,7 @@ contains
       implicit none
       !  real :: rand ! using old generator
       real :: rnum(2)
-      real :: x1, x2, w, y1, y2;
+      real :: x1, x2, w, y1!, y2;
       do
     !     x1 = 2.0 * rand() - 1.0 ! using old generator
     !     x2 = 2.0 * rand() - 1.0 ! using old generator
@@ -135,8 +135,9 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     real , intent(in) :: X(N), Y(N), Theta(N), cost, cone_angle
     integer, intent(in) :: N, NObs, switch, mode, obs_type
     real , intent(out) :: Obs(N,NObs), Rew(N)
-    integer :: i, j, other, n_cone, cones=-1
-    real :: dx, dy, r, dtheta, val, th, cone_angle_reduced
+    integer :: i, j, k, other, n_cone, cones=-1, visible
+    real :: dx, dy, r, th, dtheta, val, cone_angle_reduced
+    real :: dx2, dy2, r2, dtheta2, dark, ss=6.2
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -183,7 +184,23 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
             endif
             
             if ((n_cone < cones+1) .and. (n_cone>0)) then
-                Obs(i,n_cone+other*cones) = Obs(i,n_cone+other*cones)+val
+                ! terribly expensive way
+                ! to account for line of sight
+                visible = 1
+                do k = 1, N 
+                    if ((i==k).or.(j==k)) cycle
+                    dx2 = X(k)-X(i)
+                    dy2 = Y(k)-Y(i)
+                    r2 = sqrt(dx2*dx2 + dy2*dy2)
+                    if (r2 > r) cycle
+                    dtheta2 = atan2(dy2,dx2)
+                    dark = atan(ss, r2)
+                    if (abs(dtheta-dtheta2) < dark) then
+                        visible = 0
+                        exit
+                    endif
+                enddo
+                Obs(i,n_cone+other*cones) = Obs(i,n_cone+other*cones)+val*visible
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
             
@@ -197,10 +214,27 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             
             if ((n_cone < cones+1) .and. (n_cone>0)) then
-                Obs(j,n_cone+other*cones) = Obs(j,n_cone+other*cones)+val
+                ! terribly expensive way
+                ! to account for line of sight
+                visible = 1
+                dtheta = atan2(-dy,-dx)
+                do k = 1, N 
+                    if ((i==k).or.(j==k)) cycle
+                    dx2 = X(k)-X(j)
+                    dy2 = Y(k)-Y(j)
+                    r2 = sqrt(dx2*dx2 + dy2*dy2)
+                    if (r2 > r) cycle
+                    dtheta2 = atan2(dy2,dx2)
+                    dark = atan(ss, r2)
+                    if (abs(dtheta-dtheta2)<dark) then
+                        visible = 0
+                        exit
+                    endif
+                enddo            
+
+                Obs(j,n_cone+other*cones) = Obs(j,n_cone+other*cones)+val*visible
             !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
-
         enddo
     enddo
     
@@ -235,50 +269,164 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
 end subroutine
 
 
-subroutine get_o_r_group_task(X,Y,Theta,N,Obs,Rew)
+subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, flag_P, XP, YP, N, NObs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
-    real , intent(in) :: X(N), Y(N), Theta(N)
-    integer, intent(in) :: N
-    real , intent(out) :: Obs(N,5), Rew(N)
-    integer :: i, j, n_cone
-    real :: dx, dy, r, dtheta, val, th
+    real , intent(in) :: X(N), Y(N), Theta(N), XP, YP, cone_angle
+    logical, intent(in) :: flag_P
+    integer, intent(in) :: N, NObs, obs_type
+    real , intent(out) :: Obs(N,NObs), Rew(N)
+    integer :: i, j, k, n_cone, cones=-1, visible
+    real :: dx, dy, r, dtheta, val, th, cone_angle_reduced
+    real :: dx2, dy2, r2, dtheta2, dark, ss=6.2
+
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
+    
+    ! cone_angle must be a positive angle in radiants
+    cone_angle_reduced = cone_angle / 2. / PI
+    
+    ! calculate real number of sight cones
+    cones = NObs
+    if (flag_P) cones = NObs / 2
+   
+    Obs = 0
+    Rew = 0
+
     do i = 1, N-1
+        
+        ! FELLOW PARTICLES
         do j = i+1, N
+        
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
-
-            ! i to j 
+            
+            ! i to j ============================================
             th = (dtheta - Theta(i))/2./PI
+            ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
-            val = (6.8/r)
-            if ((n_cone < 6) .and. (n_cone>0)) then
-                Obs(i,n_cone) = Obs(i,n_cone)+val
-                Rew(i) = Rew(i)+val
+
+            ! n_cone = 1 .. n_cone
+            ! for theta in range [ -cone_angle , cone_angle]
+            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced)*cones )+1
+                        
+            if (obs_type == 1) then 
+                val = (6.8/r)
+            else if (obs_type == 2) then
+                val = (6.8/r**2)
+            else 
+                print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                STOP
             endif
             
-            ! j to i
+            if ((n_cone < cones+1) .and. (n_cone>0)) then
+                ! terribly expensive way
+                ! to account for line of sight
+                visible = 1
+                do k = 1, N 
+                    if ((i==k).or.(j==k)) cycle
+                    dx2 = X(k)-X(i)
+                    dy2 = Y(k)-Y(i)
+                    r2 = sqrt(dx2*dx2 + dy2*dy2)
+                    if (r2 > r) cycle
+                    dtheta2 = atan2(dy2,dx2)
+                    dark = atan(ss, r2)
+                    if (abs(dtheta-dtheta2) < dark) then
+                        visible = 0
+                        exit
+                    endif
+                enddo
+                Obs(i,n_cone) = Obs(i,n_cone)+val*visible
+            !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
+            endif
+            
+            ! j to i ============================================
             th = (dtheta + PI - Theta(j))/2./PI
+            ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = th - floor(th + 0.5)
-            n_cone = floor(th*10+0.5) + 3
-            if ((n_cone < 6) .and. (n_cone>0)) then
+
+            ! n_cone = 1 .. n_cone
+            ! for theta in range [ -cone_angle , cone_angle]
+            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
+            
+            if ((n_cone < cones+1) .and. (n_cone>0)) then
+                ! terribly expensive way
+                ! to account for line of sight
+                dtheta = atan2(-dy,-dx)
+                visible = 0
+                do k = 1, N 
+                    if ((i==k).or.(j==k)) cycle
+                    dx2 = X(k)-X(j)
+                    dy2 = Y(k)-Y(j)
+                    r2 = sqrt(dx2*dx2 + dy2*dy2)
+                    if (r2 > r) cycle
+                    dtheta2 = atan2(dy2,dx2)
+                    dark = atan(ss, r2)
+                    if (abs(dtheta-dtheta2)<dark) then
+                        visible = 0
+                        exit
+                    endif
+                enddo            
+
                 Obs(j,n_cone) = Obs(j,n_cone)+val
-                Rew(j) = Rew(j)+val
+            !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
         enddo
+        
+        ! PREDATOR
+        dx = X(j)-XP
+        dy = Y(j)-YP
+        r = sqrt(dx*dx + dy*dy)
+        dtheta = atan2(dy,dx)
+        ! i to j 
+        th = (dtheta - Theta(i))/2./PI
+        ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
+        th = th - floor(th + 0.5)
+
+        ! n_cone = 1 .. n_cone
+        ! for theta in range [ -cone_angle , cone_angle]
+        n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
+        
+        if (obs_type == 1) then 
+            val = (6.8/r)
+        else if (obs_type == 2) then
+            val = (6.8/r)**2 / 6.8
+        else 
+            print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+            STOP
+        endif
+        
+        if ((n_cone < cones+1) .and. (n_cone>0)) then
+            ! terribly expensive way
+            ! to account for line of sight
+            visible = 1
+            do k = 1, N 
+                if ((i==k).or.(j==k)) cycle
+                dx2 = X(k)-X(i)
+                dy2 = Y(k)-Y(i)
+                r2 = sqrt(dx2*dx2 + dy2*dy2)
+                if (r2 > r) cycle
+                dtheta2 = atan2(dy2,dx2)
+                dark = atan(ss, r2)
+                if (abs(dtheta-dtheta2) < dark) then
+                    visible = 0
+                    exit
+                endif
+            enddo
+            Obs(i,n_cone+cones) = Obs(i,n_cone+cones)+val*visible
+        !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
+        endif
+        Rew(i) = -10*(6.8/r)**3
     enddo
 
     do i = 1, N
-       if ( sum(Obs(i,:)) .eq. 0 ) Rew(i) = -2
+       if ( sum(Obs(i,:cones)) .eq. 0 ) Rew(i) = -2
     enddo
 
     return
