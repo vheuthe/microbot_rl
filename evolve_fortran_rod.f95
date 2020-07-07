@@ -197,7 +197,7 @@ end subroutine
 
 
 subroutine get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, mode, rotDir, old_rotDir, &
-                       side_flag, obs_type, cones, cone_angle, N, Nrod,  Nobs, Obs, Rew)
+                       side_flag, obs_type, cones, cone_angle, Nobs, N, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================

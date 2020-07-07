@@ -154,8 +154,8 @@ class MD_ROD():
         obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
                                           r[:,0], r[:,1], olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
-                                          side_flag, obs_type, cones, cone_angle, 
-                                          self.N, self.Nrod, self.Nobs)
+                                          side_flag, obs_type, self.cones, self.cone_angle, 
+                                          self.Nobs, self.N, self.Nrod)
         # DEGUB
         self.rewards = rewards
         return obs, rewards
