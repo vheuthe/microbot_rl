@@ -323,9 +323,8 @@ class AgentActiveMatter():
     '''
 
     # FINISH ALL TRAJECTORIES
-    for _ in range(len(self.particles)):
+    while self.particles:
       self.finish_path(lost=False, ID=0)  # CHECK THIS AS ABOVE!
-      print('#P {}'.format(len(self.particles)))
 
     obs = self.obs
     opt = self.optimizer
