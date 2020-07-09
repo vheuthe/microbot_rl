@@ -31,7 +31,7 @@ class MD_ROD():
     def __init__(self, index=0, N=10, size=10, 
                 steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, 
                 sizeRod=3, massRod=10., inertiaRod=1., distRod=2., 
-                obs_type=1, cones=5, cone_angle=180., side_flag=True,
+                obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 traj=False, mode=1):
 
         # internal knowledge of system
@@ -41,14 +41,20 @@ class MD_ROD():
         # sight characterization:
         # obs_type -> 1/r, 1/r^2
         # cones -> number of cones
-        # cone angle -> [-cone_angle, cone_angle] sight, in °
-        # side_flag -> whether particles can see through the rod!
-        self.obs_type = obs_type
+        # cone angle -> [-cone_angle, cone_angle] sight, in deg, converted in rad
+        # flag_side -> whether particles can see through the rod!
+        assert obs_type in ['1overR', '1overR2'], 'Obs Type not Recognized'
+        if obs_type=='1overR': 
+            self.obs_type = 1
+        elif obs_type=='1overR2':
+            self.obs_type = 2
         self.cones = cones
-        self.cone_angle = cone_angle
-        self.side_flag = int(side_flag)
-        self.Nobs = cones*(2+side_flag)
+        self.cone_angle = cone_angle / 180. * np.pi
+        self.flag_side = int(flag_side)
+        self.flag_LOS = int(flag_LOS)
+        self.Nobs = cones*(2+flag_side)
         
+        assert (not (flag_side and flag_LOS)), 'Having LOS and view across rod together makes no sense.'
 
         # Rod geometry parameters
         # total lenght "sizeRod" and bead distance "distRod" dictates number of beads "Nrod"
@@ -100,10 +106,10 @@ class MD_ROD():
             for j in range(sN):
                 if (i*sN+j) < self.N :
                   oo = np.random.randint(pos.shape[0])
-                  particles[i*sN+j,:] += pos[oo]*5.0
+                  particles[i*sN+j,:] += pos[oo]*10.0
                   pos = np.delete(pos, oo, axis=0)
-        particles[particles[:,0] <= 0]  -= [5.0, 0, 0]
-        particles[particles[:,0] > 0]  += [5.0, 0, 0]
+        particles[particles[:,0] <= 0]  -= [10.0, 0, 0]
+        particles[particles[:,0] > 0]  += [10.0, 0, 0]
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
         if (self.traj):
             open(self.filexyz, "w")
@@ -143,7 +149,7 @@ class MD_ROD():
                 xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, side_flag=0, obs_type=1):
+    def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
         t0 = time.time()    
         p = self.particles 
         r = self.rod
@@ -154,14 +160,14 @@ class MD_ROD():
         obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
                                           r[:,0], r[:,1], olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
-                                          side_flag, obs_type, self.cones, self.cone_angle, 
+                                          flag_side, self.flag_LOS, obs_type, 
+                                          self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
-        # DEGUB
         self.rewards = rewards
         return obs, rewards
 
     def get_obs_rewards(self, rotDir=0, old_rotDir=0):
-        return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.side_flag, obs_type=self.obs_type)
+        return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
 
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
         t0 = time.time()
@@ -174,7 +180,8 @@ class MD_ROD():
         mRod = self.massRod
         IRod = self.inertiaRod
         self.old_rod = self.rod
-        self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, X, Y, T, Xrod, Yrod, self.distRod, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
+        self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, X, Y, T, Xrod, Yrod, self.distRod, action, self.Rm, 
+        self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
 #

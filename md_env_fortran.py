@@ -28,7 +28,7 @@ import evolve_fortran as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., obs_type='1overR', cone_angle=180., cones=5, traj=True):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., obs_type='1overR', cone_angle=180., flag_LOS = False, cones=5, traj=True):
 
         
         self.N = N
@@ -46,7 +46,6 @@ class MD():
         self.vel_act = vel_act
         self.vel_tor = vel_tor
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
-        self.cone_angle = np.abs(cone_angle)/180.*np.pi / 2. # sight is [-cone_angle/2, cone_angle/2], in radiants
         
         if (obs_type == '1overR'):
             self.obs_type=1
@@ -66,6 +65,9 @@ class MD():
         assert self.md_type in ['group', 'mix', 'demix', 'switch', 'predator'], 'MD type not recognized'
         
         # Observables and reward functions & parameters
+        self.flag_LOS = flag_LOS
+        self.cone_angle = np.abs(cone_angle)/180.*np.pi # sight is [-cone_angle/2, cone_angle/2], in radiants
+
         self.cost = cost
         if (md_type in ['group']):
             self.Nobs = 2*cones
