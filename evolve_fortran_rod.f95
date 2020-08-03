@@ -1,6 +1,8 @@
 subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, & 
                         distRod, act, Rm, Rr, dt, &
-                        nsteps, tor, vel_act, vel_tor, N, Nrod, &
+                        nsteps, tor, vel_act, vel_tor, &
+                        ext_rod, cen_rod, &
+                        N, Nrod, &
                         new_XYT, new_XY_rod)
 ! ===========================================
 ! gets observables and rewards from positions
@@ -11,6 +13,8 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt, mR, IR
+    real,    intent(in) :: ext_rod, cen_rod 
+    ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
     real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
     ! =======================================
@@ -23,7 +27,7 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff, epsRod=1.0
     ! =======================================
     ! rod parameters
-    real :: Irod = 0.d0, Lrod2 = 0.d0, massRod
+    real :: Irod = 0.d0, Lrod2 = 0.d0, massRod, fact(Nrod,4)
     ! =======================================
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
@@ -37,6 +41,13 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     new_XY_rod(:,1) = Xrod
     new_XY_rod(:,2) = Yrod
     massRod = mR / Nrod
+
+    do i=1,Nrod
+        fact(i,1) = cen_rod + (ext_rod-cen_rod)*abs(i/(Nrod*1.)-0.5)
+        fact(i,2) = fact(i,1)*fact(i,1)
+        fact(i,3) = fact(i,2)*fact(i,2)*fact(i,2)
+        fact(i,4) = fact(i,3)*fact(i,3)
+    enddo
 
     rodXcm = SUM(new_XY_rod(:,1))/Nrod
     rodYcm = SUM(new_XY_rod(:,2))/Nrod
@@ -118,9 +129,10 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
               dx = new_XY_rod(j,1) - new_XYT(i,1)
               dy = new_XY_rod(j,2) - new_XYT(i,2)
               r2 = dx*dx + dy*dy
-              if (r2 < ss2) then
-                  ff = ss12/(r2**6) - ss6/(r2**3)
-                  ff = 12.*epsRod*ff/r2
+              
+              if (r2 < ss2*fact(j,2)) then
+                  ff = fact(j,4)*ss12/(r2**6) - fact(j,3)*ss6/(r2**3)
+                  ff = 12.*epsRod*fact(j,1)*ff/r2
                   ! ==== DEBUG ====
                   if (ff > 1) then
                       ff = 1
@@ -215,7 +227,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side, visible
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
-    real :: dx2, dy2, r2, dtheta2, dark, ss=6.8
+    real :: dx2, dy2, r2, dtheta2, dark, ss=6.8/2., ssrod
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced
     real :: a, b, near, torque
     real, parameter :: PI = 3.14159265358979323846264
@@ -227,6 +239,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
   
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
+
+    ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
 
     oldcmRod(1) = SUM(oldXrod)/Nrod
     oldcmRod(2) = SUM(oldYrod)/Nrod
@@ -300,9 +314,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         (2.*cone_angle_reduced) * cones )+1
                 
                 if (obs_type == 1) then 
-                    val = (6.8/r)
+                    val = (ss/r)
                 else if (obs_type == 2) then
-                    val = (6.8/r**2)
+                    val = (ss/r**2)
                 else 
                     print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                     STOP
@@ -384,9 +398,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then 
-                val = (6.8/r/Nrod)
+                val = (ssrod)/r
             else if (obs_type == 2) then
-                val = (6.8/r**2/Nrod)
+                val = (ssrod/r**2)
             else 
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
@@ -436,6 +450,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             case (4) 
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! with penalty for translation of center of mass.
+                ! NON - NEGATIVE REWARD
                 Rew(i) = reward_rotate(rotRod, torque*old_rotDir, near)
                 Obs(i, (2+flag_side)+1 + int((rotDir+1)/2)) = 1.
             case (5) ! debug reward for contact

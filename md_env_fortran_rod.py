@@ -30,7 +30,7 @@ import evolve_fortran_rod as evolve
 class MD_ROD():
     def __init__(self, index=0, N=10, size=10, 
                 steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, 
-                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., 
+                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 traj=False, mode=1):
 
@@ -64,7 +64,8 @@ class MD_ROD():
         self.distRod = sizeRod / (self.Nrod - 1)
         self.massRod = massRod # total mass of object
         self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia, NOT true inertia
-
+        self.ext_rod = ext_rod
+        self.cen_rod = cen_rod
 
         # type of task.
         # determines reward function, and observation space.
@@ -125,12 +126,13 @@ class MD_ROD():
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
-                xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i] ) )
+                xyz_file.write('0 {} {} 0.0 {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2 ) )
             for i in range(self.Nrod):
-                xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
+                sigma_rod = 6.2*(self.cen_rod + (self.ext_rod-self.cen_rod)*abs(i/(self.Nrod*1.)-0.5))
+                xyz_file.write('1 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1], sigma_rod))
                 
                 
-    def print_xyz_action(self, actions, logp):
+    def print_xyz_actions(self, actions, logp):
         if (self.traj):
             p = self.particles
             rod = self.rod
@@ -143,10 +145,11 @@ class MD_ROD():
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
-                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), 
-                np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i] ) )
+                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), 
+                np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i] ) )
             for i in range(self.Nrod):
-                xyz_file.write('1 {} {} 0.0 {} {} 0.0\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1] ))
+                sigma_rod = 6.2*(self.cen_rod + (self.ext_rod-self.cen_rod)*abs(i/(self.Nrod*1.)-0.5))
+                xyz_file.write('1 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1], sigma_rod))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
@@ -180,8 +183,12 @@ class MD_ROD():
         mRod = self.massRod
         IRod = self.inertiaRod
         self.old_rod = self.rod
-        self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, X, Y, T, Xrod, Yrod, self.distRod, action, self.Rm, 
-        self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N, self.Nrod)
+        self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, 
+                                    X, Y, T,
+                                    Xrod, Yrod, self.distRod, action, 
+                                    self.Rm, self.Rr, self.dt, self.n_MD_steps, 
+                                    self.torque, self.vel_act, self.vel_tor, 
+                                    self.ext_rod, self.cen_rod,self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
 #

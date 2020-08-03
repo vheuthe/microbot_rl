@@ -333,25 +333,25 @@ class AgentActiveMatter():
     # ----------------------------------
     self.normalize_adv()
     adv = self.adv
-    #DEBUG
     
     for i in range(epochs):
       with tf.GradientTape() as tape:
 
         new_logp = tf.nn.log_softmax(self.policy(obs))
-        new_logp_reduced = tf.reduce_sum(tf.one_hot(act, depth=self.n_actions) * new_logp, axis=1)  #CHECK PROPER DIMENSION
+        new_logp_reduced = tf.reduce_sum(tf.one_hot(act, depth=self.n_actions) * new_logp, axis=1)
         logp_ratio = (new_logp_reduced - old_logp)
         ratio_reduced = tf.exp(logp_ratio)
         min_adv = np.where(adv>0, (1+self.CL)*adv, (1-self.CL)*adv)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(ratio_reduced * adv, min_adv))
-        # entropy term
-        entropy_term = tf.reduce_mean(new_logp_reduced*tf.exp(new_logp_reduced))
-        #
-        loss = loss_ppo2 + self.en_coeff*entropy_term
+        # approx KL divergence respect to flat - to reduce certainty.
+        # DKL(P_flat || Pi_new)
+        DKL_term = tf.reduce_mean(-new_logp)
+        # 
+        loss = loss_ppo2 + self.en_coeff*DKL_term
         # ----
 
       grads = tape.gradient(loss, self.policy.trainable_variables)
-      opt.apply_gradients(zip(grads, self.policy.trainable_variables))   #HOW MUCH???
+      opt.apply_gradients(zip(grads, self.policy.trainable_variables))   #defined in self.optimizer
       approx_kl = tf.reduce_mean(old_logp - new_logp_reduced)
       if (approx_kl > 1.5 * self.target_kl):
         #print('iter: {}, approx_kl: {}'.format(i, approx_kl))

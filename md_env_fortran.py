@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-import evolve_fortran as evolve
+import evolve_fortran_smooth as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -114,7 +114,7 @@ class MD():
                 elif self.md_type in ['group']:
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
                     
-    def print_xyz_action(self, actions, logp, switch=-1):
+    def print_xyz_actions(self, actions, logp, switch=-1):
         if (self.traj):
             p = self.particles
             # calculate probability of different actions
@@ -139,7 +139,7 @@ class MD():
         
     def get_o_r_mix_tasks_fortran(self, obs_type):
         p = self.particles 
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, obs_type, self.cone_angle, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, obs_type, self.cone_angle, self.flag_LOS, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
         return obs, rewards
 
     def get_o_r_group_fortran(self):
@@ -157,6 +157,10 @@ class MD():
             
     def get_obs_rewards_predator(self, XP=0, YP=0):
         return self.get_o_r_group_predator_task_fortran(XP, YP)  
+        
+    def get_NN(self):
+        p = self.particles
+        return evolve.get_neigh(p[:,0], p[:,1], self.N)
 
     def get_o_r_group_predator_task_fortran(self, XP, YP):
         p = self.particles 
@@ -164,18 +168,29 @@ class MD():
         True, XP, YP, self.Nobs, self.N) 
         return obs, rewards          
 
-    def evolve_MD(self, action, switch=-1, XP=-100., YP=-100.):
+    def evolve_MD(self, action, switch=-1, XP=-100., YP=-100., flag_mobility = False):
         done = False
         X = self.particles[:,0]
         Y = self.particles[:,1]
         T = self.particles[:,2]
-        self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
+        new_pos = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
+        dist, rot = self.mobility(X,Y,T, new_pos)
+        self.particles = new_pos
         if (self.md_type in ['group', 'switch', 'demix', 'mix']):
             obs, rewards = self.get_obs_rewards(switch)
         elif (self.md_type in ['predator']):
             obs, rewards = self.get_obs_rewards_predator(XP, YP)
         self.rewards = rewards
-        return obs, rewards, done, {}
+        if (flag_mobility): 
+            return obs, rewards, done, {}, dist, rot
+        else:
+            return obs, rewards, done, {}
+        
+    def mobility(self, X, Y, T, new_pos):
+        p = new_pos
+        dist = np.mean(np.sqrt(np.square(X-p[:,0])+np.square(Y-p[:,1])))
+        rot = np.mean(np.abs(T-p[:,2]))
+        return dist, rot
 #
 # ------------------------------------
 # End of class MD
