@@ -173,24 +173,14 @@ class MD():
         X = self.particles[:,0]
         Y = self.particles[:,1]
         T = self.particles[:,2]
-        new_pos = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
-        dist, rot = self.mobility(X,Y,T, new_pos)
-        self.particles = new_pos
+        self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
         if (self.md_type in ['group', 'switch', 'demix', 'mix']):
             obs, rewards = self.get_obs_rewards(switch)
         elif (self.md_type in ['predator']):
             obs, rewards = self.get_obs_rewards_predator(XP, YP)
         self.rewards = rewards
-        if (flag_mobility): 
-            return obs, rewards, done, {}, dist, rot
-        else:
-            return obs, rewards, done, {}
+        return obs, rewards, done, {}
         
-    def mobility(self, X, Y, T, new_pos):
-        p = new_pos
-        dist = np.mean(np.sqrt(np.square(X-p[:,0])+np.square(Y-p[:,1])))
-        rot = np.mean(np.abs(T-p[:,2]))
-        return dist, rot
 #
 # ------------------------------------
 # End of class MD

@@ -225,14 +225,15 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     integer, intent(in) :: flag_side, obs_type, cones
     logical, intent(in) :: flag_LOS
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
-    integer :: i, j, k, n_cone, side, visible
+    integer :: i, j, k, n_cone, side
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
-    real :: dx2, dy2, r2, dtheta2, dark, ss=6.8/2., ssrod
-    real :: dRodtheta, dRod, rotRod, cone_angle_reduced
+    real :: dx2, dy2, r2, dtheta2, dark, ss=6.8/2., sp_th
+    real :: ssrod
+    real :: covered_l, covered_r, vision_l, vision_r, in_sight=0.
+    real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
+    real, allocatable :: edge(:)
     real :: a, b, near, torque
     real, parameter :: PI = 3.14159265358979323846264
-
-
 
     Obs = 0
     Rew = 0
@@ -254,7 +255,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
     ! cone_angle must be a positive angle in radiants
-    cone_angle_reduced = cone_angle / 2. / PI
+    allocate(edge(cones+1))
+    do i = 0, cones
+        edge(i+1) = -cone_angle/2. + cone_angle*i/cones  
+    enddo 
+    cone_slice = cone_angle / cones
 
     ! =============================
     ! CONSISTENCY CHECK ON N_OBS == 
@@ -300,60 +305,90 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             ! side = 0 means on the other side of rod.  
             ! if flag_side == 1 then visibility is across rod.            
             if ((side == 0).or.(flag_side == 1)) then
+
                 dx = X(j)-X(i)
                 dy = Y(j)-Y(i)
                 r = sqrt(dx*dx + dy*dy)
                 dtheta = atan2(dy,dx)
-                ! particle i to particle j
+                sp_th = atan(ss, r)/2.
+                ! i to j 
+                ! th goes from [-pi, pi]
                 th = (dtheta - Theta(i))/2./PI
-                th = (th - floor(th + 0.5))*2 
+                th = (th - floor(th + 0.5))*2*PI
                 
                 ! n_cone = 1 .. n_cone
                 ! for theta in range [ -cone_angle , cone_angle]
-                n_cone = floor( (th + cone_angle_reduced)/&
-                        (2.*cone_angle_reduced) * cones )+1
-                
+                            
                 if (obs_type == 1) then 
-                    val = (ss/r)
+                val = (6.8/r)
                 else if (obs_type == 2) then
-                    val = (ss/r**2)
+                    val = (6.8/r**2)
                 else 
                     print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                     STOP
                 endif
                 
-                if ((n_cone < (cones+1)) .and. (n_cone>0)) then
-                    visible = 1
+                covered_l = 0
+                covered_r = 0   
+                if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
+                    ! terribly expensive way
+                    ! to account for line of sight
+
                     if (flag_LOS) then
                         do k = 1, N 
+                            
                             if ((i==k).or.(j==k)) cycle
+                            
                             dx2 = X(k)-X(i)
                             dy2 = Y(k)-Y(i)
                             r2 = sqrt(dx2*dx2 + dy2*dy2)
-                            if (r2 > r) cycle
+
+                            if (r2 > r) cycle !only closer particles can obscure
+                            
                             dtheta2 = atan2(dy2,dx2)
-                            dark = atan(ss, r2)
-                            if (abs(dtheta-dtheta2) < dark) then
-                                visible = 0
-                                exit
+                            dtheta2 = (dtheta2 - Theta(i))/2./PI
+                            dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
+                            dark = atan(ss, r2)/2 ! cone of shadow
+                           
+
+                            if (abs(th-dtheta2) < dark + sp_th) then
+                                if (th .lt. dtheta2) then
+                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                else if (th .ge. dtheta2) then
+                                    covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
+                                endif
+                                
+                                if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                             endif
+                            
                         enddo
                     endif
-                    Obs(i,n_cone+cones*side) = &
-                        Obs(i,n_cone+cones*side)+val*visible
+                    
+                    vision_l = th+sp_th-covered_l
+                    vision_r = th-sp_th+covered_r
+
+                    do n_cone= 1, cones
+                        ! fraction of particle in sight
+                        ! if particle in cone
+                        in_sight = 0.
+                        
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                        
+                        Obs(i,n_cone+side*cones) = Obs(i,n_cone+side*cones)+val*in_sight
+                    enddo
+                    
+                !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
                 endif
                 
-                ! particle j to particle i
+                ! j to i
                 th = (dtheta + PI - Theta(j))/2./PI
-                th = (th - floor(th + 0.5))*2 
-                n_cone = floor( (th + cone_angle_reduced)/&
-                        (2.*cone_angle_reduced) * cones )+1
-                
-                if ((n_cone < (cones+1)) .and. (n_cone>0)) then
-                ! terribly expensive way
-                ! to account for line of sight
-                visible = 1
-                dtheta = atan2(-dy,-dx)
+                ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
+                th = (th - floor(th + 0.5))*2*PI
+                covered_l = 0
+                covered_r = 0   
+                if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
+                    ! terribly expensive way
+                    ! to account for line of sight
                     if (flag_LOS) then
                         do k = 1, N 
                             if ((i==k).or.(j==k)) cycle
@@ -362,15 +397,38 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                             r2 = sqrt(dx2*dx2 + dy2*dy2)
                             if (r2 > r) cycle
                             dtheta2 = atan2(dy2,dx2)
-                            dark = atan(ss, r2)
-                            if (abs(dtheta-dtheta2)<dark) then
-                                visible = 0
-                                exit
+                            dtheta2 = (dtheta2 - Theta(j))/2./PI
+                            dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
+                            dark = atan(ss, r2)/2.
+                            
+                            ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
+                            if (abs(th-dtheta2) < dark+sp_th) then
+                                if (th .lt. dtheta2) then
+                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
+                                else if (th .ge. dtheta2) then
+                                    covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
+                                endif
+                                
+                                if (covered_l+covered_r > 2*sp_th) exit
                             endif
+                            
                         enddo            
                     endif
-                    Obs(j,n_cone+cones*side) = &
-                        Obs(j,n_cone+cones*side)+val*visible
+
+                    vision_l = th+sp_th-covered_l
+                    vision_r = th-sp_th+covered_r
+
+                    do n_cone= 1, cones
+                        ! fraction of particle in sight
+                        ! if particle in cone
+                        in_sight = 0.
+                                            
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                        
+                        Obs(j,n_cone+side*cones) = Obs(j,n_cone+side*cones)+val*in_sight
+                                            
+                    enddo
+                  !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
                 endif
             endif
         enddo
@@ -392,7 +450,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             ! particle sees rod 
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2 
-            
+            sp_th = atan(ssrod, r)/2.
             ! -----------------------------
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
@@ -406,23 +464,51 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 STOP
             endif
             
-            if ((n_cone < (cones+1)) .and. (n_cone>0)) then
+            covered_l = 0
+            covered_r = 0   
+            if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
+                ! terribly expensive way
+                ! to account for line of sight
+
                 if (flag_LOS) then
                     do k = 1, N 
-                        if ((i==k)) cycle
+                        
                         dx2 = X(k)-X(i)
                         dy2 = Y(k)-Y(i)
                         r2 = sqrt(dx2*dx2 + dy2*dy2)
-                        if (r2 > r) cycle
+
+                        if (r2 > r) cycle !only closer particles can obscure
+                        
                         dtheta2 = atan2(dy2,dx2)
-                        dark = atan(ss, r2)
-                        if (abs(dtheta-dtheta2) < dark) then
-                            visible = 0
-                            exit
+                        dtheta2 = (dtheta2 - Theta(i))/2./PI
+                        dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
+                        dark = atan(ss, r2)/2 ! cone of shadow
+                       
+
+                        if (abs(th-dtheta2) < dark + sp_th) then
+                            if (th .lt. dtheta2) then
+                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                            else if (th .ge. dtheta2) then
+                                covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
+                            endif
+                            
+                            if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                         endif
+                        
                     enddo
-                    endif
-                Obs(i,n_cone+(1+flag_side)*cones) = Obs(i,n_cone+(1+flag_side)*cones)+val
+                endif
+                
+                vision_l = th+sp_th-covered_l
+                vision_r = th-sp_th+covered_r
+
+                do n_cone= 1, cones
+                    ! fraction of particle in sight
+                    ! if particle in cone
+                    in_sight = 0.
+                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                    Obs(i,n_cone+(1+flag_side)*cones) = Obs(i,n_cone+(1+flag_side)*cones)+val*in_sight
+                enddo
+                !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
                 if (r < 3.*ss) near = 1.
            endif
 

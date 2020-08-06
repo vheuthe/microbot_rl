@@ -166,7 +166,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     real , intent(in) :: X(N), Y(N), Theta(N), cost, cone_angle
     integer, intent(in) :: N, NObs, switch, mode, obs_type
     real , intent(out) :: Obs(N,NObs), Rew(N)
-    integer :: i, j, k, other, n_cone, cones=-1
+    integer :: i, j, k, other, n_cone, cones=-1, NN(N,2)
     real :: dx, dy, r, th, dtheta, val, sp_th
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
@@ -177,6 +177,8 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
 
     Obs = 0
     Rew = 0
+    NN = 0
+
     
     ! calculate real number of sight cones
     select case (mode)
@@ -195,7 +197,6 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     enddo 
     cone_slice = cone_angle / cones
 
-    
     do i = 1, N-1
         do j = i+1, N
         
@@ -204,6 +205,12 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
+            
+            if (r < ss*1.5) then
+                NN(i,1+other) = NN(i,1+other)+1
+                NN(j,1+other) = NN(j,1+other)+1
+            endif
+            
             dtheta = atan2(dy,dx)
             sp_th = atan(ss, r)/2.
             ! i to j 
@@ -353,6 +360,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                     STOP
                 endif
                 Obs(i, (2*cones+1)+switch) = 1
+            case(4) ! neighbor count
         end select
     enddo
     
