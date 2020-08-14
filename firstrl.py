@@ -124,7 +124,7 @@ class AgentActiveMatter():
       # create critic
       self.critic = tf.keras.Sequential([
       # Adds a densely-connected layer with 6 units to the model:
-      tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,), kernel_initializer='zeros'),
+      tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,)),
       # Add another:
       tf.keras.layers.Dense(16, activation='relu'),
       # Add another:
@@ -358,7 +358,7 @@ class AgentActiveMatter():
         break
 
     # -- CRITIC FITTING --------------------------
-    self.critic.fit(x=obs, y=self.target, epochs=epochs, verbose=0)
+    self.critic.fit(x=obs, y=self.target, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # --- reset internal values ----
     self.reset_batch()
