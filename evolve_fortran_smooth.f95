@@ -156,14 +156,14 @@ subroutine get_neigh(X, Y, NN, N)
 
 end subroutine
 
-subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_angle, flag_LOS, N, NObs, Obs, Rew)
+subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_angle, dead_vision, flag_LOS, N, NObs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! mode indicates whether mix (mode = 1), demix (mode = 2) or switch (mode = 3)
 ! switch determines wheter to mix (1 = mixing) or demix (0 = demix)
 ! ===========================================
     implicit none
-    real , intent(in) :: X(N), Y(N), Theta(N), cost, cone_angle
+    real , intent(in) :: X(N), Y(N), Theta(N), cost, cone_angle, dead_vision
     integer, intent(in) :: N, NObs, switch, mode, obs_type
     real , intent(out) :: Obs(N,NObs), Rew(N)
     integer :: i, j, k, other, n_cone, cones=-1, NN(N,2)
@@ -171,7 +171,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
     real :: dx2, dy2, r2, dtheta2, dark, ss=6.2, cone_slice
-    real, allocatable :: edge(:)
+    real, allocatable :: edge(:,:)
     real, parameter :: PI = 3.14159265358979323846264
     logical, intent(in) :: flag_LOS
 
@@ -191,11 +191,17 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     end select
     
     ! to calculate smooth vision
-    allocate(edge(cones+1))
-    do i = 0, cones
-        edge(i+1) = -cone_angle/2. + cone_angle*i/cones  
+    allocate(edge(cones,2))
+    do i = 0, cones-1
+        edge(i+1,1) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*i/cones     + i * dead_vision
+        edge(i+1,2) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*(i+1)/cones + i * dead_vision
     enddo 
     cone_slice = cone_angle / cones
+    
+    ! print*, 'EDGES'
+    ! do i = 1, cones
+        ! print*, edge(i,1)/PI*180, edge(i,2)/PI*180
+    ! enddo
 
     do i = 1, N-1
         do j = i+1, N
@@ -274,7 +280,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                     ! if particle in cone
                     in_sight = 0.
                     
-                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
                     
                     Obs(i,n_cone+other*cones) = Obs(i,n_cone+other*cones)+val*in_sight
                     
@@ -331,7 +337,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                     ! if particle in cone
                     in_sight = 0.
                                         
-                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
                     
                     Obs(j,n_cone+other*cones) = Obs(j,n_cone+other*cones)+val*in_sight
                                         

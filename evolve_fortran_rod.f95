@@ -280,7 +280,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 STOP
             endif
         case (4) 
-            if (.not.(NObs == (2+flag_side)*cones+2)) then
+            if (.not.(NObs == (2+flag_side)*cones+1)) then
                 print*, 'ERROR consistency NObs'
                 STOP
             endif
@@ -535,10 +535,10 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 Rew(i) = reward_rotate(rotRod, torque, near)
             case (4) 
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
-                ! with penalty for translation of center of mass.
+                ! no penalty for translation of center of mass.
                 ! NON - NEGATIVE REWARD
-                Rew(i) = reward_rotate(rotRod, torque*old_rotDir, near)
-                Obs(i, (2+flag_side)+1 + int((rotDir+1)/2)) = 1.
+                Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, near)
+                Obs(i, (2+flag_side)+1) = rotDir
             case (5) ! debug reward for contact
                 Rew(i) = r/ss * near
         end select
