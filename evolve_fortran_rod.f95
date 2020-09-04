@@ -544,7 +544,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 Rew(i) = r/ss * near
         end select
         
-        if (near2 = 0.) Rew(i) = -1
+        if (near2 == 0.) Rew(i) = -1
     enddo
 
     return
