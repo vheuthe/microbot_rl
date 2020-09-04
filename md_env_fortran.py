@@ -101,7 +101,8 @@ class MD():
         open(self.filexyz, "w") 
         return particles
 
-  # PRINT TRAJECTORY
+#------------------------------------------------------
+#--- PRINT TRAJECTORY
     def print_xyz(self, switch=-1):
         if (self.traj):
             p = self.particles
@@ -114,7 +115,7 @@ class MD():
                     xyz_file.write('{} {} {} 0.0 {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i]))
                 elif self.md_type in ['group']:
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
-                    
+#-------
     def print_xyz_actions(self, actions, logp, switch=-1):
         if (self.traj):
             p = self.particles
@@ -131,57 +132,67 @@ class MD():
                     xyz_file.write('{} {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i]))
                 elif self.md_type in ['group']:
                     xyz_file.write('P {} {} 0.0 {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i]))
+#------------------------------------------------------
 
-    def get_o_r_switch_task_fortran(self, switch=-1):
-        p = self.particles 
-        assert switch >= 0
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, self.obs_type, self.cone_angle, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
-        return obs, rewards
-        
-    def get_o_r_mix_tasks_fortran(self, obs_type):
-        p = self.particles 
-        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, obs_type, self.cone_angle, self.dead_vision, self.flag_LOS, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
-        return obs, rewards
-
+#------------------------------------------------------
+    def get_obs_rewards(self, switch=-1, old_switch=-1):
+        if self.md_type == 'group':
+        	return get_o_r_group_fortran()
+        elif (self.md_type == 'switch'):
+        	return self.get_o_r_switch_task_fortran(switch, old_switch)
+        elif (self.md_type in ['demix', 'mix']):
+        	return self.get_o_r_mix_tasks_fortran(self.obs_type)
+#---------------------
     def get_o_r_group_fortran(self):
         p = self.particles
         obs, rewards = evolve.get_o_r_group_task(p[:,0],p[:,1],p[:,2],self.N)
         return obs, rewards
+#---------------------
+    def get_o_r_switch_task_fortran(self, switch=-1, old_switch=-1):
+        p = self.particles 
+        assert switch >= 0
+        assert old_switch >= 0
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, old_switch, self.obs_type, self.cone_angle, 0, self.flag_LOS, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
+        return obs, rewards
+#---------------------
+    def get_o_r_mix_tasks_fortran(self, obs_type):
+        p = self.particles 
+        obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, -1, obs_type, self.cone_angle, self.dead_vision, self.flag_LOS, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
+        return obs, rewards
+#-----------------------------------------------------
 
-    def get_obs_rewards(self, switch=-1):
-        if self.md_type == 'group':
-        	return get_o_r_group_fortran()
-        elif (self.md_type == 'switch'):
-        	return self.get_o_r_switch_task_fortran(switch)
-        elif (self.md_type in ['demix', 'mix']):
-        	return self.get_o_r_mix_tasks_fortran(self.obs_type)
-            
+
+
+#-----------------------------------------------------
     def get_obs_rewards_predator(self, XP=0, YP=0):
         return self.get_o_r_group_predator_task_fortran(XP, YP)  
+#---------------------
+    def get_o_r_group_predator_task_fortran(self, XP, YP):
+        p = self.particles 
+        obs, rewards = evolve.get_o_r_group_predator_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, 0.,
+        True, XP, YP, self.Nobs, self.N) 
+        return obs, rewards          
+#------------------------------------------------------          
         
     def get_NN(self):
         p = self.particles
         return evolve.get_neigh(p[:,0], p[:,1], self.N)
 
-    def get_o_r_group_predator_task_fortran(self, XP, YP):
-        p = self.particles 
-        obs, rewards = evolve.get_o_r_group_predator_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle,
-        True, XP, YP, self.Nobs, self.N) 
-        return obs, rewards          
-
-    def evolve_MD(self, action, switch=-1, XP=-100., YP=-100., flag_mobility = False):
+#------------------------------------------------------          
+    def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., flag_mobility = False):
         done = False
         X = self.particles[:,0]
         Y = self.particles[:,1]
         T = self.particles[:,2]
         self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
         if (self.md_type in ['group', 'switch', 'demix', 'mix']):
-            obs, rewards = self.get_obs_rewards(switch)
+            obs, rewards = self.get_obs_rewards(switch, old_switch)
         elif (self.md_type in ['predator']):
             obs, rewards = self.get_obs_rewards_predator(XP, YP)
         self.rewards = rewards
         return obs, rewards, done, {}
-        
+#------------------------------------------------------          
+      
 #
 # ------------------------------------
 # End of class MD

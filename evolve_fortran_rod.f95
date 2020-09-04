@@ -232,7 +232,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0.
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, near, torque
+    real :: a, b, near, near2, torque
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -441,7 +441,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         b = dRodtheta ! direction of motion of rod.
  
         near = 0
-
+        near2 = 0
         do j = 1, Nrod
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
@@ -510,6 +510,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 enddo
                 !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
                 if (r < 3.*ss) near = 1.
+                if (r < 8.*ss) near2 = 1.
            endif
 
         enddo
@@ -542,7 +543,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             case (5) ! debug reward for contact
                 Rew(i) = r/ss * near
         end select
-        !Rew(i) = Rew(i) + sum(Obs(i,(2*cones+1):(3*cones) ))
+        
+        if (near2 = 0.) Rew(i) = -1
     enddo
 
     return
