@@ -212,7 +212,9 @@ end subroutine
 
 subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         mode, rotDir, old_rotDir, &
-                        flag_side, flag_LOS, obs_type, cones, cone_angle, &
+                        flag_side, flag_LOS, &
+                        ss, ssrod_ext, &
+                        obs_type, cones, cone_angle, &
                         Nobs, N, Nrod, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
@@ -227,8 +229,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
-    real :: dx2, dy2, r2, dtheta2, dark, ss=6.8/2., sp_th
-    real :: ssrod
+    real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod
+    real, intent(in) :: ss, ssrod_ext
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0.
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
@@ -241,7 +243,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
 
-    ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
+    ssrod = ssrod_ext
+    if (ssrod==0) ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
 
     oldcmRod(1) = SUM(oldXrod)/Nrod
     oldcmRod(2) = SUM(oldYrod)/Nrod
@@ -441,7 +444,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         b = dRodtheta ! direction of motion of rod.
  
         near = 0
-        near2 = 0
+        near2 = 1000
         do j = 1, Nrod
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
@@ -508,10 +511,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
                     Obs(i,n_cone+(1+flag_side)*cones) = Obs(i,n_cone+(1+flag_side)*cones)+val*in_sight
                 enddo
-                !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
-                if (r < 3.*ss) near = 1.
-                if (r < 8.*ss) near2 = 1.
-           endif
+
+
+            endif
+            if (r < 15) near = 1.
+            if (r < near2) near2 = r
 
         enddo
         dx = cmRod(1) - X(i)
@@ -533,7 +537,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             case (3) 
                 ! reward positive irrespective to direction of rotation
                 ! no penalty for translation of center of mass.
-                Rew(i) = reward_rotate(rotRod, torque, near)
+                if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
+                               ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
+                    Rew(i) = reward_rotate(rotRod, torque, near)
+                endif
+                
             case (4) 
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! no penalty for translation of center of mass.
@@ -544,7 +552,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 Rew(i) = r/ss * near
         end select
         
-        if (near2 == 0.) Rew(i) = -1
+        Rew(i) = Rew(i) - (tanh((near2-10*ss)/10)+1)/2
     enddo
 
     return

@@ -32,6 +32,7 @@ class MD_ROD():
                 steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, 
                 sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
+                ss=6.2, ssrod=0.0,
                 traj=False, mode=1):
 
         # internal knowledge of system
@@ -66,6 +67,8 @@ class MD_ROD():
         self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia, NOT true inertia
         self.ext_rod = ext_rod
         self.cen_rod = cen_rod
+        self.ssrod = ssrod #if initialized to 0, it is automatically calculated in evolve_fortran_rod subroutine
+        self.ss = ss
 
         # type of task.
         # determines reward function, and observation space.
@@ -163,7 +166,9 @@ class MD_ROD():
         obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
                                           r[:,0], r[:,1], olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
-                                          flag_side, self.flag_LOS, obs_type, 
+                                          flag_side, self.flag_LOS, 
+                                          self.ss, self.ssrod,
+                                          obs_type, 
                                           self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
         self.rewards = rewards
