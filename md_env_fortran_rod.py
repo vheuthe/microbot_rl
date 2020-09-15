@@ -30,7 +30,8 @@ import evolve_fortran_rod as evolve
 class MD_ROD():
     def __init__(self, index=0, N=10, size=10, 
                 steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, 
-                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0,
+                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0, mu_K = 0.0,
+                Dt = 0.014, Dr = 1.0 / 350.0, 
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0,
                 traj=False, mode=1):
@@ -69,6 +70,7 @@ class MD_ROD():
         self.cen_rod = cen_rod
         self.ssrod = ssrod #if initialized to 0, it is automatically calculated in evolve_fortran_rod subroutine
         self.ss = ss
+        self.mu_K = mu_K # kinetic friction - like along rod.
 
         # type of task.
         # determines reward function, and observation space.
@@ -85,8 +87,8 @@ class MD_ROD():
         # parameters of dynamics
         self.n_MD_steps = steps
         self.dt = dt
-        self.Dt = 0.014
-        self.Dr = 1.0 / 350.0
+        self.Dt = Dt # 0.014
+        self.Dr = Dr # 1.0 / 350.0
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
@@ -105,7 +107,9 @@ class MD_ROD():
     def reinitialize_random_for_MD(self, index):
         sN = np.int(np.sqrt(self.N))+1
         particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
-        pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
+        #pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
+        pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
+        #pos = np.array([[i+0.5,j+self.distRod,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(1,sN+2)])
         for i in range(sN):
             for j in range(sN):
                 if (i*sN+j) < self.N :
@@ -193,7 +197,8 @@ class MD_ROD():
                                     Xrod, Yrod, self.distRod, action, 
                                     self.Rm, self.Rr, self.dt, self.n_MD_steps, 
                                     self.torque, self.vel_act, self.vel_tor, 
-                                    self.ext_rod, self.cen_rod,self.N, self.Nrod)
+                                    self.ext_rod, self.cen_rod, self.mu_K,
+                                    self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
 #

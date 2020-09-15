@@ -1,7 +1,7 @@
 subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, & 
                         distRod, act, Rm, Rr, dt, &
                         nsteps, tor, vel_act, vel_tor, &
-                        ext_rod, cen_rod, &
+                        ext_rod, cen_rod, mu_K,&
                         N, Nrod, &
                         new_XYT, new_XY_rod)
 ! ===========================================
@@ -13,15 +13,17 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt, mR, IR
-    real,    intent(in) :: ext_rod, cen_rod 
+    real,    intent(in) :: ext_rod, cen_rod , mu_K
     ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
     real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
     ! =======================================
-    real :: velX(N), velY(N), velR(N), v
-    real :: velXrod, velYrod, torquerod, rodXcm, rodYcm, rodtheta
+    real :: FX(N), FY(N), FR(N), v
+    real :: F_pRX, F_pRY, rel_thetaF, normalF, frictionF
+    real :: FXrod, FYrod
+    real :: torquerod, rodXcm, rodYcm, rodtheta
     integer :: i, j, it
-    real :: dx, dy, r2, drodx, drody
+    real :: dx, dy, r2, drodx, drody 
     ! =======================================
     ! force parameters
     real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff, epsRod=1.0
@@ -58,12 +60,14 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
 
     do it = 1, nsteps
 
-        velX = 0.d0
-        velY = 0.d0
-        velR = 0.d0
 
-        velXrod = 0.d0
-        velYrod = 0.d0
+
+        FX = 0.d0
+        FY = 0.d0
+        FR = 0.d0
+        
+        FXrod = 0.d0
+        FYrod = 0.d0
         torquerod = 0.d0
 
 
@@ -72,9 +76,9 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     ! =============================
 
         do i = 1, N
-            velX(i) = gran()*Rm
-            velY(i) = gran()*Rm
-            velR(i) = gran()*Rr
+            FX(i) = gran()*Rm
+            FY(i) = gran()*Rm
+            FR(i) = gran()*Rr
 
             if (act(i)>0) then
                 ! ========================
@@ -83,10 +87,10 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
                 v = vel_act
                 if (act(i)>1) then
                     v = vel_tor
-                    velR(i) = velR(i) - 2*tor*(act(i)-2.5)
+                    FR(i) = FR(i) - 2*tor*(act(i)-2.5)
                 endif
-                velX(i) = velX(i) + cos(new_XYT(i,3))*v
-                velY(i) = velY(i) + sin(new_XYT(i,3))*v
+                FX(i) = FX(i) + cos(new_XYT(i,3))*v
+                FY(i) = FY(i) + sin(new_XYT(i,3))*v
 
             endif
          enddo
@@ -109,10 +113,10 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
                       print*, 'too much'
                   endif
                   ! ===============
-                  velX(i) = velX(i) - ff*dx
-                  velY(i) = velY(i) - ff*dy
-                  velX(j) = velX(j) + ff*dx
-                  velY(j) = velY(j) + ff*dy                  
+                  FX(i) = FX(i) - ff*dx
+                  FY(i) = FY(i) - ff*dy
+                  FX(j) = FX(j) + ff*dx
+                  FY(j) = FY(j) + ff*dy                  
               endif 
           enddo
       enddo
@@ -121,33 +125,63 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     ! repulsion with rod
     ! =============================
 
-     do j = 1, Nrod
-         drodx = new_XY_rod(j,1) - rodXcm
-         drody = new_XY_rod(j,2) - rodYcm
+    do i = 1, N
 
-         do i = 1, N
-              dx = new_XY_rod(j,1) - new_XYT(i,1)
-              dy = new_XY_rod(j,2) - new_XYT(i,2)
-              r2 = dx*dx + dy*dy
+        ! ============================
+        ! repulsion of single particle
+        ! ============================
+        
+        F_pRX = 0.d0
+        F_pRY = 0.d0
+        
+        do j = 1, Nrod
+            drodx = new_XY_rod(j,1) - rodXcm
+            drody = new_XY_rod(j,2) - rodYcm
+
+            dx = new_XY_rod(j,1) - new_XYT(i,1)
+            dy = new_XY_rod(j,2) - new_XYT(i,2)
+     
+            r2 = dx*dx + dy*dy
               
-              if (r2 < ss2*fact(j,2)) then
-                  ff = fact(j,4)*ss12/(r2**6) - fact(j,3)*ss6/(r2**3)
-                  ff = 12.*epsRod*fact(j,1)*ff/r2
-                  ! ==== DEBUG ====
-                  if (ff > 1) then
-                      ff = 1
-                      print*, 'too much'
-                  endif
-                  ! ===============
-                  velX(i) = velX(i) - ff*dx
-                  velY(i) = velY(i) - ff*dy
+            if (r2 < ss2*fact(j,2)) then
+                    ff = fact(j,4)*ss12/(r2**6) - fact(j,3)*ss6/(r2**3)
+                    ff = 12.*epsRod*fact(j,1)*ff/r2
+                    ! ==== DEBUG ====
+                    if (ff > 1) then
+                        ff = 1
+                        print*, 'too much'
+                    endif
+                    ! ===============
+                    FX(i) = FX(i) - ff*dx
+                    FY(i) = FY(i) - ff*dy
 
-                  velXrod = velXrod + ff*dx
-                  velYrod = velYrod + ff*dy                  
-                  torquerod = torquerod + ff * (drodx*dy-drody*dx)
-                  !print*, 'Force: ', ff*dx, ff*dy, 'Torque: ', ff * (drodx*dy-drody*dx), 'Irod: ', Irod 
+                    FXrod = FXrod + ff*dx
+                    FYrod = FYrod + ff*dy                  
+
+                    F_pRX = F_pRX + ff*dx
+                    F_pRY = F_pRY + ff*dy
+                      
+                    ! =======================
+                    ! component of force in direction of rod
+
+                    torquerod = torquerod + ff * (drodx*dy-drody*dx)
+                    !print*, 'Force: ', ff*dx, ff*dy, 'Torque: ', ff * (drodx*dy-drody*dx), 'Irod: ', Irod 
               endif 
           enddo
+          
+          ! =============================
+          ! from F_pRX, F_pRY to friction
+          ! =============================
+          ! rel_thetaF, normalF, frictionF
+          rel_thetaF = atan2(F_pRY, F_pRX) + rodtheta
+          normalF = sqrt(F_pRX**2+ F_pRY**2) * cos(rel_thetaF)
+          frictionF = max(normalF * mu_K, normalF * tan(rel_thetaF))
+
+          FX(i) = FX(i) - cos(rodtheta)*frictionF
+          FY(i) = FY(i) - sin(rodtheta)*frictionF
+          FXrod = FXrod + cos(rodtheta)*frictionF
+          FYrod = FYrod + sin(rodtheta)*frictionF
+          
       enddo
     
     ! =============================
@@ -155,19 +189,19 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     ! =============================
 
       do i = 1, N
-          new_XYT(i,1) = new_XYT(i,1) + velX(i)*dt
-          new_XYT(i,2) = new_XYT(i,2) + velY(i)*dt
-          new_XYT(i,3) = new_XYT(i,3) + velR(i)*dt
+          new_XYT(i,1) = new_XYT(i,1) + FX(i)*dt
+          new_XYT(i,2) = new_XYT(i,2) + FY(i)*dt
+          new_XYT(i,3) = new_XYT(i,3) + FR(i)*dt
       enddo
 
     ! =============================
     ! move rod degrees of freedom
     ! =============================
 
-      rodXcm = rodXcm + dt*velXrod/Nrod/massRod
-      rodYcm = rodYcm + dt*velYrod/Nrod/massRod
-      rodtheta = rodtheta + dt*torquerod/Irod ! FAKE Inertia
-
+    rodXcm = rodXcm + dt*FXrod/Nrod/massRod
+    rodYcm = rodYcm + dt*FYrod/Nrod/massRod
+    rodtheta = rodtheta + dt*torquerod/Irod ! FAKE Inertia
+    
     ! =============================
     ! transform rod 
     ! =============================
@@ -229,8 +263,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
-    real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod
-    real, intent(in) :: ss, ssrod_ext
+    real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
+    real, intent(in) :: ss,  ssrod_ext
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0.
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
@@ -243,8 +277,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
 
-    ssrod = ssrod_ext
-    if (ssrod==0) ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
+    true_ss = 6.0
+    true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
+
+    ssrod = ssrod_ext    
+    if (ssrod==0) ssrod = true_ssrod
 
     oldcmRod(1) = SUM(oldXrod)/Nrod
     oldcmRod(2) = SUM(oldYrod)/Nrod
@@ -302,10 +339,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     do i = 1, N-1
         do j = i+1, N
         
-            side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
-                            Yrod(1),Xrod(Nrod),Yrod(Nrod))
+            !side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
+            !                Yrod(1),Xrod(Nrod),Yrod(Nrod))
             
-            ! side = 0 means on the other side of rod.  
+            side = 0
+            ! side = 0 means on the same side of rod.  
             ! if flag_side == 1 then visibility is across rod.            
             if ((side == 0).or.(flag_side == 1)) then
 
@@ -323,9 +361,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 ! for theta in range [ -cone_angle , cone_angle]
                             
                 if (obs_type == 1) then 
-                val = (6.8/r)
+                val = (true_ss/r)
                 else if (obs_type == 2) then
-                    val = (6.8/r**2)
+                    val = (true_ss/r**2)
                 else 
                     print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                     STOP
@@ -452,21 +490,21 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             dtheta = atan2(dy,dx)
             ! particle sees rod 
             th = (dtheta - Theta(i))/2./PI
-            th = (th - floor(th + 0.5))*2 
+            th = (th - floor(th + 0.5))*2*PI 
             sp_th = atan(ssrod, r)/2.
             ! -----------------------------
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then 
-                val = (ssrod)/r
+                val = (true_ssrod)/r
             else if (obs_type == 2) then
-                val = (ssrod/r**2)
+                val = (true_ssrod/r**2)
             else 
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-            
+                        
             covered_l = 0
             covered_r = 0   
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
@@ -526,12 +564,12 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         ! different reward functions to choose from
         select case (mode)
             case (1)
-                Rew(i) = reward_move(r/ss, dRod, a, b, rotRod, near)
+                Rew(i) = reward_move(r/true_ss, dRod, a, b, rotRod, near)
                 !print*, i, 'x ', X(i),'y ', Y(i), ' theta ', a, 'rodtheta ', b,&
                 !       'a-b ', a-b, ' mod2pi ', ((a-b) - floor((a-b)/2.d0/PI+0.5d0)*2*PI), &
                 !       reward_move(r/ss, dRod, a, b, near)
             case (2)
-                Rew(i) = reward_move_back(r/ss, dRod, a, b, near)
+                Rew(i) = reward_move_back(r/true_ss, dRod, a, b, near)
                 Obs(i, (2+flag_side)*cones+1) = cos(a)
                 Obs(i, (2+flag_side)+2) = sin(a)
             case (3) 
@@ -539,20 +577,20 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 ! no penalty for translation of center of mass.
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(rotRod, torque, near)
+                    Rew(i) = reward_rotate(rotRod, torque, near, dRod)
                 endif
                 
             case (4) 
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! no penalty for translation of center of mass.
                 ! NON - NEGATIVE REWARD
-                Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, near)
+                Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, near, 0.)
                 Obs(i, (2+flag_side)+1) = rotDir
             case (5) ! debug reward for contact
-                Rew(i) = r/ss * near
+                Rew(i) = r/true_ss * near
         end select
         
-        Rew(i) = Rew(i) - (tanh((near2-10*ss)/10)+1)/2
+        Rew(i) = Rew(i) - (tanh((near2-10*true_ss)/10)+1)/2
     enddo
 
     return
@@ -578,12 +616,12 @@ contains
       endif
     end function
 
-    real FUNCTION reward_rotate(rotRod, tq, near)
+    real FUNCTION reward_rotate(rotRod, tq, near, dRod)
     ! reward function for rotation on the spot
       implicit none
       !
-      real :: rotRod, tq, near
-      reward_rotate =  (rotRod * tq) * near * 10.! - dRod
+      real :: rotRod, tq, near, dRod
+      reward_rotate =  (rotRod * tq) * near * 10. - dRod
       return
     end function reward_rotate    
 
