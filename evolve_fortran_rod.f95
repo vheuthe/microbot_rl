@@ -656,7 +656,7 @@ contains
       real :: rotRod, tq, dRod
       integer :: near
 
-      reward_rotate =  (rotRod * tq) * near * 30. - dRod
+      reward_rotate =  ((rotRod * tq)  * 30. - dRod) * near
       return
     end function reward_rotate    
 
