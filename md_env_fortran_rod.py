@@ -33,7 +33,7 @@ class MD_ROD():
                 sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0, mu_K = 0.0,
                 Dt = 0.014, Dr = 1.0 / 350.0, 
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
-                ss=6.2, ssrod=0.0,
+                ss=6.2, ssrod=0.0, ss_touch=6.8,
                 traj=False, mode=1):
 
         # internal knowledge of system
@@ -107,9 +107,8 @@ class MD_ROD():
     def reinitialize_random_for_MD(self, index):
         sN = np.int(np.sqrt(self.N))+1
         particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
-        #pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
-        pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
-        #pos = np.array([[i+0.5,j+self.distRod,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(1,sN+2)])
+        pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
+        #pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
         for i in range(sN):
             for j in range(sN):
                 if (i*sN+j) < self.N :
@@ -152,11 +151,13 @@ class MD_ROD():
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
-                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format( p[i,0], p[i,1], np.cos(p[i,2]), 
+                xyz_file.write('{} {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(self.touch[i], p[i,0], p[i,1], np.cos(p[i,2]), 
                 np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i] ) )
+#                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), 
+#                np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i,0], prob[i,1], prob[i,2], prob[i,3], s_entropy[i] ) )
             for i in range(self.Nrod):
                 sigma_rod = 6.2*(self.cen_rod + (self.ext_rod-self.cen_rod)*abs(i/(self.Nrod*1.)-0.5))
-                xyz_file.write('1 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1], sigma_rod))
+                xyz_file.write('2 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1], sigma_rod))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
@@ -167,7 +168,7 @@ class MD_ROD():
         if (self.mode == 4):
             assert rotDir in [-1,1]
             assert old_rotDir in [-1,1]
-        obs, rewards = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
+        obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
                                           r[:,0], r[:,1], olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
                                           flag_side, self.flag_LOS, 

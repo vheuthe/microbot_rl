@@ -358,10 +358,11 @@ class AgentActiveMatter():
         break
 
     # -- CRITIC FITTING AND LOGGING ----------------------
-    history_callback = self.critic.fit(x=obs, y=self.target, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], validation_split=0.2, verbose=0)
-    loss_history = np.array(history_callback.history["loss"])
-    with open("loss_history.txt", "a") as f:
-        np.savetxt(f, loss_history)
+    self.critic.fit(x=obs, y=self.target, epochs=epochs*20, verbose=0)
+    #history_callback = self.critic.fit(x=obs, y=self.target, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], validation_split=0.2, verbose=0)
+    #loss_history = np.array(history_callback.history["loss"])
+    #with open("loss_history.txt", "a") as f:
+    #    np.savetxt(f, loss_history)
 
     # --- reset internal values ----
     self.reset_batch()
