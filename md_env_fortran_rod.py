@@ -28,7 +28,7 @@ import evolve_fortran_rod as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, size=10, 
+    def __init__(self, index=0, N=10, size=10, skew = False,
                 steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0, 
                 sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0, mu_K = 0.0,
                 Dt = 0.014, Dr = 1.0 / 350.0, 
@@ -37,6 +37,7 @@ class MD_ROD():
                 traj=False, mode=1):
 
         # internal knowledge of system
+        self.skew = skew
         self.N = N
         self.size = size
 
@@ -108,7 +109,8 @@ class MD_ROD():
         sN = np.int(np.sqrt(self.N))+1
         particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
         pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
-        #pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
+        if (self.skew):
+            pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
         for i in range(sN):
             for j in range(sN):
                 if (i*sN+j) < self.N :
