@@ -270,7 +270,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N)
+    real :: a, b, torque, near2(N), rod_L
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -283,7 +283,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
-
+    rod_L = true_ssrod * (Nrod - 1)
+    
     ssrod = ssrod_ext    
     if (ssrod==0) ssrod = true_ssrod
 
@@ -291,6 +292,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     oldcmRod(2) = SUM(oldYrod)/Nrod
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
+
 
     dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1))
 
@@ -610,7 +612,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 ! no penalty for translation of center of mass.
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod)
+                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) ! Positive reward only if cooperation
                 endif
                 
             case (4) 
@@ -656,7 +658,7 @@ contains
       real :: rotRod, tq, dRod
       integer :: near
 
-      reward_rotate =  ((rotRod * tq)  * 30. - dRod) * near
+      reward_rotate =  ((rotRod * tq) - dRod) * near
       return
     end function reward_rotate    
 
