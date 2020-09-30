@@ -247,7 +247,7 @@ end subroutine
 subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         mode, rotDir, old_rotDir, &
                         flag_side, flag_LOS, &
-                        ss, ssrod_ext,&
+                        ss, ssrod_ext, mR,&
                         obs_type, cones, cone_angle, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
@@ -266,7 +266,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     integer, intent(out) :: touch(N)   
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
-    real, intent(in) :: ss,  ssrod_ext
+    real, intent(in) :: ss,  ssrod_ext, mR
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
@@ -612,7 +612,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 ! no penalty for translation of center of mass.
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) ! Positive reward only if cooperation
+                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) * mR 
+                    ! Positive reward only if cooperation
+                    ! Normalization: Reward is proportional to rod mass
                 endif
                 
             case (4) 

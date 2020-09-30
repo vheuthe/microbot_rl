@@ -380,17 +380,17 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
 end subroutine
 
 
-subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, dead_vision, flag_P, XP, YP, N, NObs, Obs, Rew)
+subroutine get_o_r_group_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, flag_P, food_rew, XP, YP, N, NObs, Obs, Rew)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
-    real , intent(in) :: X(N), Y(N), Theta(N), XP, YP, cone_angle, dead_vision
+    real , intent(in) :: X(N), Y(N), Theta(N), XP, YP, cone_angle, dead_vision, food_rew
     logical, intent(in) :: flag_P
     integer, intent(in) :: N, NObs, obs_type
     real , intent(out) :: Obs(N,NObs), Rew(N)
     integer :: i, j, k, n_cone, cones=-1
-    real :: dx, dy, r, dtheta, val, th, cone_angle_reduced
+    real :: dx, dy, r, dtheta, val, th
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
     real :: dx2, dy2, r2, dtheta2, dark, ss=6.2, sp_th, cone_slice
@@ -543,12 +543,12 @@ subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, dead_v
     enddo
 
     do i = 1, N-1        
-        ! PREDATOR
+        ! FOOD SOURCE
         dx = XP - X(i)
         dy = YP - Y(i)
         r = sqrt(dx*dx + dy*dy)
         dtheta = atan2(dy,dx)
-        sp_th = atan(ss, r)/2.
+        sp_th = atan(ss, r)/20.
         ! i to j 
         th = (dtheta - Theta(i))/2./PI
         ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
@@ -612,13 +612,13 @@ subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, dead_v
             enddo
         endif
 
-        ! negative reward due to predator
-        Rew(i) = (1-tanh(r-8))/2*5
+        ! positive reward due to food source
+        Rew(i) = food_rew * (tanh(6.8*4 - r)+1)/2
     enddo
 
-    do i = 1, N
-       if ( sum(Obs(i,:cones)) .eq. 0 ) Rew(i) = -2
-    enddo
+!    do i = 1, N
+!       if ( sum(Obs(i,:cones)) .eq. 0 ) Rew(i) = -2
+!    enddo
 
     return
 

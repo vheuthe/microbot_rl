@@ -28,7 +28,7 @@ import evolve_fortran_smooth as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., food_rew=1.0, obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True):
 
         
         self.N = N
@@ -62,7 +62,7 @@ class MD():
         self.filexyz='traj'+str(index)+'.xyz'
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
-        assert self.md_type in ['group', 'mix', 'demix', 'switch', 'predator'], 'MD type not recognized'
+        assert self.md_type in ['group', 'mix', 'demix', 'switch', 'food'], 'MD type not recognized'
         
         # Observables and reward functions & parameters
         self.flag_LOS = flag_LOS
@@ -82,9 +82,10 @@ class MD():
         if (md_type in ['switch']):
             self.Nobs = 2*cones+2
             self.mode = 3
-        if (md_type in ['predator']):
+        if (md_type in ['food']):
             self.Nobs = 2*cones
             self.mode = 4
+            self.food_rew = food_rew
         
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi] 
@@ -113,8 +114,19 @@ class MD():
                     xyz_file.write('{} {} {} 0.0 {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
                 elif (self.md_type in ['switch']):
                     xyz_file.write('{} {} {} 0.0 {} {} {} {}\n'.format(i//(self.N/2), p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), switch, self.rewards[i]))
-                elif self.md_type in ['group']:
+                elif self.md_type in ['group', 'food']:
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
+
+#--- PRINT TRAJECTORY
+    def print_xyz_food(self, Xfood, Yfood):
+        if (self.traj):
+            p = self.particles
+            xyz_file = open(self.filexyz, "a") 
+            xyz_file.write('\n\n')
+            for i in range(self.N):
+                xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
+            xyz_file.write('1 {} {} 0.0 {} {} {}\n'.format(Xfood, Yfood, 0, 0, 0))
+
 #-------
     def print_xyz_actions(self, actions, logp, switch=-1):
         if (self.traj):
@@ -164,13 +176,13 @@ class MD():
 
 
 #-----------------------------------------------------
-    def get_obs_rewards_predator(self, XP=0, YP=0):
-        return self.get_o_r_group_predator_task_fortran(XP, YP)  
+    def get_obs_rewards_food(self, XP=0, YP=0):
+        return self.get_o_r_group_food_task_fortran(XP, YP)  
 #---------------------
-    def get_o_r_group_predator_task_fortran(self, XP, YP):
+    def get_o_r_group_food_task_fortran(self, XP, YP):
         p = self.particles 
-        obs, rewards = evolve.get_o_r_group_predator_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, 0.,
-        True, XP, YP, self.Nobs, self.N) 
+        obs, rewards = evolve.get_o_r_group_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, 0.,
+        True, self.food_rew, XP, YP, self.Nobs, self.N) 
         return obs, rewards          
 #------------------------------------------------------          
         
@@ -187,8 +199,8 @@ class MD():
         self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
         if (self.md_type in ['group', 'switch', 'demix', 'mix']):
             obs, rewards = self.get_obs_rewards(switch, old_switch)
-        elif (self.md_type in ['predator']):
-            obs, rewards = self.get_obs_rewards_predator(XP, YP)
+        elif (self.md_type in ['food']):
+            obs, rewards = self.get_obs_rewards_food(XP, YP)
         self.rewards = rewards
         return obs, rewards, done, {}
 #------------------------------------------------------          

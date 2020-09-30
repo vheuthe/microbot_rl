@@ -174,7 +174,7 @@ class MD_ROD():
                                           r[:,0], r[:,1], olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
                                           flag_side, self.flag_LOS, 
-                                          self.ss, self.ssrod,
+                                          self.ss, self.ssrod, self.massRod,
                                           obs_type, 
                                           self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
