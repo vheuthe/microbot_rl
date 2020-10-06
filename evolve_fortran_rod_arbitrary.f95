@@ -1,7 +1,7 @@
-subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, & 
-                        distRod, act, Rm, Rr, dt, &
+subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, Srod,& 
+                        act, Rm, Rr, dt, &
                         nsteps, tor, vel_act, vel_tor, &
-                        ext_rod, cen_rod, mu_K,&
+                        mu_K, &
                         N, Nrod, &
                         new_XYT, new_XY_rod)
 ! ===========================================
@@ -9,14 +9,14 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
 ! ===========================================
     implicit none
     real,    intent(in) :: X(N), Y(N), Theta(N)
-    real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), distRod
+    real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), Srod(Nrod)
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt, mR, IR
-    real,    intent(in) :: ext_rod, cen_rod , mu_K
+    real,    intent(in) :: mu_K
     ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
-    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
+    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,3)
     ! =======================================
     real :: FX(N), FY(N), FR(N), v
     real :: F_pRX, F_pRY, rel_thetaF, normalF, frictionF
@@ -29,7 +29,7 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff, epsRod=1.0
     ! =======================================
     ! rod parameters
-    real :: Irod = 0.d0, Lrod2 = 0.d0, massRod, fact(Nrod,4)
+    real :: Irod = 0.d0, massRod, fact(Nrod, 4)
     ! =======================================
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
@@ -44,28 +44,23 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     new_XY_rod(:,2) = Yrod
     massRod = mR / Nrod
 
-    ! Nrod EVEN number!
-    do i=1,Nrod/2
-        fact(i,1) = ext_rod + (cen_rod-ext_rod)*abs((i-1)/(Nrod*1.))
+    rodXcm = SUM(new_XY_rod(:,1))/Nrod
+    rodYcm = SUM(new_XY_rod(:,2))/Nrod
+    rodtheta = 0.0
+
+    Irod = IR 
+    ! INERTIA multiplied by IR factor. 
+    ! IR = 1 is for linear ROD.
+
+    ! Arbitrary SIGMAs for ROD.
+    do i=1,Nrod
+        fact(i,1) = SRod(i)
         fact(i,2) = fact(i,1)*fact(i,1)
         fact(i,3) = fact(i,2)*fact(i,2)*fact(i,2)
         fact(i,4) = fact(i,3)*fact(i,3)
-        fact(Nrod+1-i,1) = fact(i,1)
-        fact(Nrod+1-i,2) = fact(i,2)
-        fact(Nrod+1-i,3) = fact(i,3)
-        fact(Nrod+1-i,4) = fact(i,4)
     enddo
 
-    rodXcm = SUM(new_XY_rod(:,1))/Nrod
-    rodYcm = SUM(new_XY_rod(:,2))/Nrod
-    rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1))
-
-    Lrod2 = (new_XY_rod(Nrod,2)-new_XY_rod(1,2))**2 + (new_XY_rod(Nrod,1)-new_XY_rod(1,1))**2
-    Irod = 1. / 12. * massRod * Nrod * Lrod2 * IR ! INERTIA multiplied by IR factor
-
     do it = 1, nsteps
-
-
 
         FX = 0.d0
         FY = 0.d0
@@ -148,8 +143,8 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
      
             r2 = dx*dx + dy*dy
               
-            if (r2 < ss2*fact(j,2)) then
-                    ff = fact(j,4)*ss12/(r2**6) - fact(j,3)*ss6/(r2**3)
+            if (r2 < fact(j,2)) then
+                    ff = fact(j,4)/(r2**6) - fact(j,3)/(r2**3)
                     ff = 12.*epsRod*fact(j,1)*ff/r2
                     ! ==== DEBUG ====
                     if (ff > 1) then
@@ -178,9 +173,10 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
           ! from F_pRX, F_pRY to friction
           ! =============================
           ! rel_thetaF, normalF, frictionF
-          rel_thetaF = atan2(F_pRY, F_pRX) + rodtheta
-          normalF = sqrt(F_pRX**2+ F_pRY**2) * cos(rel_thetaF)
-          frictionF = min(normalF * mu_K, normalF * tan(rel_thetaF))
+          !rel_thetaF = atan2(F_pRY, F_pRX) + rodtheta
+          !normalF = sqrt(F_pRX**2+ F_pRY**2) * cos(rel_thetaF)
+          !frictionF = min(normalF * mu_K, normalF * tan(rel_thetaF))
+          frictionF = 0.0
 
           FX(i) = FX(i) - cos(rodtheta)*frictionF
           FY(i) = FY(i) - sin(rodtheta)*frictionF
@@ -202,18 +198,16 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     ! =============================
     ! move rod degrees of freedom
     ! =============================
-
-    rodXcm = rodXcm + dt*FXrod/Nrod/massRod
-    rodYcm = rodYcm + dt*FYrod/Nrod/massRod
-    rodtheta = rodtheta + dt*torquerod/Irod ! FAKE Inertia
-    
+    rodtheta = dt*torquerod/Irod ! FAKE Inertia
     ! =============================
     ! transform rod 
     ! =============================
-
       do i = 1, Nrod
-          new_XY_rod(i,1) = (i-(Nrod+1)/2.0)*cos(rodtheta)*distRod + rodXcm
-          new_XY_rod(i,2) = (i-(Nrod+1)/2.0)*sin(rodtheta)*distRod + rodYcm
+          drodx = new_XY_rod(i,1) - rodXcm
+          drody = new_XY_rod(i,2) - rodYcm
+          new_XY_rod(i,1) = (drodx*cos(rodtheta) - drody*sin(rodtheta)) + rodXcm + dt*FYrod/Nrod/massRod
+          new_XY_rod(i,2) = (drodx*sin(rodtheta) + drody*cos(rodtheta)) + rodYcm + dt*FXrod/Nrod/massRod
+          new_XY_rod(i,3) = SRod(i)
       enddo 
 
     enddo
@@ -249,11 +243,12 @@ contains
 end subroutine
 
 
-subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
+subroutine  get_o_r_rod(X, Y, Theta, & 
+                        Xrod, Yrod, Srod, &
+                        oldXrod, oldYrod, &
                         mode, rotDir, old_rotDir, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
-                        ext_rod, cen_rod,
                         obs_type, cones, cone_angle, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
@@ -261,7 +256,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 ! ===========================================
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
-    real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
+    real, intent(in)    :: Xrod(Nrod), Yrod(Nrod), Srod(Nrod)
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones
@@ -272,9 +267,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     integer, intent(out) :: touch(N)   
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
-    real, intent(in) :: ss,  ssrod_ext, mR, ext_rod, cen_rod
+    real, intent(in) :: ss,  ssrod_ext, mR
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
-    real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
+    real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
     real :: a, b, torque, near2(N), rod_L
     real, parameter :: PI = 3.14159265358979323846264
@@ -291,25 +286,20 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
     rod_L = true_ssrod * (Nrod - 1)
     
-    ssrod = ssrod_ext    
-    if (ssrod==0) ssrod = true_ssrod
-
-    ! Nrod EVEN number!
-    do i=1,Nrod/2
-        fact(i) = ext_rod + (cen_rod-ext_rod)*abs((i-1)/(Nrod*1.))
-        fact(Nrod+1-i) = fact(i)
-    enddo
+    !
+    if (.not. flag_LOS) then 
+        ss = 0.0001
+        ssrod = 0.0001
+    endif 
 
     oldcmRod(1) = SUM(oldXrod)/Nrod
     oldcmRod(2) = SUM(oldYrod)/Nrod
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
-
-
     dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1))
 
-    rotRod = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1)) - &
-             atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1))
+    rotRod = atan2( Yrod(1) - (cmRod(2)-oldcmRod(2)),   Xrod(1) - (cmRod(1)-oldcmRod(1))) - &
+             atan2( oldYrod(1), oldXrod(1))
     rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
     ! cone_angle must be a positive angle in radiants
@@ -524,9 +514,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then 
-                val = (true_ssrod)/r*fact(i)
+                val = (SRod(j))/r
             else if (obs_type == 2) then
-                val = (true_ssrod/r**2)*fact(i)
+                val = (SRod(j)/r)**2
             else 
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP

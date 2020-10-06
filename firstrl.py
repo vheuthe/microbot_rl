@@ -73,7 +73,7 @@ class AgentActiveMatter():
   Complete class for Reinforcement Learning.
   Contains two Neural Networks for Actor and Critic, tracks and stores the trajectories
   '''
-  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, **unused_parameters):
+  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')], **unused_parameters):
 
     # internal knowledge
     self.input_dim = input_dim
@@ -108,29 +108,27 @@ class AgentActiveMatter():
 
     else:
       print('Starting new model')
-      # create actor
-      self.policy = tf.keras.Sequential([
-      # Adds a densely-connected layer:
-       tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,)),
-      # # Add another dense layer:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add another dense layer:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add an output layer with n_actions output units:
-      tf.keras.layers.Dense(self.n_actions, activation='linear')])
+      assert model_structure, 'model structure is not defined!'
+
+      # Create Actor NN      
+      # First Dense Layer
+      policy_layers_list = [tf.keras.layers.Dense(model_structure[0][0], activation=model_structure[0][1], input_shape=(self.input_dim,))]
+      # All intermediate Layers
+      for size, act in model_structure[1:]:
+        policy_layers_list.append(tf.keras.layers.Dense(size, activation=act))
+      policy_layers_list.append(tf.keras.layers.Dense(self.n_actions, activation='linear'))
+      self.policy = tf.keras.Sequential( policy_layers_list )
       # ------------------------------------------
 
       # ------------------------------------------
-      # create critic
-      self.critic = tf.keras.Sequential([
-      # Adds a densely-connected layer with 6 units to the model:
-      tf.keras.layers.Dense(32, activation='relu', input_shape=(self.input_dim,)),
-      # Add another:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add another:
-      tf.keras.layers.Dense(16, activation='relu'),
-      # Add an output layer with 1 output units:
-      tf.keras.layers.Dense(1, activation='linear')])
+      # Create Critic NN
+      # First Dense Layer
+      critic_layers_list = [tf.keras.layers.Dense(model_structure[0][0], activation=model_structure[0][1], input_shape=(self.input_dim,))]
+      # All intermediate Layers
+      for size, act in model_structure[1:]:
+        critic_layers_list.append(tf.keras.layers.Dense(size, activation=act))
+      critic_layers_list.append(tf.keras.layers.Dense(1, activation='linear'))
+      self.critic = tf.keras.Sequential( critic_layers_list )
       # ------------------------------------------
       self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
       # ------------------------------------------
