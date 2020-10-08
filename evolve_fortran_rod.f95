@@ -56,6 +56,7 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
         fact(Nrod+1-i,4) = fact(i,4)
     enddo
 
+
     rodXcm = SUM(new_XY_rod(:,1))/Nrod
     rodYcm = SUM(new_XY_rod(:,2))/Nrod
     rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1))
@@ -64,7 +65,6 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     Irod = 1. / 12. * massRod * Nrod * Lrod2 * IR ! INERTIA multiplied by IR factor
 
     do it = 1, nsteps
-
 
 
         FX = 0.d0

@@ -64,8 +64,6 @@ class MD_ROD():
         # total lenght "sizeRod" and bead distance "distRod" dictates number of beads "Nrod"
         # if sizeRod not exactly multiple of distRod, sizeRod is conserved.
         self.file_Rod = file_Rod
-        self.ssrod = ssrod #if initialized to 0, it is automatically calculated in evolve_fortran_rod subroutine
-        self.ss = ss
         self.mu_K = mu_K # kinetic friction - like along rod.
 
 
@@ -115,10 +113,10 @@ class MD_ROD():
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*10.0
                   pos = np.delete(pos, oo, axis=0)
-        particles[particles[:,0] <= 0]  -= [10.0, 0, 0]
-        particles[particles[:,0] > 0]  += [10.0, 0, 0]
+        particles[particles[:,0] <= 0]  -= [20.0, 0, 0]
+        particles[particles[:,0] > 0]  += [20.0, 0, 0]
         
-        self.Nrod, self.massRod, self.inertiaRod, self.ssRod, rod = read_rod_info(self.file_Rod)
+        self.Nrod, self.massRod, self.inertiaRod, self.transl_penalty, self.ssRod, rod = read_rod_info(self.file_Rod)
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -167,16 +165,17 @@ class MD_ROD():
             assert rotDir in [-1,1]
             assert old_rotDir in [-1,1]
         obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
-                                          r[:,0], r[:,1], r[:,2], olr[:,0],olr[:,1], 
+                                          r[:,0], r[:,1],
+                                          olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
                                           flag_side, self.flag_LOS, 
-                                          self.ss, self.ssrod, self.massRod,
-                                          obs_type, 
-                                          self.cones, self.cone_angle, 
+                                          self.ssRod, 
+                                          20, self.transl_penalty,
+                                          obs_type, self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
+                                          
         self.rewards = rewards
         return obs, rewards
-
 
     def get_obs_rewards(self, rotDir=0, old_rotDir=0):
         return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
@@ -201,6 +200,7 @@ class MD_ROD():
                                     self.torque, self.vel_act, self.vel_tor, 
                                     self.mu_K,
                                     self.N, self.Nrod)
+                                    
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
 #
@@ -212,9 +212,9 @@ class MD_ROD():
 def read_rod_info(file):
     rod_file = open(file, 'r')
     Nrod = int(rod_file.readline()[:-1])
-    massRod, inertiaRod, ssRod  = [float(x) for x in rod_file.readline().split()]
+    massRod, inertiaRod, transl_penalty, ssRod  = [float(x) for x in rod_file.readline().split()]
     rod = np.zeros((Nrod,3))
     for i in range(Nrod):
         line = [float(x) for x in rod_file.readline().split()]
         rod[i, :] = line
-    return Nrod, massRod, inertiaRod, ssRod, rod
+    return Nrod, massRod, inertiaRod, transl_penalty, ssRod, rod

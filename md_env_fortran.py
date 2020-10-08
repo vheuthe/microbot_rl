@@ -83,7 +83,7 @@ class MD():
             self.Nobs = 2*cones+2
             self.mode = 3
         if (md_type in ['food']):
-            self.Nobs = 2*cones
+            self.Nobs = 3*cones
             self.mode = 4
             self.food_rew = food_rew
         
@@ -118,14 +118,14 @@ class MD():
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
 
 #--- PRINT TRAJECTORY
-    def print_xyz_food(self, Xfood, Yfood):
+    def print_xyz_food(self, Xfood, Yfood, Food):
         if (self.traj):
             p = self.particles
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
             for i in range(self.N):
-                xyz_file.write('0 {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
-            xyz_file.write('1 {} {} 0.0 {} {} {}\n'.format(Xfood, Yfood, 0, 0, 0))
+                xyz_file.write('0 {} {} 0.0 {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2))
+            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, 0, np.sqrt(Food)))
 
 #-------
     def print_xyz_actions(self, actions, logp, switch=-1):
@@ -176,14 +176,15 @@ class MD():
 
 
 #-----------------------------------------------------
-    def get_obs_rewards_food(self, XP=0, YP=0):
-        return self.get_o_r_group_food_task_fortran(XP, YP)  
+    def get_obs_rewards_food(self, XP=0, YP=0, Food=0):
+        return self.get_o_r_group_food_task_fortran(XP, YP, Food)  
 #---------------------
-    def get_o_r_group_food_task_fortran(self, XP, YP):
+    def get_o_r_group_food_task_fortran(self, XP, YP, Food):
         p = self.particles 
-        obs, rewards = evolve.get_o_r_group_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, 0.,
-        True, self.food_rew, XP, YP, self.Nobs, self.N) 
-        return obs, rewards          
+        self.dead_vision = 0
+        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, XP, YP, Food, self.Nobs, self.N) 
+
+        return obs, rewards, eaten          
 #------------------------------------------------------          
         
     def get_NN(self):
@@ -191,7 +192,7 @@ class MD():
         return evolve.get_neigh(p[:,0], p[:,1], self.N)
 
 #------------------------------------------------------          
-    def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., flag_mobility = False):
+    def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., Food=0, flag_mobility = False):
         done = False
         X = self.particles[:,0]
         Y = self.particles[:,1]
@@ -199,10 +200,13 @@ class MD():
         self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
         if (self.md_type in ['group', 'switch', 'demix', 'mix']):
             obs, rewards = self.get_obs_rewards(switch, old_switch)
+            self.rewards = rewards
+            return obs, rewards, done, {}
         elif (self.md_type in ['food']):
-            obs, rewards = self.get_obs_rewards_food(XP, YP)
-        self.rewards = rewards
-        return obs, rewards, done, {}
+            obs, rewards, eaten = self.get_obs_rewards_food(XP, YP, Food)
+            self.rewards = rewards
+            return obs, rewards, eaten, done, {}
+
 #------------------------------------------------------          
       
 #

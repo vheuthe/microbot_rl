@@ -13,5 +13,5 @@ def spherical_lens(L, Nrod, radius):
         rod[2*(Nrod-1)-1-i,0] = - rod[i,0]
         rod[2*(Nrod-1)-1-i,1] = rod[i,1]
     for i in range(2*(Nrod-1)):
-        rod[i,2] = (L/2.-abs(rod[i,1]))*2/L + 1.
+        rod[i,2] = (L/2.-abs(rod[i,1]))*2/L*0 + 6.2
     return rod
