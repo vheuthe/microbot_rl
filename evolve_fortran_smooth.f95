@@ -444,10 +444,9 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             endif
             
             ! penalty for touching
-            if (r < 6.8*1.5) then
-               print*, r, 'inside'
-                Rew(i) = Rew(i) - 0.5
-                Rew(j) = Rew(j) - 0.5
+            if (r < 13.6) then ! 2 x diameter
+                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1) ! penalty to touch
+                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1) ! penalty to touch
             endif    
             
             
