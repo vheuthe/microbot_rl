@@ -445,6 +445,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             
             ! penalty for touching
             if (r < 6.8*1.5) then
+               print*, r, 'inside'
                 Rew(i) = Rew(i) - 0.5
                 Rew(j) = Rew(j) - 0.5
             endif    
@@ -550,7 +551,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     enddo
 
     do i = 1, N
-        Rew(i) = sum(abs(Obs(i, 1:(2*cones)))) * (1-ratio_rew) 
+        Rew(i) = Rew(i) + sum(abs(Obs(i, 1:(2*cones)))) * (1-ratio_rew) 
     enddo
 
     food_width = sqrt(Food)
