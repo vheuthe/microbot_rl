@@ -39,9 +39,6 @@ def parse_input(inputdata, input_dim):
   # get nan lines as 1D list
   lost = np.argwhere(np.isnan(inputdata)[:, 0]).flatten().tolist();
 
-  if len(np.argwhere(np.isnan(inputdata))) > 0:
-    print(inputdata)
-
   # and remove them (reshape needed as logic indexing flattens the matrix)
   inputdata = np.reshape(inputdata[~np.isnan(inputdata)], (-1, input_dim + 1))
   # return lost, obs, rewards
@@ -74,9 +71,11 @@ def serve(parameters):
       if data:
         # cast bytestream to double array
         data = np.array(struct.unpack(str(len(data)//8)+"d", data))
+        print("Received data for action ", frame)
 
         # parse 1d array
         lost, obs, rewards = parse_input(data, parameters['input_dim'])
+        print(len(rewards), " valid particles, ", len(lost), " lost")
 
         # feed data to RL network
         if frame == 0:
@@ -85,13 +84,16 @@ def serve(parameters):
           rl.add_env_timeframe(lost, obs, rewards, False)
           rl.train_step(parameters['training_epochs'])
           rl.initialize(obs)
+          print("Training network ...")
         else:
           rl.add_env_timeframe(lost, obs, rewards, False)
 
-        # get actions
-        actions = rl.get_actions()
+        # get actions and probabilitoes
+        actions, pi_logp_all = rl.get_actions(True)
+        # flatten in 'Fortran' style
+        data = np.append(actions.flatten('F'), pi_logp_all.flatten('F'))
         # and send them (as bytestream)
-        connection.sendall(struct.pack(str(len(actions))+"d", *actions))
+        connection.sendall(struct.pack(str(len(data))+"d", *data))
 
       else:
         print("System call interrupted, Stopping Server")
