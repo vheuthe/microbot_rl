@@ -443,6 +443,13 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                 STOP
             endif
             
+            ! penalty for touching
+            if (r < 6.8*1.5) then
+                Rew(i) = Rew(i) - 0.5
+                Rew(j) = Rew(j) - 0.5
+            endif    
+            
+            
             covered_l = 0
             covered_r = 0   
             
