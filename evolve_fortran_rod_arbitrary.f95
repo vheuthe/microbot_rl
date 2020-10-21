@@ -29,7 +29,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, Srod,&
     real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff, epsRod=1.0
     ! =======================================
     ! rod parameters
-    real :: Irod = 0.d0, fact(Nrod, 4)
+    real :: Irod = 0.d0, fake_mass=0.
     ! =======================================
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
@@ -45,20 +45,21 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, Srod,&
 
 
 
-    Irod = IR 
-    ! INERTIA multiplied by IR factor. 
     ! IR = 1 is for linear ROD.
+    ! SIGMA for ROD is always 6.2
+    ! EPSILON for ROD has factor SRod
+    fake_mass = sum(SRod)
+    rodXcm = SUM(new_XY_rod(:,1))/Nrod
+    rodYcm = SUM(new_XY_rod(:,2))/Nrod
 
-    ! Arbitrary SIGMAs for ROD.
-    do i=1,Nrod
-        fact(i,1) = SRod(i)
-        fact(i,2) = fact(i,1)*fact(i,1)
-        fact(i,3) = fact(i,2)*fact(i,2)*fact(i,2)
-        fact(i,4) = fact(i,3)*fact(i,3)
-    enddo
+    Irod = 0. !IR 
+    do i =1, Nrod
+        r2 = (Xrod(i)-rodXcm)**2 + (Yrod(i)-rodYcm)**2
+        Irod = Irod + r2 * mR / Nrod * (Srod(i) / fake_mass) * IR
+    enddo 
+    ! INERTIA multiplied by IR factor. 
 
     do it = 1, nsteps
-
 
         rodXcm = SUM(new_XY_rod(:,1))/Nrod
         rodYcm = SUM(new_XY_rod(:,2))/Nrod
@@ -145,9 +146,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, Srod,&
          
                 r2 = dx*dx + dy*dy
                   
-                if (r2 < fact(j,2)) then
-                        ff = fact(j,4)/(r2**6) - fact(j,3)/(r2**3)
-                        ff = 12.*epsRod*fact(j,1)*ff/r2
+                if (r2 < ss2) then
+                        ff = ss12/(r2**6) - ss6/(r2**3)
+                        ff = 12.*epsRod*Srod(j)*ff/r2
                         ! ==== DEBUG ====
                         if (ff > 1) then
                             ff = 1
@@ -246,11 +247,11 @@ end subroutine
 
 
 subroutine  get_o_r_rod(X, Y, Theta, & 
-                        Xrod, Yrod, &
+                        Xrod, Yrod, SRod,&
                         oldXrod, oldYrod, &
                         mode, rotDir, old_rotDir, &
                         flag_side, flag_LOS, &
-                        ssrod_ext, rew_mult, transl_penalty, &
+                        rew_mult, transl_penalty, &
                         obs_type, cones, cone_angle, &
                         Nobs, N, Nrod, Obs, Rew, touch)
 ! ===========================================
@@ -258,12 +259,12 @@ subroutine  get_o_r_rod(X, Y, Theta, &
 ! ===========================================
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
-    real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
+    real, intent(in)    :: Xrod(Nrod), Yrod(Nrod), SRod(Nrod)
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones
     logical, intent(in) :: flag_LOS
-    real, intent(in)    :: ssrod_ext, rew_mult, transl_penalty
+    real, intent(in)    :: rew_mult, transl_penalty
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     
     integer :: i, j, k, n_cone, side
@@ -275,7 +276,7 @@ subroutine  get_o_r_rod(X, Y, Theta, &
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, near2(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -287,10 +288,10 @@ subroutine  get_o_r_rod(X, Y, Theta, &
     cmRod(2) = SUM(Yrod)/Nrod
 
     ! VALUE IS TRUE_SS, VISION BLOCKING IS SS
-    true_ss = 6.0
-    ! VALUE IS SSROD_EXT, VISION IS SSROD and SS
-    ss = 0.001
-    ssrod = 0.001
+    true_ss = 6.8
+    ss = 0.00001
+    ! VALUE IS SRod, VISION IS SSROD and SS
+    ssrod = 0.00001
 
     oldcmRod(1) = SUM(oldXrod)/Nrod
     oldcmRod(2) = SUM(oldYrod)/Nrod
@@ -515,9 +516,9 @@ subroutine  get_o_r_rod(X, Y, Theta, &
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
 
             if (obs_type == 1) then 
-                val = (ssrod_ext)/r
+                val = (Srod(j))/r
             else if (obs_type == 2) then
-                val = (ssrod_ext/r)**2
+                val = (Srod(j)/r)**2
             else 
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP

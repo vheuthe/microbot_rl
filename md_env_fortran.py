@@ -123,9 +123,9 @@ class MD():
             p = self.particles
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
+            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, 0, np.sqrt(Food)*2))
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2))
-            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, 0, np.sqrt(Food)))
 
 #-------
     def print_xyz_actions(self, actions, logp, switch=-1):

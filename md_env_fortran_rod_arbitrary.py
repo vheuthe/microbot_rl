@@ -165,15 +165,13 @@ class MD_ROD():
             assert rotDir in [-1,1]
             assert old_rotDir in [-1,1]
         obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2], 
-                                          r[:,0], r[:,1],
+                                          r[:,0], r[:,1], r[:,2],
                                           olr[:,0],olr[:,1], 
                                           self.mode, rotDir, old_rotDir, 
                                           flag_side, self.flag_LOS, 
-                                          self.ssRod, 
-                                          20, self.transl_penalty,
+                                          20, self.transl_penalty, #20 is rew_multiplication
                                           obs_type, self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
-                                          
         self.rewards = rewards
         return obs, rewards
 
@@ -212,9 +210,9 @@ class MD_ROD():
 def read_rod_info(file):
     rod_file = open(file, 'r')
     Nrod = int(rod_file.readline()[:-1])
-    massRod, inertiaRod, transl_penalty, ssRod  = [float(x) for x in rod_file.readline().split()]
+    massRod, penalty, ssRod  = [float(x) for x in rod_file.readline().split()]
     rod = np.zeros((Nrod,3))
     for i in range(Nrod):
         line = [float(x) for x in rod_file.readline().split()]
         rod[i, :] = line
-    return Nrod, massRod, inertiaRod, transl_penalty, ssRod, rod
+    return Nrod, massRod, ssRod, rod
