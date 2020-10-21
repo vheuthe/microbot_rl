@@ -21,7 +21,7 @@ en_coeff = 0.01
 # ------------------------------------------------
 
 start_MD = 0
-n_MD = 100
+n_MD = 200
 
 total_time = 3600
 step_time = 5
@@ -30,7 +30,7 @@ vel_tor = 0.20
 dt = 0.15
 steps = int(step_time/dt)
 n_max_steps = int(total_time/step_time)
-steps_update = 720
+steps_update = 360
 starting_food = 1000
 eating_speed = 1
 
