@@ -629,3 +629,43 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     return
 
 end subroutine
+
+subroutine get_order_param(X, Y, Theta, order_gl, swirl_gl, N)
+    ! ===========================================
+    ! gets two order parameters:
+    ! swirl and order
+    ! ===========================================
+    ! input
+    implicit none
+    real , intent(in) :: X(N), Y(N), Theta(N)
+    integer, intent(in) :: N
+    ! output
+    real , intent(out) :: order_gl, swirl_gl !, order_loc(N), swirl_loc(N) 
+    ! internal processes
+    integer :: i
+    real :: dx, dy, r, or_x, or_y
+    real :: Xcom, Ycom
+    real, parameter :: PI = 3.14159265358979323846264
+
+
+    Xcom = 1./N * sum(X)
+    Ycom = 1./N * sum(Y)
+
+    swirl_gl = 0
+    order_gl = 0
+    or_x = 0
+    or_y = 0
+
+    do i=1,N
+        dx = X(i) - Xcom
+        dy = Y(i) - Ycom
+        r = sqrt(dx**2 + dy**2)
+        swirl_gl = swirl_gl + (dx*sin(Theta(i)) - dy*cos(Theta(i)) ) / r
+        or_x = or_x + cos(Theta(i))
+        or_y = or_y + sin(Theta(i))
+    enddo
+    
+    order_gl = sqrt(or_x**2 + or_y**2) / N
+    swirl_gl = swirl_gl / N
+
+end subroutine
