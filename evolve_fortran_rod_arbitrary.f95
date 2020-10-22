@@ -46,16 +46,16 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, Srod,&
 
 
     ! IR = 1 is for linear ROD.
-    ! SIGMA for ROD is always 6.2
+    ! SIGMA for ROD is always 6.8
     ! EPSILON for ROD has factor SRod
-    fake_mass = sum(SRod)
+    fake_mass = sum(SRod)/Nrod
     rodXcm = SUM(new_XY_rod(:,1))/Nrod
     rodYcm = SUM(new_XY_rod(:,2))/Nrod
 
     Irod = 0. !IR 
     do i =1, Nrod
         r2 = (Xrod(i)-rodXcm)**2 + (Yrod(i)-rodYcm)**2
-        Irod = Irod + r2 * mR / Nrod * (Srod(i) / fake_mass) * IR
+        Irod = Irod + r2 * mR / Nrod * (Srod(i)/fake_mass) * IR
     enddo 
     ! INERTIA multiplied by IR factor. 
 
@@ -148,7 +148,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, Srod,&
                   
                 if (r2 < ss2) then
                         ff = ss12/(r2**6) - ss6/(r2**3)
-                        ff = 12.*epsRod*Srod(j)*ff/r2
+                        ff = 12.*epsRod*(Srod(j)/ss)*ff/r2
                         ! ==== DEBUG ====
                         if (ff > 1) then
                             ff = 1

@@ -66,7 +66,6 @@ class MD_ROD():
         self.file_Rod = file_Rod
         self.mu_K = mu_K # kinetic friction - like along rod.
 
-
         # type of task.
         # determines reward function, and observation space.
         # 1 - move rod
@@ -102,21 +101,25 @@ class MD_ROD():
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi] 
     def reinitialize_random_for_MD(self, index):
+    
+        self.Nrod, self.massRod, self.transl_penalty, self.ssRod, rod = read_rod_info(self.file_Rod)
+        self.inertiaRod = 1.
+        MAX_X = np.max(rod[:,0])
         sN = np.int(np.sqrt(self.N))+1
         particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
         pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
         if (self.skew):
-            pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
+            pos = np.array([[i,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
         for i in range(sN):
             for j in range(sN):
                 if (i*sN+j) < self.N :
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*10.0
                   pos = np.delete(pos, oo, axis=0)
-        particles[particles[:,0] <= 0]  -= [20.0, 0, 0]
-        particles[particles[:,0] > 0]  += [20.0, 0, 0]
+        particles[particles[:,0] <= 0]  -= [MAX_X + 10, 0, 0]
+        particles[particles[:,0] > 0]  += [MAX_X + 10, 0, 0]
         
-        self.Nrod, self.massRod, self.inertiaRod, self.transl_penalty, self.ssRod, rod = read_rod_info(self.file_Rod)
+
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -215,4 +218,4 @@ def read_rod_info(file):
     for i in range(Nrod):
         line = [float(x) for x in rod_file.readline().split()]
         rod[i, :] = line
-    return Nrod, massRod, ssRod, rod
+    return Nrod, massRod, penalty, ssRod, rod
