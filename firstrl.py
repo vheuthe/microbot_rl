@@ -213,7 +213,7 @@ class AgentActiveMatter():
     and updates the particles with action, current value and logp
     '''
     actions = []
-    pi_logp_all = np.empty((0,4))
+    pi_logp_all = np.empty((0,self.n_actions))
 
     for par in self.particles:
       # for each particle,
