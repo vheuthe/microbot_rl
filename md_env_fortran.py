@@ -191,6 +191,12 @@ class MD():
         p = self.particles
         return evolve.get_neigh(p[:,0], p[:,1], self.N)
 
+#------------------------------------------------------
+    def get_order(self):
+        p = self.particles 
+        order, swirl = evolve.get_order_param(p[:,0], p[:,1], p[:,2], self.N)
+        return order, swirl
+        
 #------------------------------------------------------          
     def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., Food=0, flag_mobility = False):
         done = False
