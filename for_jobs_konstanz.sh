@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for food_ratio in 0.0 0.5 0.75 0.85 0.9 0.95 0.99 1.0;
+for food_ratio in 0.0 0.5 0.75 0.85 0.9 0.95 0.99 1.0; do
 
     name_folder = 'FoodRatio_'$food_ratio
     mkdir name_folder
