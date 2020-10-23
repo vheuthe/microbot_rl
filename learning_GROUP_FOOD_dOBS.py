@@ -35,7 +35,7 @@ if __name__ == "__main__":
     steps_update = 128
     starting_food = 2000
     eating_speed = 3
-    displ = 200
+    displ = 150
 
     torque = 25 #875. / 180. # torque in rad
     N = 50 #number of particles
