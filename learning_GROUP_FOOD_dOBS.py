@@ -15,7 +15,7 @@ if __name__ == "__main__":
     # ------------
 
     n_actions = 3
-    gam = 0.95
+    gam = 0.90
     lam = 0.97
     CL = 0.03
     en_coeff = 0.01
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     n_MD = 200
 
     total_time = 3600
-    step_time = 5
+    step_time = 10
     vel_act = 0.35
     vel_tor = 0.20
     dt = 0.15
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     if (start_MD > 0):
         restart = True
     models_rootname = 'models_GroupFood_dOBS_FoodRew{}_EatSpeed{}'.format(food_rew, eating_speed)
-    model_structure = [(32, 'relu'),(16, 'relu'),(16, 'relu')]
+    model_structure = [(32, 'relu'),(32,'relu'),(16, 'relu'),(16, 'relu')]
 
     Agent = AgentActiveMatter(input_dim=n_input, output_dim=n_actions, en_coeff=en_coeff, CL=CL, gamma=gam, models_rootname=models_rootname, lam=lam, lrP=0.001, lrV=0.001,  restart_models=restart, model_structure = model_structure)
 
@@ -76,7 +76,8 @@ if __name__ == "__main__":
             # -----------------------------------------
             for step in range(n_max_steps):
                 count += 1
-                actions = Agent.get_actions() +1 #return actions vector to give particles, and label
+                actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
+                actions +=1
                 
                 if ((starting_food > 0) and (Food_quantity < 20)):
                     theta += np.random.rand()*np.pi*2
@@ -85,7 +86,7 @@ if __name__ == "__main__":
                 obs, rewards, Eaten, done, info = md.evolve_MD(actions.astype(int), XP=P[0], YP=P[1], Food=Food_quantity) #evolve systems from given actions
                 Food_quantity -= Eaten*eating_speed
      
-                md.print_xyz_food(P[0], P[1], Food_quantity)
+                md.print_xyz_food_actions(P[0], P[1], Food_quantity, logp, actions.astype(int))
                 if ((step>0) and (step%steps_update == 0)):
                     lost = [i for i in range(obs.shape[0])]
                     Agent.add_env_timeframe(lost, obs, rewards, done)

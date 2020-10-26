@@ -399,6 +399,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
     real :: dx2, dy2, r2, dtheta2, dark, ss=6.2, sp_th, cone_slice
+    real :: max_payoff
     real :: food_width
     real, allocatable :: edge(:,:)
     real, parameter :: PI = 3.14159265358979323846264
@@ -417,6 +418,16 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
         edge(i+1,2) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*(i+1)/cones + i * dead_vision
     enddo 
     cone_slice = edge(0,2) - edge(0,1)
+
+    ! Maximum payoff for compactness
+    if (obs_type == 1) then 
+        max_payoff = 0.75 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+    else if (obs_type == 2) then
+        max_payoff = 0.75 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+    else 
+        print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+        STOP
+    endif
 
     do i = 1, N-1
         
@@ -439,7 +450,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             if (obs_type == 1) then 
                 val = (6.8/r)
             else if (obs_type == 2) then
-                val = (6.8/r**2)
+                val = (6.8/r)**2
             else 
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
@@ -447,8 +458,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
-                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*5 ! penalty to touch
-                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*5 ! penalty to touch
+                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*10 ! penalty to touch
+                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*10 ! penalty to touch
             endif
             
             
@@ -553,6 +564,10 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                 enddo
             endif
         enddo
+    enddo
+
+    do i = 1, N-1
+        Rew(i) = min(max_payoff, Rew(i))
     enddo
 
     food_width = sqrt(Food) ! Food is input

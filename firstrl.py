@@ -139,8 +139,10 @@ class AgentActiveMatter():
     Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
     '''
     if (final_save):
-      tf.keras.models.save_model(self.critic, path+'_critic/')
-      tf.keras.models.save_model(self.policy, path+'_policy/')
+       self.critic.save(path+'_critic')
+       self.policy.save(path+'_policy')
+#      tf.keras.models.save_model(self.critic, path+'_critic/')
+#      tf.keras.models.save_model(self.policy, path+'_policy/')
     else:
       cpath = path+'_critic/checkpoints/ckpt-'+str(self.checkpointID)
       ppath = path+'_policy/checkpoints/ckpt-'+str(self.checkpointID)

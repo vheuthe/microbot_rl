@@ -127,6 +127,21 @@ class MD():
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2))
 
+
+#--- PRINT TRAJECTORY
+    def print_xyz_food_actions(self, Xfood, Yfood, Food, logp, actions):
+        if (self.traj):
+            p = self.particles
+            # calculate probability of different actions
+            prob = np.exp(logp)
+            s_entropy = entropy(prob, axis=1)
+            # 
+            xyz_file = open(self.filexyz, "a") 
+            xyz_file.write('\n\n')
+            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, 0, np.sqrt(Food)*2))
+            for i in range(self.N):
+                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i, actions[i]-1], prob[i,0], prob[i,1], prob[i,2], s_entropy[i] ))
+
 #-------
     def print_xyz_actions(self, actions, logp, switch=-1):
         if (self.traj):
