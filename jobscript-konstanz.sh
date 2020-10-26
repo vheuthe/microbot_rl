@@ -11,7 +11,7 @@
 #$ -o /data/scc/robert.loeffler/Logs/
 
 ## Number of tasks
-#$ -t 0-2
+#$ -t 1-3
 
 ## Send email
 ## few large jobs, so success emails are also welcome
@@ -21,7 +21,8 @@
 #-------------------
 
 # The ratios to simulate in the different tasks
-ratios=(0.0 0.95 1.0)
+# Hack: the first one will never get used as tasks have to start at >=1
+ratios=(placeholder 0.0 0.95 1.0)
 
 code=`pwd`
 data=/data/scc/robert.loeffler/2020-10-26-rl-food-ratio-test/ratio-${ratios[$SGE_TASK_ID]}
