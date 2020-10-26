@@ -566,7 +566,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
         enddo
     enddo
 
-    do i = 1, N-1
+    do i = 1, N
         Rew(i) = min(max_payoff, Rew(i))
     enddo
 
