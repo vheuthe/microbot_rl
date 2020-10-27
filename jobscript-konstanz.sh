@@ -4,7 +4,10 @@
 #$ -N rl-food-ratio-test
 
 ## Maximum Memory
-# #$ -l h_vmem=no idea ...
+#$ -l h_vmem=8G
+
+## Threads to use
+#$ -pe smp 8
 
 ## Logfile configuration (folder must exist!)
 #$ -j y
