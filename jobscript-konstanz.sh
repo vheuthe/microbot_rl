@@ -1,7 +1,7 @@
 #! /bin/bash
 
 ## Name (for logging and display)
-#$ -N rl-food-ratio-test
+#$ -N rl-food-ratio
 
 ## Maximum Memory
 #$ -l h_vmem=8G
@@ -28,7 +28,7 @@
 ratios=(placeholder 0.0 0.95 1.0)
 
 code=`pwd`
-data=/data/scc/robert.loeffler/2020-10-26-rl-food-ratio-test/ratio-${ratios[$SGE_TASK_ID]}
+data=/data/scc/$LOGNAME/`date --iso-8601`-job$JOB_ID-$JOB_NAME/ratio-${ratios[$SGE_TASK_ID]}
 
 mkdir -p $data
 cd $data
