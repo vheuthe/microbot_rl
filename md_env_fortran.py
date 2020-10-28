@@ -118,18 +118,18 @@ class MD():
                     xyz_file.write('P {} {} 0.0 {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i]))
 
 #--- PRINT TRAJECTORY
-    def print_xyz_food(self, Xfood, Yfood, Food):
+    def print_xyz_food(self, Xfood, Yfood, Food, Food_width):
         if (self.traj):
             p = self.particles
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
-            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, 0, np.sqrt(Food)*2))
+            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, Food, Food_width/2))
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2))
 
 
 #--- PRINT TRAJECTORY
-    def print_xyz_food_actions(self, Xfood, Yfood, Food, logp, actions):
+    def print_xyz_food_actions(self, Xfood, Yfood, Food, Food_width, logp, actions):
         if (self.traj):
             p = self.particles
             # calculate probability of different actions
@@ -138,7 +138,7 @@ class MD():
             # 
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
-            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, 0, np.sqrt(Food)*2))
+            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, Food, Food_width/2))
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i, actions[i]-1], prob[i,0], prob[i,1], prob[i,2], s_entropy[i] ))
 
@@ -191,13 +191,15 @@ class MD():
 
 
 #-----------------------------------------------------
-    def get_obs_rewards_food(self, XP=0, YP=0, Food=0):
-        return self.get_o_r_group_food_task_fortran(XP, YP, Food)  
+    def get_obs_rewards_food(self, XP=0, YP=0, Food=0, Food_width=-1):
+        if (Food_width == -1):
+            Food_width = np.sqrt(Food)
+        return self.get_o_r_group_food_task_fortran(XP, YP, Food, Food_width)  
 #---------------------
-    def get_o_r_group_food_task_fortran(self, XP, YP, Food):
+    def get_o_r_group_food_task_fortran(self, XP, YP, Food, Food_width = -1):
         p = self.particles 
         self.dead_vision = 0
-        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, XP, YP, Food, self.Nobs, self.N) 
+        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, XP, YP, Food, Food_width, self.Nobs, self.N) 
 
         return obs, rewards, eaten          
 #------------------------------------------------------          
@@ -213,7 +215,7 @@ class MD():
         return order, swirl
         
 #------------------------------------------------------          
-    def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., Food=0, flag_mobility = False):
+    def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., Food=0, Food_width=-1, flag_mobility = False):
         done = False
         X = self.particles[:,0]
         Y = self.particles[:,1]
@@ -224,7 +226,7 @@ class MD():
             self.rewards = rewards
             return obs, rewards, done, {}
         elif (self.md_type in ['food']):
-            obs, rewards, eaten = self.get_obs_rewards_food(XP, YP, Food)
+            obs, rewards, eaten = self.get_obs_rewards_food(XP, YP, Food, Food_width)
             self.rewards = rewards
             return obs, rewards, eaten, done, {}
 

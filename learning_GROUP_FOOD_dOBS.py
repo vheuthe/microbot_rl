@@ -6,16 +6,38 @@ from firstrl import AgentActiveMatter
 import scipy
 import time
 
+
+# FOR KL convergence
+def Pi(obs, policy):
+    logp = policy(np.array(obs))
+    prob = np.exp(logp)
+    prob = prob / np.sum(prob,axis=1,keepdims=True)
+    return prob
+
+def from_policy_to_actions(Pi):
+    '''
+    takes distribution of log probabilities over discrete set of actions
+    and gives out one randomly, after normalization
+    MUST RETURN only one value: index of action!
+    '''
+    action=np.random.choice(4,p=Pi)
+    return action
+
+def KL_symm(A,B):
+    return 0.5*np.mean(entropy(A,B,axis=1)+entropy(B,A,axis=1))
+
 if __name__ == "__main__":
     # READS FOOD_REW AS INPUT
     food_rew_input = np.float(sys.argv[1])
 
     # ------------
-    n_input = 15
+    cones = 5
+    n_input = 3*cones
+    cone_angle = 180
     # ------------
 
     n_actions = 3
-    gam = 0.90
+    gam = 0.95
     lam = 0.97
     CL = 0.03
     en_coeff = 0.01
@@ -23,22 +45,23 @@ if __name__ == "__main__":
     # ------------------------------------------------
 
     start_MD = 0
-    n_MD = 200
+    n_MD = 20
 
-    total_time = 3600
-    step_time = 10
+    total_time = 1800
+    step_time = 5
     vel_act = 0.35
     vel_tor = 0.20
     dt = 0.15
     steps = int(step_time/dt)
     n_max_steps = int(total_time/step_time)
-    steps_update = 128
+    steps_update = 360
     starting_food = 2000
+    Food_width = 100
     eating_speed = 3
     displ = 150
 
     torque = 25 #875. / 180. # torque in rad
-    N = 50 #number of particles
+    N = 20 #number of particles
 
     food_rew = food_rew_input  # 1=only food, 0=only compactness
     # ---------------------------------
@@ -47,7 +70,7 @@ if __name__ == "__main__":
     if (start_MD > 0):
         restart = True
     models_rootname = 'models_GroupFood_dOBS_FoodRew{}_EatSpeed{}'.format(food_rew, eating_speed)
-    model_structure = [(32, 'relu'),(32,'relu'),(16, 'relu'),(16, 'relu')]
+    model_structure = [(32, 'relu'),(16, 'relu'),(16, 'relu')]
 
     Agent = AgentActiveMatter(input_dim=n_input, output_dim=n_actions, en_coeff=en_coeff, CL=CL, gamma=gam, models_rootname=models_rootname, lam=lam, lrP=0.001, lrV=0.001,  restart_models=restart, model_structure = model_structure)
 
@@ -65,11 +88,11 @@ if __name__ == "__main__":
             traj_flag = False
             if (iMD%1 == 0):
                 traj_flag=True
-            md = MD(md_type='food', index=iMD, N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, dt=dt, torque=torque, traj=traj_flag, cones=5, cone_angle=180)
+            md = MD(md_type='food', index=iMD, obs_type='1overR2', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
             traj_file = open('traj'+str(iMD)+'.xyz', 'a')
             print('\n\n\n #NEW MD INITIALIZATION!')
             
-            obs, rewards, Eaten = md.get_obs_rewards_food(XP=P[0], YP=P[1], Food=Food_quantity) # gets first obs and advantages
+            obs, rewards, Eaten = md.get_obs_rewards_food(XP=P[0], YP=P[1], Food=Food_quantity, Food_width=Food_width) # gets first obs and advantages
             Food_quantity -= Eaten*eating_speed
             
             Agent.initialize(obs)
@@ -77,16 +100,16 @@ if __name__ == "__main__":
             for step in range(n_max_steps):
                 count += 1
                 actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
-                actions +=1
+                actions += 1
                 
                 if ((starting_food > 0) and (Food_quantity < 20)):
                     theta += np.random.rand()*np.pi*2
                     P += displ*np.array([np.cos(theta),np.sin(theta),0.])
                     Food_quantity = starting_food
-                obs, rewards, Eaten, done, info = md.evolve_MD(actions.astype(int), XP=P[0], YP=P[1], Food=Food_quantity) #evolve systems from given actions
+                obs, rewards, Eaten, done, info = md.evolve_MD(actions.astype(int), XP=P[0], YP=P[1], Food=Food_quantity, Food_width=Food_width) #evolve systems from given actions
                 Food_quantity -= Eaten*eating_speed
      
-                md.print_xyz_food_actions(P[0], P[1], Food_quantity, logp, actions.astype(int))
+                md.print_xyz_food_actions(P[0], P[1], Food_quantity, Food_width, logp, actions.astype(int))
                 if ((step>0) and (step%steps_update == 0)):
                     lost = [i for i in range(obs.shape[0])]
                     Agent.add_env_timeframe(lost, obs, rewards, done)

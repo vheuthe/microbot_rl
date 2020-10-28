@@ -380,7 +380,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
 end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
-                                        ratio_rew, XP, YP, Food, N, NObs, Obs, Rew, Eaten)
+                                        ratio_rew, XP, YP, Food, Food_width, N, NObs, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -389,7 +389,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real , intent(in) :: X(N), Y(N), Theta(N)
     integer, intent(in) :: obs_type
     real, intent(in) :: cone_angle, dead_vision
-    real, intent(in) :: ratio_rew, XP, YP, Food
+    real, intent(in) :: ratio_rew, XP, YP, Food, Food_width
     integer, intent(in) :: N, NObs
     ! output
     real , intent(out) :: Obs(N,NObs), Rew(N), Eaten
@@ -399,8 +399,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
     real :: dx2, dy2, r2, dtheta2, dark, ss=6.2, sp_th, cone_slice
-    real :: max_payoff
-    real :: food_width
+    real :: max_payoff, food_radius
     real, allocatable :: edge(:,:)
     real, parameter :: PI = 3.14159265358979323846264
 
@@ -421,9 +420,9 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
 
     ! Maximum payoff for compactness
     if (obs_type == 1) then 
-        max_payoff = 0.75 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+        max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
     else if (obs_type == 2) then
-        max_payoff = 0.75 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+        max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
     else 
         print*, 'ERROR NO OBS_TYPE IS DEFINED!'
         STOP
@@ -458,8 +457,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
-                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*10 ! penalty to touch
-                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*10 ! penalty to touch
+                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*3 * (1 - ratio_rew)! penalty to touch
+                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*3 * (1 - ratio_rew)! penalty to touch
             endif
             
             
@@ -570,24 +569,25 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
         Rew(i) = min(max_payoff, Rew(i))
     enddo
 
-    food_width = sqrt(Food) ! Food is input
-    
-    if (food_width > 0) then
-        do i = 1, N-1        
+    !food_width = sqrt(Food) ! Food is input
+    Food_radius = Food_width / 2 !Food_width is diameter, we need radius
+
+    if (food_radius > 0) then
+        do i = 1, N       
             ! FOOD SOURCE
             dx = XP - X(i)
             dy = YP - Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
-            sp_th = atan(food_width, r)/2.
+            sp_th = atan(Food_width, r)/2.
             ! i to j 
             th = (dtheta - Theta(i))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = (th - floor(th + 0.5))*2*PI
-            val = food_width / r
+            val = Food_width / r
             
             ! VALUE OF FOOD
-            if (r > food_width) then
+            if (r > food_radius) then
                 covered_l = 0
                 covered_r = 0   
                 
