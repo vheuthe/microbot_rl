@@ -457,8 +457,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
-                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*3 * (1 - ratio_rew)! penalty to touch
-                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*3 * (1 - ratio_rew)! penalty to touch
+                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*3 !* (1 - ratio_rew), penalty to touch - always active
+                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*3 !* (1 - ratio_rew), penalty to touch - always active
             endif
             
             
