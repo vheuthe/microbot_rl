@@ -47,6 +47,8 @@ class MD():
         self.vel_tor = vel_tor
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
         
+        
+        assert obs_type in  ['1overR', '1overR2'], 'ERROR IN OBS TYPE'
         if (obs_type == '1overR'):
             self.obs_type=1
         elif (obs_type == '1overR2'):
@@ -123,7 +125,7 @@ class MD():
             p = self.particles
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
-            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, Food, Food_width/2))
+            xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, Food, Food_width))
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2))
 
@@ -138,7 +140,7 @@ class MD():
             # 
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
-            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, Food, Food_width/2))
+            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, Food, Food_width))
             for i in range(self.N):
                 xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i, actions[i]-1], prob[i,0], prob[i,1], prob[i,2], s_entropy[i] ))
 
