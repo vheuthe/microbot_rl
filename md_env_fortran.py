@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-import evolve_fortran_smooth as evolve
+import evolve_fortran_discreteFood as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -140,9 +140,9 @@ class MD():
             # 
             xyz_file = open(self.filexyz, "a") 
             xyz_file.write('\n\n')
-            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, Food, Food_width))
+            xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, Food, Food_width))
             for i in range(self.N):
-                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i, actions[i]-1], prob[i,0], prob[i,1], prob[i,2], s_entropy[i] ))
+                xyz_file.write('0 {} {} 0.0 {} {} {} {} {} {} {} {} {} {} {}\n'.format(p[i,0], p[i,1], np.cos(p[i,2]), np.sin(p[i,2]), self.rewards[i], 6.2, actions[i], prob[i, actions[i]-1], prob[i,0], prob[i,1], prob[i,2], s_entropy[i], np.sum(self.obs[i, self.Nobs//3*2:]) ))
 
 #-------
     def print_xyz_actions(self, actions, logp, switch=-1):
@@ -202,7 +202,7 @@ class MD():
         p = self.particles 
         self.dead_vision = 0
         obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, XP, YP, Food, Food_width, self.Nobs, self.N) 
-
+        self.obs = obs
         return obs, rewards, eaten          
 #------------------------------------------------------          
         
