@@ -45,9 +45,9 @@ if __name__ == "__main__":
     # ------------------------------------------------
 
     start_MD = 0
-    n_MD = 20
+    n_MD = 200
 
-    total_time = 1800
+    total_time = 3600
     step_time = 5
     vel_act = 0.35
     vel_tor = 0.20
