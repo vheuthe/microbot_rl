@@ -618,7 +618,7 @@ subroutine  get_o_r_rod(X, Y, Theta, &
                 ! reward positive irrespective to direction of rotation
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * transl_penalty) * rew_mult
+                    Rew(i) = reward_rotate(rotRod, sign(1.0, torque), touch(i), dRod * transl_penalty) * rew_mult
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                 endif
