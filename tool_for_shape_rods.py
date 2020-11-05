@@ -34,7 +34,7 @@ if __name__ == "__main__":
         r2 = (rod[i,0]-cm[0])**2+(rod[i,1]-cm[1])**2
         inertia += r2 * mass / Nrod * rod[i,2]/cm[2]/Nrod
     
-    penalty = L/4./inertia
+    penalty = 0.0
     
     momo = open(name_file, "w")
     momo.write('{} \n {} {} {} \n'.format(Nrod, mass, penalty, 6.2))
