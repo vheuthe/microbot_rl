@@ -28,7 +28,7 @@ import evolve_fortran_discreteFood as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., food_rew=1.0, obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., food_rew=1.0, touch_penalty=3., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True):
 
         
         self.N = N
@@ -72,6 +72,8 @@ class MD():
         self.dead_vision = np.abs(dead_vision)/180.*np.pi
 
         self.cost = cost
+        self.touch_penalty = touch_penalty
+        
         if (md_type in ['group']):
             self.Nobs = 2*cones
             self.mode = 0
@@ -201,7 +203,7 @@ class MD():
     def get_o_r_group_food_task_fortran(self, XP, YP, Food, Food_width = -1):
         p = self.particles 
         self.dead_vision = 0
-        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, XP, YP, Food, Food_width, self.Nobs, self.N) 
+        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, self.touch_penalty , XP, YP, Food, Food_width, self.Nobs, self.N) 
         self.obs = obs
         return obs, rewards, eaten          
 #------------------------------------------------------          
