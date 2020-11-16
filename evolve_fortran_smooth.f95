@@ -597,7 +597,11 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                 ! to account for line of sight
                     do k = 1, N 
 
+<<<<<<< HEAD
                         if (i==k) cycle
+=======
+                        if ((i==k)) cycle
+>>>>>>> 186890234a08d0a1dee185899e60ad1cfae55981
                         dx2 = X(k)-X(i)
                         dy2 = Y(k)-Y(i)
                         r2 = sqrt(dx2*dx2 + dy2*dy2)
