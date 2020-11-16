@@ -380,7 +380,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
 end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
-                                        ratio_rew, XP, YP, Food, Food_width, N, NObs, Obs, Rew, Eaten)
+                                        ratio_rew, touch_penalty, XP, YP, Food, Food_width, N, NObs, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -389,7 +389,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real , intent(in) :: X(N), Y(N), Theta(N)
     integer, intent(in) :: obs_type
     real, intent(in) :: cone_angle, dead_vision
-    real, intent(in) :: ratio_rew, XP, YP, Food, Food_width
+    real, intent(in) :: ratio_rew, touch_penalty
+    real, intent(in) :: XP, YP, Food, Food_width
     integer, intent(in) :: N, NObs
     ! output
     real , intent(out) :: Obs(N,NObs), Rew(N), Eaten
@@ -457,8 +458,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
-                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*3 !* (1 - ratio_rew), penalty to touch - always active
-                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*3 !* (1 - ratio_rew), penalty to touch - always active
+                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty !* (1 - ratio_rew), penalty to touch - always active
+                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty !* (1 - ratio_rew), penalty to touch - always active
             endif
             
             
