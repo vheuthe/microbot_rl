@@ -29,13 +29,20 @@ if __name__ == "__main__":
     Nrod, rod = spherical_lens(L, dist, Xcenter)
     mass = 30 
     inertia = 0
-    cm = np.mean(rod, axis=1)
+    cm = np.mean(rod, axis=0)
+    print(cm.shape)
     for i in range(rod.shape[0]):
         r2 = (rod[i,0]-cm[0])**2+(rod[i,1]-cm[1])**2
-        inertia += r2 * mass / Nrod * rod[i,2]/cm[2]/Nrod
+        inertia += r2 * mass / Nrod * rod[i,2] / (Nrod * cm[2])
     
     penalty = 0.0
-    
+
+    radius = np.sqrt(Xcenter*Xcenter + L*L/4)
+    alpha = np.arcsin(L/2/radius)
+    Fnorm = [np.cos(alpha), -L/2/radius]
+    Rnorm = [radius * np.cos(alpha) - Xcenter, -L/2]
+    penalty = np.abs( mass / inertia * (Fnorm[0]*Rnorm[1] - Fnorm[1]*Rnorm[0]) )
+
     momo = open(name_file, "w")
     momo.write('{} \n {} {} {} \n'.format(Nrod, mass, penalty, 6.2))
     momo.close()
