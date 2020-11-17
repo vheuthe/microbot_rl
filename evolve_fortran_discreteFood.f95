@@ -219,7 +219,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
             endif
             
             dtheta = atan2(dy,dx)
-            sp_th = atan(ss, r)/2.
+            sp_th = asin(ss / 2. / r)
             ! i to j 
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI
@@ -257,7 +257,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
                         dtheta2 = atan2(dy2,dx2)
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                        dark = atan(ss, r2)/2 ! cone of shadow
+                        dark = asin(ss / 2. / r2) ! cone of shadow
                        
 
                         if (abs(th-dtheta2) < dark + sp_th) then
@@ -314,7 +314,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
                         dtheta2 = atan2(dy2,dx2)
                         dtheta2 = (dtheta2 - Theta(j))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                        dark = atan(ss, r2)/2.
+                        dark = asin(ss / r2 / 2.)
                         
                         ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                         if (abs(th-dtheta2) < dark+sp_th) then
@@ -444,7 +444,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             r = sqrt(dx*dx + dy*dy)
             
             dtheta = atan2(dy,dx)
-            sp_th = atan(ss, r)/2.
+            sp_th = asin(ss/2. / r)
             ! i to j ============================================
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI 
@@ -486,7 +486,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     dtheta2 = atan2(dy2,dx2)
                     dtheta2 = (dtheta2 - Theta(i))/2./PI
                     dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                    dark = atan(ss, r2)/2 ! cone of shadow                   
+                    dark = asin(ss / 2. / r2) ! cone of shadow                   
 
                     if (abs(th-dtheta2) < dark + sp_th) then
                         if (th .lt. dtheta2) then
@@ -538,7 +538,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     dtheta2 = atan2(dy2,dx2)
                     dtheta2 = (dtheta2 - Theta(j))/2./PI
                     dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                    dark = atan(ss, r2)/2.
+                    dark = asin(ss / 2. / r2)
                     
                     ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                     if (abs(th-dtheta2) < dark+sp_th) then
@@ -579,24 +579,24 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     food_radius = Food_width / 2 !Food_width is diameter, we need radius
 
     if (food_radius > 0) then
-        do i = 1, N       
+        particle_loop: do i = 1, N       
             ! FOOD SOURCE
             dx = XP - X(i)
             dy = YP - Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
-            sp_th = atan(Food_width, r)/2.
+            sp_th = asin(food_radius / r)
             ! i to j 
             th = (dtheta - Theta(i))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = (th - floor(th + 0.5))*2*PI
-            val = Food_width / r
+            val = food_radius / r ! 
             
             ! VALUE OF FOOD
             if (r > food_radius) then
                 
-                food_sight=0
-                food_angle=sp_th/(bins/2)
+                food_sight = 0
+                food_angle = sp_th/(bins/2)
                 
                 ! VISION OF FOOD IS DIVIDED IN DISCRETE BINS.
                 do j = -bins/2, bins/2-1
@@ -606,11 +606,11 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     endif
                 enddo
 
-                if (all(food_sight == 0)) cycle
+                if (all(food_sight == 0)) cycle particle_loop
                 
                 ! even more terribly expensive way
                 ! to account for line of sight
-                do k = 1, N 
+                LOS_loop: do k = 1, N 
 
                     if (i==k) cycle
                     dx2 = X(k)-X(i)
@@ -622,7 +622,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     dtheta2 = atan2(dy2,dx2)
                     dtheta2 = (dtheta2 - Theta(i))/2./PI
                     dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                    dark = atan(ss, r2)/2 ! cone of shadow                   
+                    dark = asin(ss / 2. / r2) ! cone of shadow                   
 
                     if (abs(th-dtheta2) < dark + sp_th) then
                         do j = -bins/2, bins/2-1
@@ -632,28 +632,28 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                             endif
                         enddo
                         
-                        if (all(food_sight == 0)) exit  ! fully covered
+                        if (all(food_sight == 0)) cycle particle_loop  ! fully covered
                     endif                    
-                enddo
+                enddo LOS_loop
 
                 do j = -bins/2, bins/2-1
                     start_cone = 1
-                    do n_cone= start_cone, cones
+                    cone_loop: do n_cone = start_cone, cones
                         if ((th + (j+0.5)*food_angle < edge(n_cone,2)).and.&
-                            (th + (j+0.5)*food_angle > edge(n_cone,1))) then               
-                            Obs(i,n_cone + 2*cones) = Obs(i,n_cone + 2*cones) + val * 1./bins * food_sight(j)
+                            (th + (j+0.5)*food_angle >= edge(n_cone,1))) then               
+                            Obs(i, n_cone + 2*cones) = Obs(i, n_cone + 2*cones) + val * 1. / bins * food_sight(j)
                             start_cone = n_cone
-                            exit
+                            exit cone_loop 
                         endif
-                    enddo
+                    enddo cone_loop
                 enddo 
 
             else
-                Obs(i,(2*cones+1):3*cones) = cone_slice
+                Obs(i,(2*cones+1):3*cones) = cone_slice / cone_angle
                 Rew(i) = Rew(i) + 1*ratio_rew
                 Eaten = Eaten + 1
             endif
-        enddo
+        enddo particle_loop
     endif
 
     return
