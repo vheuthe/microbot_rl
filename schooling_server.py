@@ -81,6 +81,7 @@ def serve(parameters):
         x = data[:,0]
         y = data[:,1]
         theta = data[:,2]
+        theta[np.isnan(theta)] = 0
         lost = np.isnan(x)
         inboundary = (data[:,3] < 0)
 
