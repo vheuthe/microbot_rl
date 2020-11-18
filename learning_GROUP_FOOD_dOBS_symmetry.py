@@ -48,7 +48,7 @@ if __name__ == "__main__":
     start_MD = 0
     n_MD = 200
 
-    total_time = 7200
+    total_time = 3600
     step_time = 5
     vel_act = 0.35
     vel_tor = 0.20
@@ -57,9 +57,8 @@ if __name__ == "__main__":
     n_max_steps = int(total_time/step_time)
     steps_update = 360
     starting_food = 2000
-    Food_width = 100
     starting_food_width = 100
-
+    Food_width = starting_food_width
     torque = 25 #875. / 180. # torque in rad
     N = 50 #number of particles
 
@@ -85,8 +84,9 @@ if __name__ == "__main__":
             theta = np.random.rand()*2*np.pi
             P = displ*np.array([np.cos(theta),np.sin(theta),0.])
             Food_quantity = starting_food
+            Food_width = starting_food_width
             traj_flag = False
-            if (iMD%10 == 0):
+            if (iMD%5 == 4):
                 traj_flag=True
             md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
             traj_file = open('traj'+str(iMD)+'.xyz', 'a')
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 else:
                     Agent.add_env_timeframe([], symm_obs, symm_rewards, False)
                 order,  swirl = md.get_order()
-                print('{} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, order, swirl))
+                print('{} {} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, Food_width, order, swirl))
 
     Agent.save_models(path=models_rootname, final_save = True)
 
