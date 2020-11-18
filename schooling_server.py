@@ -6,6 +6,7 @@ import traceback
 import struct
 import itertools
 import numpy as np
+import random
 from firstrl import AgentActiveMatter
 import evolve_fortran_discreteFood as evolve
 
@@ -17,9 +18,9 @@ parameters = {
   'training_epochs': 30,
   'reward_ratio': 0.5,
   'touch_penalty': 3,
-  'food_x': 98,
-  'food_y': 99,
-  'food_amount': 100,
+  'food_max_x': 50,
+  'food_max_y': 50,
+  'food_amount': 666,
   'food_radius': 25,
   'input_dim': 15,
   'output_dim': 4,
@@ -46,6 +47,14 @@ def serve(parameters):
 
   # create RL Agent
   rl = AgentActiveMatter(**parameters)
+
+  # update parameters in case a loaded model changed the dimensions
+  parameters['input_dim'] = rl.input_dim
+  parameters['output_dim'] = rl.n_actions
+
+  #initialize food
+  food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
+  food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
   food_current = parameters['food_amount']
 
   # create TCP socket for communication
@@ -81,13 +90,18 @@ def serve(parameters):
 
         # calculate observables and reward
         # TODO food is for now just a constant quantity at constant position
-        obs, rew, eaten = get_observables_rewards(x[~lost], y[~lost], theta[~lost], **parameters)
+        obs, rew, eaten = get_observables_rewards(x[~lost], y[~lost], theta[~lost], food_x, food_y, **parameters)
         food_current -= eaten
+
+        if food_current <= 0:
+          food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
+          food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
+          food_current = parameters['food_amount']
 
         # remove invalid observables
         obs = obs[~inboundary[~lost],:]
         rew = rew[~inboundary[~lost]]
-        invalid = np.logical_or(lost, inboundary).flatten().tolist()
+        invalid = np.argwhere(np.logical_or(lost, inboundary)).flatten().tolist()
 
         # feed data to RL network
         if update == 0:
@@ -104,9 +118,15 @@ def serve(parameters):
         actions, pi_logp_all = rl.get_actions(True)
         # ensure that actions is column vector
         actions = actions.reshape((-1,1))
+        # check number of actions
+        if rl.n_actions == 3:
+          actions = actions + 1
+          pi_logp_all = np.append(np.full(actions.shape, -np.inf), pi_logp_all, axis=1)
+        elif rl.n_actions != 4:
+          raise NotImplementedError('Unsupported output_dim')
         # add food info as first row and flatten in 'Fortran' style
         data = np.append(
-          [[parameters['food_x'], parameters['food_y'], parameters['food_radius'], parameters['food_amount'], food_current]],
+          [[food_x, food_y, parameters['food_radius'], parameters['food_amount'], food_current]],
           np.append(actions.reshape((-1,1)), pi_logp_all, axis=1),
           axis=0).flatten('F')
         # and send them (as bytestream)

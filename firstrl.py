@@ -76,8 +76,6 @@ class AgentActiveMatter():
   def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')], **unused_parameters):
 
     # internal knowledge
-    self.input_dim = input_dim
-    self.n_actions = output_dim
     self.optimizer = tf.optimizers.Adam(learning_rate=lrPI) # optimizer
     self.gamma = gamma                                      # gamma for discount future rewards
     self.lam = lam                                          # lambda for GAE
@@ -90,8 +88,7 @@ class AgentActiveMatter():
     self.N = None
     self.checkpointID = 0                                   # counter for model checkpoints
 
-    self.particles = []
-    self.reset_batch()                             # initialize memory (to zero)
+    self.particles = []                         # initialize memory (to zero)
 
     # ------------------------------------------
     if (restart_models):
@@ -103,11 +100,17 @@ class AgentActiveMatter():
       loaded_input_dim = self.critic.layers[0].input_shape[1]
       loaded_output_dim = self.policy.layers[-1].output_shape[1]
 
-      assert (loaded_input_dim == self.input_dim), 'input dimension does not match with loaded model'
-      assert (loaded_output_dim == self.n_actions), 'action dimension does not match with loaded model'
+      self.input_dim = loaded_input_dim
+      self.n_actions = loaded_output_dim
+      self.reset_batch()    
 
     else:
       print('Starting new model')
+      
+      self.input_dim = input_dim
+      self.n_actions = output_dim
+      self.reset_batch()    
+
       assert model_structure, 'model structure is not defined!'
 
       # Create Actor NN      
