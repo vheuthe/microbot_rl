@@ -85,7 +85,6 @@ class AgentActiveMatter():
     self.lrV = lrV                                          # learning rate value
     self.batch_size = batch_size                            # batch_size
     self.target_kl = target_kl                              # target KL divergence for update early stop
-    self.N = None
     self.checkpointID = 0                                   # counter for model checkpoints
 
     self.particles = []                         # initialize memory (to zero)
@@ -172,7 +171,6 @@ class AgentActiveMatter():
     obs MUST be of shape (N_particles, input_dim)
     '''
     self.particles = [SAM(o.reshape(1,self.input_dim)) for o in obs]    # creates list of SAM objects, where to store individual particles
-    self.N = obs.shape[0]
 
   def add_env_timeframe(self, lost, new_obs, rewards, isdone):
     '''
@@ -186,18 +184,14 @@ class AgentActiveMatter():
       self.finish_path(True, ID_lost)
 
     if (not isdone):
-      # self.N -= len(lost) can subtract too much at the moment
       for i, (o, r) in enumerate(zip(new_obs, rewards)):
         o = o.reshape(1,self.input_dim)
-      # if (i < self.N):
         if i < len(self.particles): # should work as well?
           par = self.particles[i]
           v = self.critic(par.current).numpy()[0,0]
           par.add_obs_rew_val(o, r, v)
         else:
           self.add_in_memory(o)
-      # new number of particles
-      self.N = new_obs.shape[0]
 
     else: # if trajectory is DONE
       for i, (o, r) in reversed(list(enumerate(zip(new_obs,rewards)))):
@@ -262,9 +256,7 @@ class AgentActiveMatter():
 
     assert (ID >= 0), 'impossible ID'
 
-    #print(ID, "/", self.N)
-
-    if ID >= self.N:
+    if ID >= len(self.particles):
       # particle was found and lost by matlab between two updates
       return
 
@@ -366,4 +358,3 @@ class AgentActiveMatter():
 
     # --- reset internal values ----
     self.reset_batch()
-    self.N = 0
