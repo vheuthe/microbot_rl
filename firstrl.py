@@ -172,7 +172,7 @@ class AgentActiveMatter():
     '''
     self.particles = [SAM(o.reshape(1,self.input_dim)) for o in obs]    # creates list of SAM objects, where to store individual particles
 
-  def add_env_timeframe(self, lost, new_obs, rewards, isdone):
+  def add_env_timeframe(self, lost, new_obs, rewards, isdone=False):
     '''
     receives information about the present time step
     from the outside world:
@@ -184,28 +184,18 @@ class AgentActiveMatter():
     for ID_lost in sorted(lost, reverse=True):
       self.finish_path(self.particles.pop(ID_lost), True)
 
-    if (not isdone):
-      for i, (o, r) in enumerate(zip(new_obs, rewards)):
-        o = o.reshape(1,self.input_dim)
-        if i < len(self.particles): # should work as well?
-          par = self.particles[i]
-          v = self.critic(par.current).numpy()[0,0]
-          par.add_obs_rew_val(o, r, v)
-        else:
-          self.add_in_memory(o)
+    for i, (obs, rew) in enumerate(zip(new_obs, rewards)):
+      obs = obs.reshape(1,-1)
+      if i < len(self.particles):
+        val = self.critic(self.particles[i].current).numpy()[0,0]
+        self.particles[i].add_obs_rew_val(obs, rew, val)
+      else:
+        self.particles.append(SAM(obs))
 
-    else: # if trajectory is DONE
-      for i, (o, r) in reversed(list(enumerate(zip(new_obs,rewards)))):
-        o = o.reshape(1,self.input_dim)
-        if i < len(self.particles):
-          par = self.particles[i]
-          v = self.critic(par.current).numpy()[0,0]
-          par.add_obs_rew_val(o, r, v)
-          # pop(i) could be pop() here, as i should always be the last available!!
-          self.finish_path(self.particles.pop(i))
-
-  def add_in_memory(self, o):
-    self.particles.append(SAM(o))
+    # Ends current episode
+    if isdone:
+      while self.particles:
+        self.finish_path(self.particles.pop())
 
   def get_actions(self, flag_logp=False):
     '''
