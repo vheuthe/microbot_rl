@@ -206,7 +206,7 @@ class AgentActiveMatter():
           par = self.particles[i]
           v = self.critic(par.current).numpy()[0,0]
           par.add_obs_rew_val(o, r, v)
-          self.finish_path(False, i, isdone=True, last_reward=r)
+          self.finish_path(False, i)
 
   def add_in_memory(self, o):
     self.particles.append(SAM(o))
@@ -239,7 +239,7 @@ class AgentActiveMatter():
         return actions
     
 
-  def finish_path(self, lost = False, ID = -1, isdone=False, last_reward=0.0):
+  def finish_path(self, lost = False, ID = -1):
     """
     - FROM SPINNING UP's PPO CODE -
     Call this at the end of a trajectory, or when one gets cut off
@@ -275,11 +275,8 @@ class AgentActiveMatter():
       self.particles.pop(ID)
       return
 
-    last_val = 0.0
-    if (not lost):
-      last_val = self.critic(par.current).numpy()[0,0]
-    if (isdone):
-      last_val = last_reward
+    # our particles are imortale, so we always have infinite horizon
+    last_val = self.critic(par.current).numpy()[0,0]
 
     # finish trajectory adding to memory the entire set of (obs, actions, logp, target)
     rews = np.append(par.rew, last_val)
