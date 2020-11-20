@@ -272,11 +272,12 @@ class AgentActiveMatter():
       self.particles.pop(ID)
       return
 
-    last_val = 0.0
-    if (not lost):
-      last_val = self.critic(par.current).numpy()[0,0]
-    if (isdone):
-      last_val = last_reward
+    # last_val = 0.0
+    # if (not lost):
+      # last_val = self.critic(par.current).numpy()[0,0]
+    # if (isdone):
+      # last_val = last_reward
+    last_val = self.critic(par.current).numpy()[0,0]
 
     # finish trajectory adding to memory the entire set of (obs, actions, logp, target)
     rews = np.append(par.rew, last_val)
@@ -327,8 +328,10 @@ class AgentActiveMatter():
       self.finish_path(lost=False, ID=0)  # CHECK THIS AS ABOVE!
 
     obs = self.obs
+    print(obs.shape)
     opt = self.optimizer
     act = self.actions
+    print(self.actions.shape)
     old_logp = self.logp
     # ----------------------------------
     self.normalize_adv()

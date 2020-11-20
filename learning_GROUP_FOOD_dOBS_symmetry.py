@@ -30,6 +30,7 @@ if __name__ == "__main__":
     # READS FOOD_REW AS INPUT
     food_rew_input = np.float(sys.argv[1])
     eating_speed = np.float(sys.argv[2])
+    touch_penalty = np.float(sys.argv[3])
 
     # ------------
     cones = 5
@@ -48,11 +49,11 @@ if __name__ == "__main__":
     start_MD = 0
     n_MD = 200
 
-    total_time = 3600
+    total_time = 7200
     step_time = 5
     vel_act = 0.35
     vel_tor = 0.20
-    dt = 0.15
+    dt = 0.2
     steps = int(step_time/dt)
     n_max_steps = int(total_time/step_time)
     steps_update = 360
@@ -60,8 +61,7 @@ if __name__ == "__main__":
     starting_food_width = 100
     Food_width = starting_food_width
     torque = 25 #875. / 180. # torque in rad
-    N = 50 #number of particles
-
+    N = 2 #number of particles
     food_rew = food_rew_input  # 1=only food, 0=only compactness
     # ---------------------------------
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             traj_flag = False
             if (iMD%5 == 4):
                 traj_flag=True
-            md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
+            md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, touch_penalty=touch_penalty, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
             traj_file = open('traj'+str(iMD)+'.xyz', 'a')
             print('\n\n\n #NEW MD INITIALIZATION!')
             
@@ -137,15 +137,21 @@ if __name__ == "__main__":
                 symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])
 
                 md.print_xyz_food_actions(P[0], P[1], Food_quantity, Food_width, logp, actions.astype(int))
-                if ((step>0) and (step%steps_update == 0)):
-                    lost = [i for i in range(symm_obs.shape[0])]
-                    Agent.add_env_timeframe(lost, symm_obs, symm_rewards, done)
+                
+                if (step == n_max_steps-1):
+                    done = True
+                if ((step>0) and (count%steps_update == 0)):
+                    Agent.add_env_timeframe([], obs, rewards, done)
                     Agent.train_step(epochs=50)
-                    Agent.initialize(symm_obs)
+                    Agent.initialize(obs)
                 else:
-                    Agent.add_env_timeframe([], symm_obs, symm_rewards, False)
+                    Agent.add_env_timeframe([], obs, rewards, done)
+
                 order,  swirl = md.get_order()
-                print('{} {} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, Food_width, order, swirl))
+                print('{} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, order, swirl))
 
+            if (iMD%20 == 19):
+                # INTERMEDIATE SAVES.
+                Agent.save_models(path=models_rootname, final_save = True)
+                
     Agent.save_models(path=models_rootname, final_save = True)
-

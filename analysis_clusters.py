@@ -4,7 +4,7 @@
 import numpy as np
 import sys
 import scipy
-import tensorflow as tf
+#import tensorflow as tf
 
 from scipy.spatial import ConvexHull
 from sklearn.decomposition import PCA
@@ -45,7 +45,7 @@ def map_local_swirl(pos, orient, sigma):
     return local_swirl
     
 if __name__ == "__main__":
-    # READS FOOD_REW AS INPUT
+    # READS FOOD_REW AS INPUT    
     traj_name = sys.argv[1]
     Np = np.int(sys.argv[2])
 
@@ -55,6 +55,7 @@ if __name__ == "__main__":
     particles = frames[:,1:,1:]
     food = frames[:,1,1:]
 
+
     for iframe in range(Nframes):
         hull = ConvexHull(particles[iframe,:,:2])
         area, volume = hull.area, hull.volume
@@ -62,7 +63,7 @@ if __name__ == "__main__":
         a = momo.explained_variance_ratio_[1]
         b = momo.explained_variance_ratio_[0]
         elongation = np.sqrt(b - a) / np.sqrt(b)
-        if (iframe%15==0):
+        if (iframe%1==0):
             local_swirl = map_local_swirl(particles[iframe,:,:2], particles[iframe,:,3:5], 15)
             np.savetxt('local_swirl_'+traj_name+'_frame{:04d}.xyz'.format(iframe), local_swirl)
         print(iframe, volume, elongation)
