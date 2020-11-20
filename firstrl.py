@@ -180,8 +180,9 @@ class AgentActiveMatter():
     - new_obs is a numpy array of observables of all particles (N_particle, n_input_dim)
     '''
 
+    # pop lost particles in reverse order to not mess up indices
     for ID_lost in sorted(lost, reverse=True):
-      self.finish_path(True, ID_lost)
+      self.finish_path(self.particles.pop(ID_lost), True)
 
     if (not isdone):
       for i, (o, r) in enumerate(zip(new_obs, rewards)):
@@ -200,7 +201,8 @@ class AgentActiveMatter():
           par = self.particles[i]
           v = self.critic(par.current).numpy()[0,0]
           par.add_obs_rew_val(o, r, v)
-          self.finish_path(False, i)
+          # pop(i) could be pop() here, as i should always be the last available!!
+          self.finish_path(self.particles.pop(i))
 
   def add_in_memory(self, o):
     self.particles.append(SAM(o))
@@ -233,7 +235,7 @@ class AgentActiveMatter():
         return actions
     
 
-  def finish_path(self, lost = False, ID = -1):
+  def finish_path(self, particle, lost = False):
     """
     - FROM SPINNING UP's PPO CODE -
     Call this at the end of a trajectory, or when one gets cut off
@@ -254,25 +256,17 @@ class AgentActiveMatter():
     signal, and the last action is discarded.
     """
 
-    assert (ID >= 0), 'impossible ID'
-
-    if ID >= len(self.particles):
-      # particle was found and lost by matlab between two updates
-      return
-
-    par = self.particles[ID]
-    if (par.obs.shape[0] < 2):
+    if (particle.obs.shape[0] < 2):
       # particle seen only for one frame
       # not sufficient to add (s, a, r, s')
-      self.particles.pop(ID)
       return
 
     # our particles are imortale, so we always have infinite horizon
-    last_val = self.critic(par.current).numpy()[0,0]
+    last_val = self.critic(particle.current).numpy()[0,0]
 
     # finish trajectory adding to memory the entire set of (obs, actions, logp, target)
-    rews = np.append(par.rew, last_val)
-    vals = np.append(par.val, last_val)
+    rews = np.append(particle.rew, last_val)
+    vals = np.append(particle.val, last_val)
 
     # the next two lines compute Generalized Advantage Estimate
     deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
@@ -282,20 +276,16 @@ class AgentActiveMatter():
     self.target = np.append(self.target, discount_cumsum(rews, self.gamma)[:-1])
 
     # adds the trajectory (observables) to the memory
-    self.obs = np.append(self.obs, par.obs, axis=0)
+    self.obs = np.append(self.obs, particle.obs, axis=0)
 
     # add the actions and the (log) probabilities to the memory
     # (if the particle is lost, last action/logp must be discarded)
     if (lost):
-      self.actions = np.append(self.actions, par.act[:-1])
-      self.logp = np.append(self.logp, par.logp[:-1])
+      self.actions = np.append(self.actions, particle.act[:-1])
+      self.logp = np.append(self.logp, particle.logp[:-1])
     else:
-      self.actions = np.append(self.actions, par.act)
-      self.logp = np.append(self.logp, par.logp)
-
-    # deletes the particle from memory
-    self.particles.pop(ID) # CHECK IF THIS MESSES ORDER DURING TRAIN OR BETTER NOT DO HERE
-    #print('FINISHING PATHS, HERE actions are: {}'.format(self.actions))
+      self.actions = np.append(self.actions, particle.act)
+      self.logp = np.append(self.logp, particle.logp)
 
 
   def normalize_adv(self):
@@ -316,7 +306,7 @@ class AgentActiveMatter():
 
     # FINISH ALL TRAJECTORIES
     while self.particles:
-      self.finish_path(lost=False, ID=0)  # CHECK THIS AS ABOVE!
+      self.finish_path(self.particles.pop()) 
 
     obs = self.obs
     opt = self.optimizer
