@@ -106,6 +106,7 @@ if __name__ == "__main__":
             symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])            
 
             Agent.initialize(symm_obs)
+            done = False
             # -----------------------------------------
             for step in range(n_max_steps):
                 count += 1

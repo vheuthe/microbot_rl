@@ -121,6 +121,7 @@ if __name__ == "__main__":
 
                 if (step == n_max_steps-1):
                     done = True
+
                 if ((step>0) and (count%steps_update == 0)):
                     Agent.add_env_timeframe([], obs, rewards, done)
                     Agent.train_step(epochs=50)
