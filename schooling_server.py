@@ -32,7 +32,8 @@ parameters = {
   'lam': 0.98,
   'target_kl': 0.02,
   'save_models': True,
-  'restart_models': False
+  'models_savepath': './model',
+  'restart_models': False,
   }
 
 def get_observables_rewards(x, y, theta, food_x=0.0, food_y=0.0, food_amount=0.0, food_radius=1.0, reward_ratio=0.5, touch_penalty=3.0, input_dim=15, **unused):
