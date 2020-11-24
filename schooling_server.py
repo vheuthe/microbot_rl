@@ -31,7 +31,7 @@ parameters = {
   'en_coeff': 0.0,
   'lam': 0.98,
   'target_kl': 0.02,
-  'save_models': False,
+  'save_models': True,
   'restart_models': False
   }
 

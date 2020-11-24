@@ -182,7 +182,8 @@ class AgentActiveMatter():
 
     # pop lost particles in reverse order to not mess up indices
     for ID_lost in sorted(lost, reverse=True):
-      self.finish_path(self.particles.pop(ID_lost), True)
+      if ID_lost < len(self.particles):
+        self.finish_path(self.particles.pop(ID_lost), True)
 
     for i, (obs, rew) in enumerate(zip(new_obs, rewards)):
       obs = obs.reshape(1,-1)
