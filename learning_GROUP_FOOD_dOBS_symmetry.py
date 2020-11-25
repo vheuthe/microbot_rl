@@ -61,7 +61,7 @@ if __name__ == "__main__":
     starting_food_width = 100
     Food_width = starting_food_width
     torque = 25 #875. / 180. # torque in rad
-    N = 2 #number of particles
+    N = 50 #number of particles
     food_rew = food_rew_input  # 1=only food, 0=only compactness
     # ---------------------------------
 
