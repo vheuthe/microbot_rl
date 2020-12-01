@@ -221,9 +221,9 @@ class AgentActiveMatter():
       actions = np.append(actions, a)
       pi_logp_all = np.append(pi_logp_all, pi_logp, axis=0)
     if (flag_logp):
-        return actions, pi_logp_all
+        return actions.astype(int), pi_logp_all
     else:
-        return actions
+        return actions.astype(int)
     
 
   def finish_path(self, particle, lost = False):
