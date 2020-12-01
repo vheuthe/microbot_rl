@@ -61,7 +61,7 @@ if __name__ == "__main__":
     starting_food_width = 100
     Food_width = starting_food_width
     torque = 25 #875. / 180. # torque in rad
-    N = 30 #number of particles
+    N = 50 #number of particles
     food_rew = food_rew_input  # 1=only food, 0=only compactness
     # ---------------------------------
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             Food_quantity = starting_food
             Food_width = starting_food_width
             traj_flag = False
-            if (iMD%5 == 4):
+            if (iMD%50 == 49):
                 traj_flag=True
             md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, touch_penalty=touch_penalty, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
             traj_file = open('traj'+str(iMD)+'.xyz', 'a')
@@ -115,7 +115,7 @@ if __name__ == "__main__":
                 # One Has to directly change values inside the Agent memory.
                 for i, par in enumerate(Agent.particles, N//2):
                     par.act[-1] = actions[i-N//2]
-                    par.logp = logp[i-N//2, actions[i-N//2]]
+                    par.logp[-1] = logp[i-N//2, actions[i-N//2]]
                 actions += 1
 
                 if ((starting_food > 0) and (Food_quantity < 20)):
