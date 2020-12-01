@@ -61,7 +61,7 @@ if __name__ == "__main__":
     starting_food_width = 100
     Food_width = starting_food_width
     torque = 25 #875. / 180. # torque in rad
-    N = 50 #number of particles
+    N = 30 #number of particles
     food_rew = food_rew_input  # 1=only food, 0=only compactness
     # ---------------------------------
 
@@ -111,6 +111,11 @@ if __name__ == "__main__":
             for step in range(n_max_steps):
                 count += 1
                 actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
+                
+                # One Has to directly change values inside the Agent memory.
+                for i, par in enumerate(Agent.particles, N//2):
+                    par.act[-1] = actions[i-N//2]
+                    par.logp = logp[i-N//2, actions[i-N//2]]
                 actions += 1
 
                 if ((starting_food > 0) and (Food_quantity < 20)):
@@ -142,11 +147,11 @@ if __name__ == "__main__":
                 if (step == n_max_steps-1):
                     done = True
                 if ((step>0) and (count%steps_update == 0)):
-                    Agent.add_env_timeframe([], obs, rewards, done)
+                    Agent.add_env_timeframe([], symm_obs, rewards, done)
                     Agent.train_step(epochs=50)
                     Agent.initialize(obs)
                 else:
-                    Agent.add_env_timeframe([], obs, rewards, done)
+                    Agent.add_env_timeframe([], symm_obs, rewards, done)
 
                 order,  swirl = md.get_order()
                 print('{} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, order, swirl))
