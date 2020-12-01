@@ -101,7 +101,7 @@ class MD():
             for j in range(sN):
                 if (i*sN+j) < self.N :
                   oo = np.random.randint(pos.shape[0])
-                  particles[i*sN+j,:] += pos[oo]*10.0
+                  particles[i*sN+j,:] += pos[oo]*20.0
                   pos = np.delete(pos, oo, axis=0)
         open(self.filexyz, "w") 
         return particles
