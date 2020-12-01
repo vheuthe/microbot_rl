@@ -37,7 +37,7 @@ def parse_input(inputdata, input_dim):
   # reshape to expected columns (input_dim observables + 1 reward)
   inputdata = np.array(inputdata).reshape((-1, input_dim + 1))
   # get nan lines as 1D list
-  lost = np.argwhere(np.isnan(inputdata)[:, 0]).flatten().tolist();
+  lost = np.argwhere(np.isnan(inputdata)[:, 0]).flatten().tolist()
 
   # and remove them (reshape needed as logic indexing flattens the matrix)
   inputdata = np.reshape(inputdata[~np.isnan(inputdata)], (-1, input_dim + 1))

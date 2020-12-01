@@ -76,8 +76,6 @@ class AgentActiveMatter():
   def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')], **unused_parameters):
 
     # internal knowledge
-    self.input_dim = input_dim
-    self.n_actions = output_dim
     self.optimizer = tf.optimizers.Adam(learning_rate=lrPI) # optimizer
     self.gamma = gamma                                      # gamma for discount future rewards
     self.lam = lam                                          # lambda for GAE
@@ -87,11 +85,9 @@ class AgentActiveMatter():
     self.lrV = lrV                                          # learning rate value
     self.batch_size = batch_size                            # batch_size
     self.target_kl = target_kl                              # target KL divergence for update early stop
-    self.N = None
     self.checkpointID = 0                                   # counter for model checkpoints
 
-    self.particles = []
-    self.reset_batch()                             # initialize memory (to zero)
+    self.particles = []                         # initialize memory (to zero)
 
     # ------------------------------------------
     if (restart_models):
@@ -103,11 +99,17 @@ class AgentActiveMatter():
       loaded_input_dim = self.critic.layers[0].input_shape[1]
       loaded_output_dim = self.policy.layers[-1].output_shape[1]
 
-      assert (loaded_input_dim == self.input_dim), 'input dimension does not match with loaded model'
-      assert (loaded_output_dim == self.n_actions), 'action dimension does not match with loaded model'
+      self.input_dim = loaded_input_dim
+      self.n_actions = loaded_output_dim
+      self.reset_batch()    
 
     else:
       print('Starting new model')
+      
+      self.input_dim = input_dim
+      self.n_actions = output_dim
+      self.reset_batch()    
+
       assert model_structure, 'model structure is not defined!'
 
       # Create Actor NN      
@@ -169,9 +171,8 @@ class AgentActiveMatter():
     obs MUST be of shape (N_particles, input_dim)
     '''
     self.particles = [SAM(o.reshape(1,self.input_dim)) for o in obs]    # creates list of SAM objects, where to store individual particles
-    self.N = obs.shape[0]
 
-  def add_env_timeframe(self, lost, new_obs, rewards, isdone):
+  def add_env_timeframe(self, lost, new_obs, rewards, isdone=False):
     '''
     receives information about the present time step
     from the outside world:
@@ -179,34 +180,23 @@ class AgentActiveMatter():
     - new_obs is a numpy array of observables of all particles (N_particle, n_input_dim)
     '''
 
+    # pop lost particles in reverse order to not mess up indices
     for ID_lost in sorted(lost, reverse=True):
-      self.finish_path(True, ID_lost)
+      if ID_lost < len(self.particles):
+        self.finish_path(self.particles.pop(ID_lost), True)
 
-    if (not isdone):
-      # self.N -= len(lost) can subtract too much at the moment
-      for i, (o, r) in enumerate(zip(new_obs, rewards)):
-        o = o.reshape(1,self.input_dim)
-      # if (i < self.N):
-        if i < len(self.particles): # should work as well?
-          par = self.particles[i]
-          v = self.critic(par.current).numpy()[0,0]
-          par.add_obs_rew_val(o, r, v)
-        else:
-          self.add_in_memory(o)
-      # new number of particles
-      self.N = new_obs.shape[0]
+    for i, (obs, rew) in enumerate(zip(new_obs, rewards)):
+      obs = obs.reshape(1,-1)
+      if i < len(self.particles):
+        val = self.critic(self.particles[i].current).numpy()[0,0]
+        self.particles[i].add_obs_rew_val(obs, rew, val)
+      else:
+        self.particles.append(SAM(obs))
 
-    else: # if trajectory is DONE
-      for i, (o, r) in reversed(list(enumerate(zip(new_obs,rewards)))):
-        o = o.reshape(1,self.input_dim)
-        if i < len(self.particles):
-          par = self.particles[i]
-          v = self.critic(par.current).numpy()[0,0]
-          par.add_obs_rew_val(o, r, v)
-          self.finish_path(False, i, isdone=True, last_reward=r)
-
-  def add_in_memory(self, o):
-    self.particles.append(SAM(o))
+    # Ends current episode
+    if isdone:
+      while self.particles:
+        self.finish_path(self.particles.pop())
 
   def get_actions(self, flag_logp=False):
     '''
@@ -236,7 +226,7 @@ class AgentActiveMatter():
         return actions
     
 
-  def finish_path(self, lost = False, ID = -1, isdone=False, last_reward=0.0):
+  def finish_path(self, particle, lost = False):
     """
     - FROM SPINNING UP's PPO CODE -
     Call this at the end of a trajectory, or when one gets cut off
@@ -257,30 +247,17 @@ class AgentActiveMatter():
     signal, and the last action is discarded.
     """
 
-    assert (ID >= 0), 'impossible ID'
-
-    #print(ID, "/", self.N)
-
-    if ID >= self.N:
-      # particle was found and lost by matlab between two updates
-      return
-
-    par = self.particles[ID]
-    if (par.obs.shape[0] < 2):
+    if (particle.obs.shape[0] < 2):
       # particle seen only for one frame
       # not sufficient to add (s, a, r, s')
-      self.particles.pop(ID)
       return
 
-    last_val = 0.0
-    if (not lost):
-      last_val = self.critic(par.current).numpy()[0,0]
-    if (isdone):
-      last_val = last_reward
+    # our particles are imortale, so we always have infinite horizon
+    last_val = self.critic(particle.current).numpy()[0,0]
 
     # finish trajectory adding to memory the entire set of (obs, actions, logp, target)
-    rews = np.append(par.rew, last_val)
-    vals = np.append(par.val, last_val)
+    rews = np.append(particle.rew, last_val)
+    vals = np.append(particle.val, last_val)
 
     # the next two lines compute Generalized Advantage Estimate
     deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
@@ -290,20 +267,16 @@ class AgentActiveMatter():
     self.target = np.append(self.target, discount_cumsum(rews, self.gamma)[:-1])
 
     # adds the trajectory (observables) to the memory
-    self.obs = np.append(self.obs, par.obs, axis=0)
+    self.obs = np.append(self.obs, particle.obs, axis=0)
 
     # add the actions and the (log) probabilities to the memory
     # (if the particle is lost, last action/logp must be discarded)
     if (lost):
-      self.actions = np.append(self.actions, par.act[:-1])
-      self.logp = np.append(self.logp, par.logp[:-1])
+      self.actions = np.append(self.actions, particle.act[:-1])
+      self.logp = np.append(self.logp, particle.logp[:-1])
     else:
-      self.actions = np.append(self.actions, par.act)
-      self.logp = np.append(self.logp, par.logp)
-
-    # deletes the particle from memory
-    self.particles.pop(ID) # CHECK IF THIS MESSES ORDER DURING TRAIN OR BETTER NOT DO HERE
-    #print('FINISHING PATHS, HERE actions are: {}'.format(self.actions))
+      self.actions = np.append(self.actions, particle.act)
+      self.logp = np.append(self.logp, particle.logp)
 
 
   def normalize_adv(self):
@@ -324,7 +297,7 @@ class AgentActiveMatter():
 
     # FINISH ALL TRAJECTORIES
     while self.particles:
-      self.finish_path(lost=False, ID=0)  # CHECK THIS AS ABOVE!
+      self.finish_path(self.particles.pop()) 
 
     obs = self.obs
     opt = self.optimizer
@@ -366,4 +339,3 @@ class AgentActiveMatter():
 
     # --- reset internal values ----
     self.reset_batch()
-    self.N = 0
