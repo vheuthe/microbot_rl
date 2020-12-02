@@ -86,7 +86,7 @@ if __name__ == "__main__":
             Food_quantity = starting_food
             Food_width = starting_food_width
             traj_flag = False
-            if (iMD%5 == 4):
+            if (iMD%50 == 49):
                 traj_flag=True
             md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, touch_penalty=touch_penalty, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
             traj_file = open('traj'+str(iMD)+'.xyz', 'a')
