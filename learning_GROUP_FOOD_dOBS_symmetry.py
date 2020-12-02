@@ -113,7 +113,7 @@ if __name__ == "__main__":
                 actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
                 
                 # One Has to directly change values inside the Agent memory.
-                inv_actions = np.zeros(actions.shape)
+                inv_actions = np.zeros(actions.shape, dtype='int')
                 inv_actions[actions==1]=2
                 inv_actions[actions==2]=1
                 for i, par in enumerate(Agent.particles, N//2):
