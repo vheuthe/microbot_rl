@@ -141,8 +141,8 @@ if __name__ == "__main__":
                 symm_rewards[:N] = rewards
                 symm_rewards[N:] = rewards
                 symm_obs[:N,] = obs
-                symm_obs[N:,:2*cones:2] = -np.fliplr(obs[:,:2*cones:2])
-                symm_obs[N:,1:2*cones:2] = np.fliplr(obs[:,1:2*cones:2])
+                symm_obs[N:,:2*cones:2] = np.fliplr(obs[:,:2*cones:2])
+                symm_obs[N:,1:2*cones:2] = -np.fliplr(obs[:,1:2*cones:2])
                 symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])
 
                 md.print_xyz_food_actions(P[0], P[1], Food_quantity, Food_width, logp, actions.astype(int))
