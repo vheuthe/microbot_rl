@@ -185,6 +185,8 @@ class AgentActiveMatter():
       if ID_lost < len(self.particles):
         self.finish_path(self.particles.pop(ID_lost), True)
 
+    assert new_obs.shape[0] == rewards.shape[0], 'Inconsistent input of Obs and Rewards'
+
     for i, (obs, rew) in enumerate(zip(new_obs, rewards)):
       obs = obs.reshape(1,-1)
       if i < len(self.particles):

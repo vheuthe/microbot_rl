@@ -150,11 +150,11 @@ if __name__ == "__main__":
                 if (step == n_max_steps-1):
                     done = True
                 if ((step>0) and (count%steps_update == 0)):
-                    Agent.add_env_timeframe([], symm_obs, rewards, done)
+                    Agent.add_env_timeframe([], symm_obs, symm_rewards, done)
                     Agent.train_step(epochs=50)
                     Agent.initialize(obs)
                 else:
-                    Agent.add_env_timeframe([], symm_obs, rewards, done)
+                    Agent.add_env_timeframe([], symm_obs, symm_rewards, done)
 
                 order,  swirl = md.get_order()
                 print('{} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, order, swirl))
