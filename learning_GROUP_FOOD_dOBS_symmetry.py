@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 inv_actions[actions==2]=1
                 for i, par in enumerate(Agent.particles, N//2):
                     par.act[-1] = inv_actions[i-N//2]
-                    par.logp[-1] = logp[i-N//2, inv_actions[i-N//2]]
+                    par.logp[-1] = logp[i, inv_actions[i-N//2]]
                 actions += 1
 
                 if ((starting_food > 0) and (Food_quantity < 20)):
