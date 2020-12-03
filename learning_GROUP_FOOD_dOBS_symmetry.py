@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # ------------------------------------------------
 
     start_MD = 0
-    n_MD = 200
+    n_MD = 50
 
     total_time = 7200
     step_time = 5
@@ -116,9 +116,10 @@ if __name__ == "__main__":
                 inv_actions = np.zeros(actions.shape, dtype='int')
                 inv_actions[actions==1]=2
                 inv_actions[actions==2]=1
-                for i, par in enumerate(Agent.particles, N//2):
-                    par.act[-1] = inv_actions[i-N//2]
-                    par.logp[-1] = logp[i, inv_actions[i-N//2]]
+                for i, par in enumerate(Agent.particles):
+                    if (i >= N):
+                        par.act[-1] = inv_actions[i-N]
+                        par.logp[-1] = logp[i, inv_actions[i-N]]
                 actions += 1
 
                 if ((starting_food > 0) and (Food_quantity < 20)):
