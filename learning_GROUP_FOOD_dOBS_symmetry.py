@@ -100,7 +100,7 @@ if __name__ == "__main__":
             symm_obs[:N] = obs
             symm_rewards[:N] = rewards
             symm_rewards[N:] = rewards
-            symm_obs[:N,] = obs
+
             symm_obs[N:,:2*cones:2] = np.fliplr(obs[:,:2*cones:2])
             symm_obs[N:,1:2*cones:2] = -np.fliplr(obs[:,1:2*cones:2])
             symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])            
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 inv_actions[actions==2]=1
                 for i, par in enumerate(Agent.particles, N//2):
                     par.act[-1] = inv_actions[i-N//2]
-                    par.logp[-1] = logp[i-N//2, inv_actions[i-N//2]]
+                    par.logp[-1] = logp[i, inv_actions[i-N//2]]
                 actions += 1
 
                 if ((starting_food > 0) and (Food_quantity < 20)):
@@ -136,14 +136,14 @@ if __name__ == "__main__":
                 Food_quantity -= Eaten*eating_speed
      
                 symm_obs = np.zeros((N*2,obs.shape[1]))
-                symm_rewards = np.zeros(N*2)
+                symm_rewards = np.zeros(N*2) 
                 symm_obs[:N] = obs
                 symm_rewards[:N] = rewards
                 symm_rewards[N:] = rewards
-                symm_obs[:N,] = obs
+
                 symm_obs[N:,:2*cones:2] = np.fliplr(obs[:,:2*cones:2])
                 symm_obs[N:,1:2*cones:2] = -np.fliplr(obs[:,1:2*cones:2])
-                symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])
+                symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])   
 
                 md.print_xyz_food_actions(P[0], P[1], Food_quantity, Food_width, logp, actions.astype(int))
                 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
                 if ((step>0) and (count%steps_update == 0)):
                     Agent.add_env_timeframe([], symm_obs, symm_rewards, done)
                     Agent.train_step(epochs=50)
-                    Agent.initialize(obs)
+                    Agent.initialize(symm_obs)
                 else:
                     Agent.add_env_timeframe([], symm_obs, symm_rewards, done)
 
