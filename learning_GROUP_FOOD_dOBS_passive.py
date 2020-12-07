@@ -31,6 +31,8 @@ if __name__ == "__main__":
     food_rew_input = np.float(sys.argv[1])
     eating_speed = np.float(sys.argv[2])
     touch_penalty = np.float(sys.argv[3])
+    start_MD = np.int(sys.argv[4])
+    n_MD = np.int(sys.argv[5])
 
     # ------------
     cones = 5
@@ -45,9 +47,6 @@ if __name__ == "__main__":
     en_coeff = 0.01
 
     # ------------------------------------------------
-
-    start_MD = 0
-    n_MD = 200
 
     total_time = 7200
     step_time = 5
