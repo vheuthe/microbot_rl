@@ -79,6 +79,7 @@ if __name__ == "__main__":
 
     for iMD in range(start_MD, start_MD + n_MD):
             # reinitialize the class MD with the new index
+            wait = 100
             displ = 75
             theta = np.random.rand()*2*np.pi
             P = displ*np.array([np.cos(theta),np.sin(theta),0.])
