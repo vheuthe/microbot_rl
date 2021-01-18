@@ -15,13 +15,14 @@ parameters = {
   'max_particles': 200,
   'host_address': ('localhost', 22009),
   'training_frequency': 12,
-  'training_epochs': 30,
+  'training_epochs': 50,
   'reward_ratio': 0.5,
   'touch_penalty': 3,
   'food_max_x': 50,
   'food_max_y': 50,
   'food_amount': 666,
   'food_radius': 25,
+  'food_delay': 15,
   'input_dim': 15,
   'output_dim': 4,
   'lrPI': 0.003,
@@ -57,6 +58,7 @@ def serve(parameters):
   food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
   food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
   food_current = parameters['food_amount']
+  food_delay_counter = parameters['food_delay']
 
   # create TCP socket for communication
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -92,13 +94,20 @@ def serve(parameters):
 
         # calculate observables and reward
         # TODO food is for now just a constant quantity at constant position
-        obs, rew, eaten = get_observables_rewards(x[~lost], y[~lost], theta[~lost], food_x, food_y, **parameters)
+        obs, rew, eaten = get_observables_rewards(
+          x[~lost], y[~lost], theta[~lost], 
+          food_x, food_y, food_current, parameters['food_radius']*(food_current > 0), 
+          parameters['reward_ratio'], parameters['touch_penalty'], parameters['input_dim'])
         food_current -= eaten
 
         if food_current <= 0:
-          food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
-          food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
-          food_current = parameters['food_amount']
+          if food_delay_counter > 0:
+            food_delay_counter -= 1
+          else:
+            food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
+            food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
+            food_current = parameters['food_amount']
+            food_delay_counter = parameters['food_delay']
 
         # remove invalid observables
         obs = obs[~inboundary[~lost],:]
@@ -128,7 +137,7 @@ def serve(parameters):
           raise NotImplementedError('Unsupported output_dim')
         # add food info as first row and flatten in 'Fortran' style
         data = np.append(
-          [[food_x, food_y, parameters['food_radius'], parameters['food_amount'], food_current]],
+          [[food_x, food_y, parameters['food_radius']*(food_current > 0), parameters['food_amount'], food_current]],
           np.append(actions.reshape((-1,1)), pi_logp_all, axis=1),
           axis=0).flatten('F')
         # and send them (as bytestream)
