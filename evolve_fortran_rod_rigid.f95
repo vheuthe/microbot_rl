@@ -78,9 +78,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     ! mR is a scaling of friction. mR = 1 seems not to be working.
 
     etaCol     = etaLiq * 6 * PI * ss/2
-    etaTra_par = etaLiq * 2 * PI * Lrod / log(Lrod/ss)
-    etaTra_per = etaLiq * 4 * PI * Lrod / (log(Lrod/ss) + 1)
-    etaRot     = etaLiq * PI * Lrod**3 / 3. /  log(Lrod/ss)
+    etaTra_par = mR * etaLiq * 2 * PI * Lrod / log(Lrod/ss)
+    etaTra_per = mR * etaLiq * 4 * PI * Lrod / (log(Lrod/ss) + 1)
+    etaRot     = mR * etaLiq * PI * Lrod**3 / 3. /  log(Lrod/ss)
 
     ! if mu_K > 1 then there is friction alongside rod.
     mu_K = mu
