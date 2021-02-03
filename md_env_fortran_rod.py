@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-import evolve_fortran_rod as evolve
+import evolve_fortran_rod_rigid as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -56,6 +56,7 @@ class MD_ROD():
         self.flag_side = int(flag_side)
         self.flag_LOS = int(flag_LOS)
         self.Nobs = cones*(2+flag_side)
+        #print('AT _INIT_ Nobs = {}'.format(self.Nobs))
         
         assert (not (flag_side and flag_LOS)), 'Having LOS and view across rod together makes no sense.'
 
@@ -182,6 +183,7 @@ class MD_ROD():
                                           self.mode, rotDir, old_rotDir, 
                                           flag_side, self.flag_LOS, 
                                           self.ss, self.ssrod, self.massRod,
+                                          self.ext_rod, self.cen_rod,
                                           obs_type, 
                                           self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
