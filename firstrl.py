@@ -185,18 +185,23 @@ class AgentActiveMatter():
       if ID_lost < len(self.particles):
         self.finish_path(self.particles.pop(ID_lost), True)
 
+    vals = []
     for i, (obs, rew) in enumerate(zip(new_obs, rewards)):
       obs = obs.reshape(1,-1)
       if i < len(self.particles):
         val = self.critic(self.particles[i].current).numpy()[0,0]
         self.particles[i].add_obs_rew_val(obs, rew, val)
+        vals.append(val)
       else:
         self.particles.append(SAM(obs))
+        vals.append(np.nan)
 
     # Ends current episode
     if isdone:
       while self.particles:
         self.finish_path(self.particles.pop())
+
+    return vals
 
   def get_actions(self, flag_logp=False):
     '''

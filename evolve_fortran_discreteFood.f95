@@ -426,7 +426,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
 
     ! Maximum payoff for compactness
     if (obs_type == 1) then 
-        max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+        max_payoff = 0.5 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
     else if (obs_type == 2) then
         max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
     else 

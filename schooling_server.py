@@ -55,8 +55,12 @@ def serve(parameters):
   parameters['output_dim'] = rl.n_actions
 
   #initialize food
-  food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
-  food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
+  if parameters['food_mode'] == 1:
+    food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
+    food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
+  elif parameters['food_mode'] == 2:
+    food_x = parameters['food_max_x']
+    food_y = parameters['food_max_y']
   food_current = parameters['food_amount']
   food_delay_counter = parameters['food_delay']
 
@@ -104,8 +108,12 @@ def serve(parameters):
           if food_delay_counter > 0:
             food_delay_counter -= 1
           else:
-            food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
-            food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
+            if parameters['food_mode'] == 1: # random
+              food_x = random.uniform(-parameters['food_max_x'], parameters['food_max_x'])
+              food_y = random.uniform(-parameters['food_max_y'], parameters['food_max_y'])
+            elif parameters['food_mode'] == 2: # alternating
+              food_x = -food_x
+              food_y = -food_y
             food_current = parameters['food_amount']
             food_delay_counter = parameters['food_delay']
 
@@ -117,13 +125,14 @@ def serve(parameters):
         # feed data to RL network
         if update == 0:
           rl.initialize(obs)
+          vals = np.zeros(len(rew))
         elif update % parameters['training_frequency'] == 0:
-          rl.add_env_timeframe(invalid, obs, rew, False)
+          vals = rl.add_env_timeframe(invalid, obs, rew, False)
           rl.train_step(parameters['training_epochs'])
           rl.initialize(obs)
           print("Training network ...")
         else:
-          rl.add_env_timeframe(invalid, obs, rew, False)
+          vals = rl.add_env_timeframe(invalid, obs, rew, False)
 
         # get actions and probabilitoes
         actions, pi_logp_all = rl.get_actions(True)
@@ -137,9 +146,10 @@ def serve(parameters):
           raise NotImplementedError('Unsupported output_dim')
         # add food info as first row and flatten in 'Fortran' style
         data = np.append(
-          [[food_x, food_y, parameters['food_radius']*(food_current > 0), parameters['food_amount'], food_current]],
-          np.append(actions.reshape((-1,1)), pi_logp_all, axis=1),
-          axis=0).flatten('F')
+            [[food_x, food_y, parameters['food_radius']*(food_current > 0), parameters['food_amount'], food_current, 0, 0]],
+            np.concatenate((actions.reshape((-1,1)), pi_logp_all, np.array(rew).reshape((-1,1)), np.array(vals).reshape((-1,1))), axis=1),
+            axis=0
+          ).flatten('F')
         # and send them (as bytestream)
         connection.sendall(struct.pack(str(len(data))+"d", *data))
 
