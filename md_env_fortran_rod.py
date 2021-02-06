@@ -34,7 +34,7 @@ class MD_ROD():
                 Dt = 0.014, Dr = 1.0 / 350.0, 
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
-                traj=False, mode=1):
+                traj=False, mode=1, swirl=False):
 
         # internal knowledge of system
         self.skew = skew
@@ -101,26 +101,45 @@ class MD_ROD():
         self.traj = traj
         if (self.traj):
             self.filexyz='traj'+str(index)+'.xyz'
-        self.particles, self.rod = self.reinitialize_random_for_MD(index)
+        self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl)
         self.old_rod = self.rod
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi] 
-    def reinitialize_random_for_MD(self, index):
+    def reinitialize_random_for_MD(self, index, swirl=False):
+        
         sN = np.int(np.sqrt(self.N))+1
-        particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
-        pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
-        if (self.skew):
-            pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
-        for i in range(sN):
-            for j in range(sN):
-                if (i*sN+j) < self.N :
-                  oo = np.random.randint(pos.shape[0])
-                  particles[i*sN+j,:] += pos[oo]*10.0
-                  pos = np.delete(pos, oo, axis=0)
+        
+        if not swirl:
+            particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
+            if (self.skew):
+                pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
+            else:
+                pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
+            
+            for i in range(sN):
+                for j in range(sN):
+                    if (i*sN+j) < self.N :
+                      oo = np.random.randint(pos.shape[0])
+                      particles[i*sN+j,:] += pos[oo]*10.0
+                      pos = np.delete(pos, oo, axis=0)
+        else:
+            Lrod = self.Nrod*self.distRod
+            particles = np.zeros((self.N,3))
+            particles[:self.N//2,2] = np.pi/2
+            particles[self.N//2:,2] = -np.pi/2
+            particles[:self.N//2,0] = 1
+            particles[self.N//2:,0] = -1
+            particles[:self.N//2,1] = np.arange(-Lrod/2, Lrod/2, Lrod*2/(self.N-1))
+            particles[self.N//2:,1] = np.arange(-Lrod/2, Lrod/2, Lrod*2/(self.N-1))
+            
         particles[particles[:,0] <= 0]  -= [10.0, 0, 0]
         particles[particles[:,0] > 0]  += [10.0, 0, 0]
+        
+        
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
+        
+        
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod

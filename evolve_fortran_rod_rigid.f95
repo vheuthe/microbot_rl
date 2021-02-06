@@ -30,7 +30,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     real, parameter :: PI = 3.14159265358979323846264
     ! =======================================
     ! force parameters
-    real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff, epsRod=1.0
+    real :: eps = 50., epsRod=50.0, ss = 6.8, ss2, ss6, ss12, ff
     ! =======================================
     ! rod parameters
     real :: Lrod2 = 0.d0, Lrod, fact(Nrod,4)
@@ -61,6 +61,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         fact(Nrod+1-i,3) = fact(i,3)
         fact(Nrod+1-i,4) = fact(i,4)
     enddo
+    fact = 1
 
     Lrod2 = (new_XY_rod(Nrod,2)-new_XY_rod(1,2))**2 + (new_XY_rod(Nrod,1)-new_XY_rod(1,1))**2
     Lrod = sqrt(Lrod2)
