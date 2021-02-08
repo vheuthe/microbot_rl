@@ -342,7 +342,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
     real, intent(in) :: ss,  ssrod_ext, mR, ext_rod, cen_rod
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
-    real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
+    real :: dRodtheta, dRod, Rodtheta
+    real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
     real :: a, b, torque, near2(N), rod_L
     real, parameter :: PI = 3.14159265358979323846264
@@ -373,7 +374,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
 
-
+    Rodtheta = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1))
     dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1))
 
     rotRod = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1)) - &
@@ -417,6 +418,12 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         case (5) 
             if (.not.(NObs == (2+flag_side)*cones)) then
                 print*, 'ERROR consistency NObs'
+                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+                STOP
+            endif
+        case (6) 
+            if (.not.(NObs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency  NObs'
                 print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
@@ -715,6 +722,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 endif
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
+            case (6) ! reward for pushing along long direction
+                if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
+                               ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
+                    Rew(i) = reward_push_along( a, dRod, dRodtheta, Rodtheta, touch(i)) 
+                endif
         end select
         
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
@@ -775,6 +787,14 @@ contains
       reward_move = (dRod * cos(ab_half) / rss * near  - abs(rot)) * 10.
       return
     end function reward_move
+    
+    real FUNCTION reward_push_along(orient, dRod, dRodtheta, RodOrient, near)
+    ! Reward function for linear translation only along long axis
+    implicit none
+    real :: orient, dRod, dRodtheta, RodOrient
+    integer :: near
+    reward_push_along = near*cos(dRodtheta-RodOrient)*dRod*cos(orient-RodOrient)
+    end function reward_push_along
     
 end subroutine
 
