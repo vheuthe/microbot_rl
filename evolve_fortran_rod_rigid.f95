@@ -793,7 +793,7 @@ contains
     implicit none
     real :: orient, dRod, dRodtheta, RodOrient
     integer :: near
-    reward_push_along = near*cos(dRodtheta-RodOrient)*dRod*cos(orient-RodOrient)
+    reward_push_along = near*cos(dRodtheta-RodOrient)*dRod*sign(1, cos(orient - RodOrient))
     end function reward_push_along
     
 end subroutine
