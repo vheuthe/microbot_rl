@@ -422,9 +422,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 STOP
             endif
         case (6) 
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency  NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(NObs == (2+flag_side)*cones+1)) then
+                print*, 'ERROR consistency  NObs. Need direction of Rod.'
+                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+1 
                 STOP
             endif
     end select
@@ -726,6 +726,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
                     Rew(i) = reward_push_along( a, dRod, dRodtheta, Rodtheta, touch(i)) 
+                    Obs(i, (2+flag_side)+1) = cos(a-Rodtheta)
                 endif
         end select
         
@@ -793,7 +794,13 @@ contains
     implicit none
     real :: orient, dRod, dRodtheta, RodOrient
     integer :: near
-    reward_push_along = near*cos(dRodtheta-RodOrient)*dRod*sign(1., cos(orient - RodOrient))
+    if ((cos(dRodtheta - RodOrient) >= 0) .and. (cos(orient-RodOrient)>=0)) then
+        reward_push_along = near*(cos(dRodtheta-RodOrient))*dRod
+    else if (cos(orient-RodOrient)>=0) then 
+        reward_push_along = 0
+    else
+        reward_push_along = -near*abs(cos(dRodtheta-RodOrient))*dRod
+    endif
     end function reward_push_along
     
 end subroutine
