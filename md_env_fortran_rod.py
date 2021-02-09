@@ -85,6 +85,8 @@ class MD_ROD():
             self.Nobs += 2
         if (self.mode == 4): #rotation with direction s      
             self.Nobs += 1
+        if (self.mode == 6): #push along long direction      
+            self.Nobs += 1
         
         # parameters of dynamics
         self.n_MD_steps = steps
