@@ -37,7 +37,7 @@ if __name__ == "__main__":
     Dr = np.float(sys.argv[4])
     # ------------
 
-    mode = 3
+    mode = 6
     n_input = 10
     # ------------
 
