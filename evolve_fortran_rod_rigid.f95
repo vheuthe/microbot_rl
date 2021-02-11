@@ -795,11 +795,11 @@ contains
     real :: orient, dRod, dRodtheta, RodOrient
     integer :: near
     if ((cos(dRodtheta - RodOrient) >= 0) .and. (cos(orient-RodOrient)>=0)) then
-        reward_push_along = near*(cos(dRodtheta-RodOrient))*dRod
+        reward_push_along = near*(cos(dRodtheta-RodOrient) - sin(dRodtheta-RodOrient))*dRod
     else if (cos(orient-RodOrient)>=0) then 
         reward_push_along = 0
     else
-        reward_push_along = -near*abs(cos(dRodtheta-RodOrient))*dRod
+        reward_push_along = -near*dRod
     endif
     end function reward_push_along
     
