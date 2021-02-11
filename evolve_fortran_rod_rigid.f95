@@ -51,6 +51,12 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     new_XY_rod(:,2) = Yrod
 
     ! Nrod EVEN number!
+    
+    if (mod(Nrod,2) .ne. 0) then
+        print*, 'Nrod is odd! Not cool!'
+        stop
+    endif
+    
     do i=1,Nrod/2
         fact(i,1) = ext_rod + (cen_rod-ext_rod)*abs((i-1)/(Nrod*1.))
         fact(i,2) = fact(i,1)*fact(i,1)
@@ -61,14 +67,14 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         fact(Nrod+1-i,3) = fact(i,3)
         fact(Nrod+1-i,4) = fact(i,4)
     enddo
+    
     fact = 1
 
     Lrod2 = (new_XY_rod(Nrod,2)-new_XY_rod(1,2))**2 + (new_XY_rod(Nrod,1)-new_XY_rod(1,1))**2
     Lrod = sqrt(Lrod2)
     
-    rodXcm = SUM(X)/Nrod
-    rodYcm = SUM(Y)/Nrod
-
+    rodXcm = SUM(Xrod)/Nrod
+    rodYcm = SUM(Yrod)/Nrod
     
     ! Diffusion for particles is determined by 
     ! Rm and Rr, which creates random forces.
@@ -89,7 +95,6 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         mu_K_true = mu - 1 ! becomes real friction coefficient
         mu_K = 1
     endif
-    
 
     do it = 1, nsteps
 
@@ -150,6 +155,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
             
             F_Perp = 0.d0
             Friction = 0.d0
+            F_proj = 0.d0
             
             do j = 1, Nrod
                 drodx = new_XY_rod(j,1) - rodXcm
@@ -161,6 +167,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                 r2 = dx*dx + dy*dy
                   
                 if (r2 < ss2*fact(j,2)) then
+                
                     ff = fact(j,4)*ss12/(r2**6) - fact(j,3)*ss6/(r2**3)
                     ff = 12.*epsRod*fact(j,1)*ff/r2
                     ! ==== DEBUG ====
@@ -232,13 +239,14 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     
                 endif
 
+                    ! ==== DEBUG ====
 
                 FX(i) = FX(i) + cos(new_XYT(i,3))*v*etaCol - Friction*cos(rodtheta)
                 FY(i) = FY(i) + sin(new_XYT(i,3))*v*etaCol - Friction*sin(rodtheta)
 
                 FXrod = FXrod + Friction*cos(rodtheta)
                 FYrod = FYrod + Friction*sin(rodtheta)
-
+                
             endif
         enddo
 
@@ -277,6 +285,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         rodYcm = rodYcm + dt* (FYrod/etaTra_par + (FYrod - F_pRY)/etaTra_per)
         rodtheta = rodtheta + dt*torquerod/etaRot
         
+        !print*, 'Friction', Friction, FXrod, FYrod, F_pRX, F_pRY, rodXcm, rodYcm
+
+        
         ! =============================
         ! transform rod 
         ! =============================
@@ -287,6 +298,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         enddo 
         
     enddo
+
 
 contains 
 

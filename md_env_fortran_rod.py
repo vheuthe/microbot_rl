@@ -64,7 +64,7 @@ class MD_ROD():
         # total lenght "sizeRod" and bead distance "distRod" dictates number of beads "Nrod"
         # if sizeRod not exactly multiple of distRod, sizeRod is conserved.
         self.sizeRod = sizeRod
-        self.Nrod = int(sizeRod / distRod + 1)
+        self.Nrod = int(sizeRod / distRod + 1) // 2 * 2 # sizeRod must be EVEN
         self.distRod = sizeRod / (self.Nrod - 1)
         self.massRod = massRod # total mass of object
         self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia, NOT true inertia
@@ -104,7 +104,8 @@ class MD_ROD():
         if (self.traj):
             self.filexyz='traj'+str(index)+'.xyz'
         self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl)
-        self.old_rod = self.rod
+        self.old_rod = np.zeros(self.rod.shape)
+        self.old_rod[:] = self.rod[:]
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi] 
@@ -224,7 +225,7 @@ class MD_ROD():
         Yrod = self.rod[:,1]
         mRod = self.massRod
         IRod = self.inertiaRod
-        self.old_rod = self.rod
+        self.old_rod[:] = self.rod[:]
         self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, 
                                     X, Y, T,
                                     Xrod, Yrod, self.distRod, action, 
