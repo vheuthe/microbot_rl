@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # ------------
 
     mode = 6
-    n_input = 10
+    n_input = 11
     # ------------
 
     n_actions = 4
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     skew = False
     n_MD = 100
-    total_time = 3600
+    total_time = 7200
     step_time = 5
    # torque = 25
     start_MD = 0
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     # ------------------------------------------------
 
-    dt = 0.1
+    dt = 0.05
     steps = int(step_time/dt)
     n_max_steps = int(total_time/step_time)
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     for iMD in  tqdm(range(start_MD, start_MD + n_MD)):
             # reinitialize the class MD with the new index
             traj_flag=False
-            if (iMD%1 == 0):
+            if (iMD == start_MD + n_MD - 1):
                 traj_flag=True
             md = MD_ROD(index=iMD, N=N, size=100, skew=skew, 
             steps=steps, vel_act=vel_act, vel_tor=vel_tor, 
