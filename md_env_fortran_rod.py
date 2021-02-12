@@ -173,6 +173,7 @@ class MD_ROD():
             rod = self.rod
             olr = self.old_rod
             deltacm = np.mean(rod, axis=0) - np.mean(olr, axis=0)
+            deltarod = rod - olr
             # calculate probability of different actions
             prob = np.exp(logp)
             s_entropy = entropy(prob, axis=1)
@@ -189,7 +190,7 @@ class MD_ROD():
                     sigma_rod = 3.6*(self.ext_rod + (self.cen_rod-self.ext_rod)*abs( (i%(self.Nrod//2)) / (self.Nrod//2)))
                 else :
                     sigma_rod = 3.6*(self.ext_rod + (self.cen_rod-self.ext_rod)*abs( ((self.Nrod-i)%(self.Nrod//2)) / (self.Nrod//2)))
-                xyz_file.write('2 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1], sigma_rod))
+                xyz_file.write('2 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltarod[i,0], deltarod[i,1], sigma_rod))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):

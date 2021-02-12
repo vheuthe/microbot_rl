@@ -68,6 +68,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         fact(Nrod+1-i,4) = fact(i,4)
     enddo
     
+    ! DEBUG
     fact = 1
 
     Lrod2 = (new_XY_rod(Nrod,2)-new_XY_rod(1,2))**2 + (new_XY_rod(Nrod,1)-new_XY_rod(1,1))**2
@@ -105,8 +106,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         FXrod = 0.d0
         FYrod = 0.d0
         torquerod = 0.d0
-        
+
         rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1))
+
         ! =============================
         ! thermal motion
         ! =============================
@@ -206,7 +208,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     
                     torquerod = torquerod + (ff*dy - F_pRY*mu_K)*drodx -&
                                             (ff*dx - F_pRX*mu_K)*drody
-
+                                            
                 endif 
             enddo
 
@@ -231,10 +233,10 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     ! v*cos(new_XYT(i,3))*cos(rodtheta) + v*sin(new_XYT(i,3))*sin(rodtheta)
                     if (cos(rodtheta-new_XYT(i,3)) .ge. 0) then
                         Friction = + min(F_perp*mu_K_true, &
-                            abs(etaCol*v*(cos(new_XYT(i,3))*cos(rodtheta) + sin(new_XYT(i,3))*sin(rodtheta)))) 
+                            abs(etaCol*v*(cos(rodtheta - new_XYT(i,3))))) 
                     else 
                         Friction = - min(F_perp*mu_K_true, &
-                            abs(etaCol*v*(cos(new_XYT(i,3))*cos(rodtheta) + sin(new_XYT(i,3))*sin(rodtheta)))) 
+                            abs(etaCol*v*(cos(rodtheta - new_XYT(i,3))))) 
                     endif
                     
                 endif
@@ -281,8 +283,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         F_pRX = F_proj*cos(rodtheta)
         F_pRY = F_proj*sin(rodtheta)
         
-        rodXcm = rodXcm + dt* (FXrod/etaTra_par + (FXrod - F_pRX)/etaTra_per)
-        rodYcm = rodYcm + dt* (FYrod/etaTra_par + (FYrod - F_pRY)/etaTra_per)
+        rodXcm = rodXcm + dt* (F_pRX/etaTra_par + (FXrod - F_pRX)/etaTra_per)
+        rodYcm = rodYcm + dt* (F_pRY/etaTra_par + (FYrod - F_pRY)/etaTra_per)
         rodtheta = rodtheta + dt*torquerod/etaRot
         
         !print*, 'Friction', Friction, FXrod, FYrod, F_pRX, F_pRY, rodXcm, rodYcm
@@ -801,17 +803,17 @@ contains
       return
     end function reward_move
     
-    real FUNCTION reward_push_along(orient, dRod, dRodtheta, RodOrient, near)
+    real FUNCTION reward_push_along(orient, dRod, dRodtheta, Rodtheta, near)
     ! Reward function for linear translation only along long axis
     implicit none
-    real :: orient, dRod, dRodtheta, RodOrient
+    real :: orient, dRod, dRodtheta, Rodtheta
     integer :: near
-    if ((cos(dRodtheta - RodOrient) >= 0) .and. (cos(orient-RodOrient)>=0)) then
-        reward_push_along = near*(cos(dRodtheta-RodOrient) - abs(sin(dRodtheta-RodOrient)))*dRod
-    else if (cos(orient-RodOrient)>=0) then 
+    if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
+        reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
+    else if (cos(Rodtheta - orient)>=0) then 
         reward_push_along = 0
     else
-        reward_push_along = -near*dRod
+        reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
     endif
     end function reward_push_along
     
