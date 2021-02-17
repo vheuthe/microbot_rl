@@ -12,6 +12,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     real , intent(out) :: new_XYT(N,3)
     ! =======================================
     real :: velX(N), velY(N), velR(N), v
+    real :: sig_vel_act, sig_vel_tor
     integer :: i, j, it
     real :: dx, dy, r2
     ! =======================================
@@ -26,6 +27,10 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     new_XYT(:,1) = X
     new_XYT(:,2) = Y
     new_XYT(:,3) = Theta
+    
+    
+    sig_vel_act = vel_act / 2.
+    sig_vel_tor = vel_tor / 2.
 
     do it = 1, nsteps
 
@@ -46,9 +51,9 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
                 ! ========================
                 ! Action includes rotation
                 ! ========================
-                v = vel_act
+                v = vel_act + gran()*sig_vel_act
                 if (act(i)>1) then
-                    v = vel_tor
+                    v = vel_tor + gran()*sig_vel_tor
                     velR(i) = velR(i) - 2*tor*(act(i)-2.5)
                 endif
                 velX(i) = velX(i) + cos(new_XYT(i,3))*v
@@ -380,7 +385,8 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
 end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
-               ratio_rew, touch_penalty, XP, YP, Food, Food_width, N, NObs, Obs, Rew, Eaten)
+               ratio_rew, touch_penalty, XP, YP, Food, Food_width, max_payoff, ss, &
+               N, NObs, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -391,7 +397,9 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real, intent(in) :: cone_angle, dead_vision
     real, intent(in) :: ratio_rew, touch_penalty
     real, intent(in) :: XP, YP, Food, Food_width
+    real, intent(in) :: max_payoff, ss
     integer, intent(in) :: N, NObs
+    
     ! output
     real , intent(out) :: Obs(N,NObs), Rew(N), Eaten
     ! internal processes
@@ -399,9 +407,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real :: dx, dy, r, dtheta, val, th, th_orient
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
-    real :: dx2, dy2, r2, dtheta2, dark, ss=6.2, sp_th, cone_slice
-    real :: max_payoff, food_radius
-    
+    real :: dx2, dy2, r2, dtheta2, dark, sp_th, cone_slice
+    real :: food_radius
     ! vision of food
     integer :: bins = 40
     real :: food_angle
@@ -424,15 +431,15 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     enddo 
     cone_slice = edge(0,2) - edge(0,1)
 
-    ! Maximum payoff for compactness
-    if (obs_type == 1) then 
-        max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
-    else if (obs_type == 2) then
-        max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
-    else 
-        print*, 'ERROR NO OBS_TYPE IS DEFINED!'
-        STOP
-    endif
+    ! ! Maximum payoff for compactness
+    ! if (obs_type == 1) then 
+        ! max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+    ! else if (obs_type == 2) then
+        ! max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
+    ! else 
+        ! print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+        ! STOP
+    ! endif
 
     do i = 1, N-1
         

@@ -285,7 +285,10 @@ class AgentActiveMatter():
     '''
     simple normalization trick of advantages for better convergence
     '''
-    self.adv = (self.adv - np.mean(self.adv)) / (np.std(self.adv)+0.1e-10)
+    adv_std = np.std(self.adv)
+    if (adv_std > 0.1e-1):
+        self.adv = (self.adv - np.mean(self.adv)) / adv_std
+
 
   def train_step(self, epochs=10):
     '''
@@ -306,8 +309,11 @@ class AgentActiveMatter():
     act = self.actions
     old_logp = self.logp
     # ----------------------------------
+    
+    print('adv ', np.std(self.adv))
     self.normalize_adv()
     adv = self.adv
+    
     
     for i in range(epochs):
       with tf.GradientTape() as tape:
