@@ -310,7 +310,6 @@ class AgentActiveMatter():
     old_logp = self.logp
     # ----------------------------------
     
-    print('adv ', np.std(self.adv))
     self.normalize_adv()
     adv = self.adv
     
