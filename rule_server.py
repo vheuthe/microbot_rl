@@ -13,17 +13,18 @@ parameters = {
   'max_particles': 200,
   'host_address': ('localhost', 22009),
   'training_frequency': 12,
-  'training_epochs': 30,
+  'training_epochs': 50,
   'input_dim': 5,
   'output_dim': 4,
   'lrPI': 0.003,
   'lrV': 0.003,
-  'gamma': 0.99,
-  'CL': 0.15,
+  'gamma': 0.97,
+  'CL': 0.07,
   'en_coeff': 0.0,
-  'lam': 0.98,
+  'lam': 0.97,
   'target_kl': 0.02,
-  'save_models': False,
+  'save_models': True,
+  'models_savepath': './model',
   'restart_models': False
   }
 
