@@ -90,7 +90,7 @@ class MD():
             self.Nobs = 2*cones+2
             self.mode = 3
         if (md_type in ['food']):
-            self.Nobs = 3*cones
+            self.Nobs = 4*cones
             self.mode = 4
             self.food_rew = food_rew
         

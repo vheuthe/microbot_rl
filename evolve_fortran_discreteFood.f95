@@ -411,7 +411,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real :: food_radius
     ! vision of food
     integer :: bins = 40
-    real :: food_angle
+    real :: food_angle, max_rew
     real, allocatable :: edge(:,:), food_sight(:)
     real, parameter :: PI = 3.14159265358979323846264
 
@@ -420,7 +420,9 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     
     ! CONES
     ! 2/3 orientational weighted vision - 1/3 food vision
-    cones = NObs / 3
+    ! 1/4 density 2/4 orientational weighted vision 1/4 food vision
+    cones = NObs / 4
+    
 
     ! to calculate smooth vision
     allocate(edge(cones,2))
@@ -515,9 +517,10 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     in_sight = 0.
                     in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
                     
-                    Obs(i,2*n_cone-1) = Obs(i,2*n_cone-1)+val*in_sight*cos(th_orient)
-                    Obs(i,2*n_cone  ) = Obs(i,2*n_cone  )+val*in_sight*sin(th_orient)
-                    Rew(i) = Rew(i) +  val*in_sight * (1-ratio_rew)                     
+                    Obs(i,3*n_cone-2) = Obs(i,3*n_cone-2)+val*in_sight
+                    Obs(i,3*n_cone-1) = Obs(i,3*n_cone-1)+val*in_sight*cos(th_orient)
+                    Obs(i,3*n_cone  ) = Obs(i,3*n_cone  )+val*in_sight*sin(th_orient)
+                    !Rew(i) = Rew(i) +  val*in_sight * (1-ratio_rew)                     
                     
                 enddo
             endif
@@ -568,17 +571,25 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     ! if particle in cone
                     in_sight = 0.
                     in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.                     
-
-                    Obs(j,2*n_cone-1) = Obs(j,2*n_cone-1)+val*in_sight*cos(th_orient)
-                    Obs(j,2*n_cone  ) = Obs(j,2*n_cone  )+val*in_sight*sin(th_orient)
                     
-                    Rew(j) = Rew(j) +  val*in_sight * (1-ratio_rew)                     
+                    Obs(j,3*n_cone-2) = Obs(j,3*n_cone-2)+val*in_sight
+                    Obs(j,3*n_cone-1) = Obs(j,3*n_cone-1)+val*in_sight*cos(th_orient)
+                    Obs(j,3*n_cone  ) = Obs(j,3*n_cone  )+val*in_sight*sin(th_orient)
+                    
+                    !Rew(j) = Rew(j) +  val*in_sight * (1-ratio_rew)                     
                 enddo
             endif
         enddo
     enddo
 
+
+    
     do i = 1, N
+        max_rew = -1
+        do j = 1, cones-1
+            if (Obs(i,3*j-2) + Obs(i,3*(j+1)-2) > max_rew) max_rew = Obs(i,3*j-2) + Obs(i,3*(j+1)-2)
+        enddo
+        Rew(i) = Rew(i) + max_rew * (1-ratio_rew) 
         Rew(i) = min(max_payoff, Rew(i))
     enddo
 
