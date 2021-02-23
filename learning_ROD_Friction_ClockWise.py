@@ -98,13 +98,13 @@ if __name__ == "__main__":
             # -----------------------------------------
             for step in range(n_max_steps):
                 
-                #if (iMD == n_MD-1):
-                #    np.savetxt(obs_file, obs)
                 actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
                 obs, rewards, done, info = md.evolve_MD(actions.astype(int)) #evolve systems from given actions
-                #print(obs)
-                md.print_xyz_actions(actions, logp)
-                #print(obs[0,2],obs[0,7])
+
+                fake_logp = np.zeros((logp.shape[0], 4))
+                fake_logp[:,:3] = logp
+                fake_logp[:,3]  = -20
+                md.print_xyz_actions(actions, fake_logp)
                 if ((step>0) and (step%steps_update == 0)):
                     lost = [i for i in range(obs.shape[0])]
                     Agent.add_env_timeframe(lost, obs, rewards, done)
@@ -113,6 +113,5 @@ if __name__ == "__main__":
                 else:
                     Agent.add_env_timeframe([], obs, rewards, done)
                 print('{} {} {}'.format(iMD, step, np.sum(rewards)))
-
     Agent.save_models(path=models_rootname, final_save = True)
 
