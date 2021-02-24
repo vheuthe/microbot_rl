@@ -40,7 +40,7 @@ if __name__ == "__main__":
     cone_angle = 180
     # ------------
 
-    n_actions = 3
+    n_actions = 4
     gam = 0.95
     lam = 0.97
     CL = 0.03
@@ -94,34 +94,14 @@ if __name__ == "__main__":
             
             obs, rewards, Eaten = md.get_obs_rewards_food(XP=P[0], YP=P[1], Food=Food_quantity, Food_width=Food_width) # gets first obs and advantages
             Food_quantity -= Eaten*eating_speed
-
-            symm_obs = np.zeros((N*2,obs.shape[1]))
-            symm_rewards = np.zeros(N*2) 
-            symm_obs[:N] = obs
-            symm_rewards[:N] = rewards
-            symm_rewards[N:] = rewards
-
-            symm_obs[N:,:2*cones:2] = np.fliplr(obs[:,:2*cones:2])
-            symm_obs[N:,1:2*cones:2] = -np.fliplr(obs[:,1:2*cones:2])
-            symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])            
-
-            Agent.initialize(symm_obs)
+            
+            Agent.initialize(obs)
             done = False
             # -----------------------------------------
             for step in range(n_max_steps):
                 count += 1
                 actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
                 
-                # One Has to directly change values inside the Agent memory.
-                inv_actions = np.zeros(actions.shape, dtype='int')
-                inv_actions[actions==1]=2
-                inv_actions[actions==2]=1
-                for i, par in enumerate(Agent.particles):
-                    if (i >= N):
-                        par.act[-1] = inv_actions[i-N]
-                        par.logp[-1] = logp[i, inv_actions[i-N]]
-                actions += 1
-
                 if ((starting_food > 0) and (Food_quantity < 20)):
                     Food_width = 0
                     wait -= 1
@@ -130,32 +110,23 @@ if __name__ == "__main__":
                         displ = np.random.normal(loc=150, scale=25)
                         P += displ*np.array([np.cos(theta),np.sin(theta),0.])
                         Food_quantity = starting_food
-                        Food_width = starting_food_width 
+                        Food_width = starting_food_width
                         wait = 100
-
-                obs, rewards, Eaten, done, info = md.evolve_MD(actions.astype(int)[:N], XP=P[0], YP=P[1], Food=Food_quantity, Food_width=Food_width) #evolve systems from given actions
+                        
+                obs, rewards, Eaten, done, info = md.evolve_MD(actions.astype(int), XP=P[0], YP=P[1], Food=Food_quantity, Food_width=Food_width) #evolve systems from given actions
                 Food_quantity -= Eaten*eating_speed
      
-                symm_obs = np.zeros((N*2,obs.shape[1]))
-                symm_rewards = np.zeros(N*2) 
-                symm_obs[:N] = obs
-                symm_rewards[:N] = rewards
-                symm_rewards[N:] = rewards
-
-                symm_obs[N:,:2*cones:2] = np.fliplr(obs[:,:2*cones:2])
-                symm_obs[N:,1:2*cones:2] = -np.fliplr(obs[:,1:2*cones:2])
-                symm_obs[N:,2*cones:] = np.fliplr(obs[:,2*cones:])   
-
                 md.print_xyz_food_actions(P[0], P[1], Food_quantity, Food_width, logp, actions.astype(int))
-                
+
                 if (step == n_max_steps-1):
                     done = True
+
                 if ((step>0) and (count%steps_update == 0)):
-                    Agent.add_env_timeframe([], symm_obs, symm_rewards, done)
+                    Agent.add_env_timeframe([], obs, rewards, done)
                     Agent.train_step(epochs=50)
-                    Agent.initialize(symm_obs)
+                    Agent.initialize(obs)
                 else:
-                    Agent.add_env_timeframe([], symm_obs, symm_rewards, done)
+                    Agent.add_env_timeframe([], obs, rewards, done)
 
                 order,  swirl = md.get_order()
                 print('{} {} {} {} {} {} {} {}'.format(iMD, step, np.sum(rewards), P[0], P[1], Food_quantity, order, swirl))
@@ -163,5 +134,7 @@ if __name__ == "__main__":
             if (iMD%20 == 19):
                 # INTERMEDIATE SAVES.
                 Agent.save_models(path=models_rootname, final_save = True)
-                
+
+    # LAST SAVE.
     Agent.save_models(path=models_rootname, final_save = True)
+

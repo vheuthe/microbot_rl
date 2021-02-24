@@ -12,6 +12,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     real , intent(out) :: new_XYT(N,3)
     ! =======================================
     real :: velX(N), velY(N), velR(N), v
+    real :: sig_vel_act, sig_vel_tor
     integer :: i, j, it
     real :: dx, dy, r2
     ! =======================================
@@ -26,6 +27,10 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     new_XYT(:,1) = X
     new_XYT(:,2) = Y
     new_XYT(:,3) = Theta
+    
+    
+    sig_vel_act = vel_act / 2.
+    sig_vel_tor = vel_tor / 2.
 
     do it = 1, nsteps
 
@@ -46,9 +51,9 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
                 ! ========================
                 ! Action includes rotation
                 ! ========================
-                v = vel_act
+                v = vel_act + gran()*sig_vel_act
                 if (act(i)>1) then
-                    v = vel_tor
+                    v = vel_tor + gran()*sig_vel_tor
                     velR(i) = velR(i) - 2*tor*(act(i)-2.5)
                 endif
                 velX(i) = velX(i) + cos(new_XYT(i,3))*v
@@ -380,7 +385,8 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
 end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
-               ratio_rew, touch_penalty, XP, YP, Food, Food_width, N, NObs, Obs, Rew, Eaten)
+               ratio_rew, touch_penalty, XP, YP, Food, Food_width, max_payoff, ss, &
+               N, NObs, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -391,7 +397,9 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real, intent(in) :: cone_angle, dead_vision
     real, intent(in) :: ratio_rew, touch_penalty
     real, intent(in) :: XP, YP, Food, Food_width
+    real, intent(in) :: max_payoff, ss
     integer, intent(in) :: N, NObs
+    
     ! output
     real , intent(out) :: Obs(N,NObs), Rew(N), Eaten
     ! internal processes
@@ -399,12 +407,11 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real :: dx, dy, r, dtheta, val, th, th_orient
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
-    real :: dx2, dy2, r2, dtheta2, dark, ss=6.2, sp_th, cone_slice
-    real :: max_payoff, food_radius
-    
+    real :: dx2, dy2, r2, dtheta2, dark, sp_th, cone_slice
+    real :: food_radius
     ! vision of food
     integer :: bins = 40
-    real :: food_angle
+    real :: food_angle, max_rew
     real, allocatable :: edge(:,:), food_sight(:)
     real, parameter :: PI = 3.14159265358979323846264
 
@@ -413,7 +420,9 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     
     ! CONES
     ! 2/3 orientational weighted vision - 1/3 food vision
-    cones = NObs / 3
+    ! 1/4 density 2/4 orientational weighted vision 1/4 food vision
+    cones = NObs / 4
+    
 
     ! to calculate smooth vision
     allocate(edge(cones,2))
@@ -424,15 +433,15 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     enddo 
     cone_slice = edge(0,2) - edge(0,1)
 
-    ! Maximum payoff for compactness
-    if (obs_type == 1) then 
-        max_payoff = 999 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
-    else if (obs_type == 2) then
-        max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
-    else 
-        print*, 'ERROR NO OBS_TYPE IS DEFINED!'
-        STOP
-    endif
+    ! ! Maximum payoff for compactness
+    ! if (obs_type == 1) then 
+        ! max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+    ! else if (obs_type == 2) then
+        ! max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
+    ! else 
+        ! print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+        ! STOP
+    ! endif
 
     do i = 1, N-1
         
@@ -508,9 +517,10 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     in_sight = 0.
                     in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
                     
-                    Obs(i,2*n_cone-1) = Obs(i,2*n_cone-1)+val*in_sight*cos(th_orient)
-                    Obs(i,2*n_cone  ) = Obs(i,2*n_cone  )+val*in_sight*sin(th_orient)
-                    Rew(i) = Rew(i) +  val*in_sight * (1-ratio_rew)                     
+                    Obs(i,3*n_cone-2) = Obs(i,3*n_cone-2)+val*in_sight
+                    Obs(i,3*n_cone-1) = Obs(i,3*n_cone-1)+val*in_sight*cos(th_orient)
+                    Obs(i,3*n_cone  ) = Obs(i,3*n_cone  )+val*in_sight*sin(th_orient)
+                    !Rew(i) = Rew(i) +  val*in_sight * (1-ratio_rew)                     
                     
                 enddo
             endif
@@ -561,17 +571,25 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     ! if particle in cone
                     in_sight = 0.
                     in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.                     
-
-                    Obs(j,2*n_cone-1) = Obs(j,2*n_cone-1)+val*in_sight*cos(th_orient)
-                    Obs(j,2*n_cone  ) = Obs(j,2*n_cone  )+val*in_sight*sin(th_orient)
                     
-                    Rew(j) = Rew(j) +  val*in_sight * (1-ratio_rew)                     
+                    Obs(j,3*n_cone-2) = Obs(j,3*n_cone-2)+val*in_sight
+                    Obs(j,3*n_cone-1) = Obs(j,3*n_cone-1)+val*in_sight*cos(th_orient)
+                    Obs(j,3*n_cone  ) = Obs(j,3*n_cone  )+val*in_sight*sin(th_orient)
+                    
+                    !Rew(j) = Rew(j) +  val*in_sight * (1-ratio_rew)                     
                 enddo
             endif
         enddo
     enddo
 
+
+    
     do i = 1, N
+        max_rew = -1
+        do j = 1, cones-1
+            if (Obs(i,3*j-2) + Obs(i,3*(j+1)-2) > max_rew) max_rew = Obs(i,3*j-2) + Obs(i,3*(j+1)-2)
+        enddo
+        Rew(i) = Rew(i) + max_rew * (1-ratio_rew) 
         Rew(i) = min(max_payoff, Rew(i))
     enddo
 

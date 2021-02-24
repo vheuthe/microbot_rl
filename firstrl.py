@@ -186,6 +186,8 @@ class AgentActiveMatter():
         self.finish_path(self.particles.pop(ID_lost), True)
 
     vals = []
+    assert new_obs.shape[0] == rewards.shape[0], 'Inconsistent input of Obs and Rewards'
+
     for i, (obs, rew) in enumerate(zip(new_obs, rewards)):
       obs = obs.reshape(1,-1)
       if i < len(self.particles):
@@ -226,9 +228,9 @@ class AgentActiveMatter():
       actions = np.append(actions, a)
       pi_logp_all = np.append(pi_logp_all, pi_logp, axis=0)
     if (flag_logp):
-        return actions, pi_logp_all
+        return actions.astype(int), pi_logp_all
     else:
-        return actions
+        return actions.astype(int)
     
 
   def finish_path(self, particle, lost = False):
@@ -288,7 +290,10 @@ class AgentActiveMatter():
     '''
     simple normalization trick of advantages for better convergence
     '''
-    self.adv = (self.adv - np.mean(self.adv)) / (np.std(self.adv)+0.1e-10)
+    adv_std = np.std(self.adv)
+    if (adv_std > 0.1e-1):
+        self.adv = (self.adv - np.mean(self.adv)) / adv_std
+
 
   def train_step(self, epochs=10):
     '''
@@ -309,8 +314,10 @@ class AgentActiveMatter():
     act = self.actions
     old_logp = self.logp
     # ----------------------------------
+    
     self.normalize_adv()
     adv = self.adv
+    
     
     for i in range(epochs):
       with tf.GradientTape() as tape:

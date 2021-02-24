@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-import evolve_fortran_rod as evolve
+import evolve_fortran_rod_rigid as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -34,7 +34,7 @@ class MD_ROD():
                 Dt = 0.014, Dr = 1.0 / 350.0, 
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
-                traj=False, mode=1):
+                traj=False, mode=1, swirl=False):
 
         # internal knowledge of system
         self.skew = skew
@@ -56,6 +56,7 @@ class MD_ROD():
         self.flag_side = int(flag_side)
         self.flag_LOS = int(flag_LOS)
         self.Nobs = cones*(2+flag_side)
+        #print('AT _INIT_ Nobs = {}'.format(self.Nobs))
         
         assert (not (flag_side and flag_LOS)), 'Having LOS and view across rod together makes no sense.'
 
@@ -63,7 +64,7 @@ class MD_ROD():
         # total lenght "sizeRod" and bead distance "distRod" dictates number of beads "Nrod"
         # if sizeRod not exactly multiple of distRod, sizeRod is conserved.
         self.sizeRod = sizeRod
-        self.Nrod = int(sizeRod / distRod + 1)
+        self.Nrod = int(sizeRod / distRod + 1) // 2 * 2 # sizeRod must be EVEN
         self.distRod = sizeRod / (self.Nrod - 1)
         self.massRod = massRod # total mass of object
         self.inertiaRod = inertiaRod # ratio of equivalent rigid body inertia, NOT true inertia
@@ -84,6 +85,8 @@ class MD_ROD():
             self.Nobs += 2
         if (self.mode == 4): #rotation with direction s      
             self.Nobs += 1
+        if (self.mode == 6): #push along long direction      
+            self.Nobs += 1
         
         # parameters of dynamics
         self.n_MD_steps = steps
@@ -100,26 +103,46 @@ class MD_ROD():
         self.traj = traj
         if (self.traj):
             self.filexyz='traj'+str(index)+'.xyz'
-        self.particles, self.rod = self.reinitialize_random_for_MD(index)
-        self.old_rod = self.rod
+        self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl)
+        self.old_rod = np.zeros(self.rod.shape)
+        self.old_rod[:] = self.rod[:]
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi] 
-    def reinitialize_random_for_MD(self, index):
+    def reinitialize_random_for_MD(self, index, swirl=False):
+        
         sN = np.int(np.sqrt(self.N))+1
-        particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
-        pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
-        if (self.skew):
-            pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
-        for i in range(sN):
-            for j in range(sN):
-                if (i*sN+j) < self.N :
-                  oo = np.random.randint(pos.shape[0])
-                  particles[i*sN+j,:] += pos[oo]*10.0
-                  pos = np.delete(pos, oo, axis=0)
+        
+        if not swirl:
+            particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
+            if (self.skew):
+                pos = np.array([[i+0.5,j,0] for i in np.arange(1,sN+2) for j in np.arange(-sN//2-1,sN//2+1)]) # ONLY ON RIGHT SIDE
+            else:
+                pos = np.array([[i+0.5,j,0] for i in np.arange(-sN//2-2,sN//2+1) for j in np.arange(-sN//2-1,sN//2+1)])
+            
+            for i in range(sN):
+                for j in range(sN):
+                    if (i*sN+j) < self.N :
+                      oo = np.random.randint(pos.shape[0])
+                      particles[i*sN+j,:] += pos[oo]*10.0
+                      pos = np.delete(pos, oo, axis=0)
+        else:
+            Lrod = self.Nrod*self.distRod
+            particles = np.zeros((self.N,3))
+            particles[:self.N//2,2] = np.pi/2
+            particles[self.N//2:,2] = -np.pi/2
+            particles[:self.N//2,0] = 1
+            particles[self.N//2:,0] = -1
+            particles[:self.N//2,1] = np.arange(-Lrod/2, Lrod/2, Lrod*2/(self.N-1))
+            particles[self.N//2:,1] = np.arange(-Lrod/2, Lrod/2, Lrod*2/(self.N-1))
+            
         particles[particles[:,0] <= 0]  -= [10.0, 0, 0]
         particles[particles[:,0] > 0]  += [10.0, 0, 0]
+        
+        
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
+        
+        
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
@@ -150,6 +173,7 @@ class MD_ROD():
             rod = self.rod
             olr = self.old_rod
             deltacm = np.mean(rod, axis=0) - np.mean(olr, axis=0)
+            deltarod = rod - olr
             # calculate probability of different actions
             prob = np.exp(logp)
             s_entropy = entropy(prob, axis=1)
@@ -166,7 +190,7 @@ class MD_ROD():
                     sigma_rod = 3.6*(self.ext_rod + (self.cen_rod-self.ext_rod)*abs( (i%(self.Nrod//2)) / (self.Nrod//2)))
                 else :
                     sigma_rod = 3.6*(self.ext_rod + (self.cen_rod-self.ext_rod)*abs( ((self.Nrod-i)%(self.Nrod//2)) / (self.Nrod//2)))
-                xyz_file.write('2 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltacm[0], deltacm[1], sigma_rod))
+                xyz_file.write('2 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltarod[i,0], deltarod[i,1], sigma_rod))
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
@@ -182,6 +206,7 @@ class MD_ROD():
                                           self.mode, rotDir, old_rotDir, 
                                           flag_side, self.flag_LOS, 
                                           self.ss, self.ssrod, self.massRod,
+                                          self.ext_rod, self.cen_rod,
                                           obs_type, 
                                           self.cones, self.cone_angle, 
                                           self.Nobs, self.N, self.Nrod)
@@ -201,7 +226,7 @@ class MD_ROD():
         Yrod = self.rod[:,1]
         mRod = self.massRod
         IRod = self.inertiaRod
-        self.old_rod = self.rod
+        self.old_rod[:] = self.rod[:]
         self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod, 
                                     X, Y, T,
                                     Xrod, Yrod, self.distRod, action, 
