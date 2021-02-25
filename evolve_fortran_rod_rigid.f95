@@ -726,10 +726,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! no penalty for translation of center of mass.
                 ! NON - NEGATIVE REWARD
-                                ! reward positive irrespective to direction of rotation
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, touch(i), dRod * 24. / rod_L) * mR 
+                    Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, touch(i), 0.0) 
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                     Obs(i, (2+flag_side)+1) = rotDir
