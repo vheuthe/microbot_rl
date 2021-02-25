@@ -432,7 +432,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     cone_loop: do n_cone = start_cone, cones
                         if ((th + (j+0.5)*food_angle < edge(n_cone,2)).and.&
                             (th + (j+0.5)*food_angle >= edge(n_cone,1))) then               
-                            Obs(i, n_cone + 2*cones) = Obs(i, n_cone + 2*cones) + val * 1. / bins * food_sight(j)
+                            Obs(i, n_cone + 3*cones) = Obs(i, n_cone + 3*cones) + val * 1. / bins * food_sight(j)
                             start_cone = n_cone
                             exit cone_loop 
                         endif
@@ -440,7 +440,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                 enddo 
 
             else
-                Obs(i,(2*cones+1):3*cones) = cone_slice / cone_angle
+                Obs(i,(3*cones+1):4*cones) = cone_slice / cone_angle
                 Rew(i) = Rew(i) + 1*ratio_rew
                 Eaten = Eaten + 1
             endif
