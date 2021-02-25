@@ -120,7 +120,7 @@ contains
         w = sqrt( (-2.0 * log( w ) ) / w )
         y1 = x1 * w
         !  y2 = x2 * w ! there is here a second independent random number for free
-        gran=y1
+        gran = y1
         return
     end function gran
 
