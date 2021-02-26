@@ -28,7 +28,7 @@ import evolve_fortran_discreteFood as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., food_rew=1.0, touch_penalty=3., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True, ss=6.2, max_payoff=100):
+    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., food_rew=1.0, touch_penalty=3., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True, ss=6.2, max_payoff=100, data_dir='.', **unused):
 
         
         self.N = N
@@ -60,8 +60,7 @@ class MD():
         # output trjectory
         self.traj = traj
         if (self.traj):
-            self.filexyz='traj'+str(index)+'.xyz'
-        self.filexyz='traj'+str(index)+'.xyz'
+            self.filexyz= data_dir + '/traj'+str(index)+'.xyz'
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
         assert self.md_type in ['group', 'mix', 'demix', 'switch', 'food'], 'MD type not recognized'

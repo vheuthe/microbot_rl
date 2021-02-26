@@ -205,6 +205,10 @@ class AgentActiveMatter():
 
     return vals
 
+  def finish_episode(self):
+    while self.particles:
+      self.finish_path(self.particles.pop())
+
   def get_actions(self, flag_logp=False):
     '''
     returns numpy array of actions

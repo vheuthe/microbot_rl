@@ -5,6 +5,7 @@ from md_env_fortran import MD
 from firstrl import AgentActiveMatter
 import scipy
 import time
+import os
 
 
 # FOR KL convergence
@@ -23,8 +24,6 @@ def from_policy_to_actions(Pi):
     action=np.random.choice(4,p=Pi)
     return action
 
-def KL_symm(A,B):
-    return 0.5*np.mean(entropy(A,B,axis=1)+entropy(B,A,axis=1))
 
 if __name__ == "__main__":
     # READS FOOD_REW AS INPUT
@@ -36,13 +35,13 @@ if __name__ == "__main__":
 
     # ------------
     cones = 5
-    n_input = 3*cones
+    n_input = 4*cones
     cone_angle = 180
     # ------------
 
-    n_actions = 3
-    gam = 0.95
-    lam = 0.97
+    n_actions = 4
+    gam = 0.98
+    lam = 0.98
     CL = 0.03
     en_coeff = 0.01
 
@@ -58,18 +57,21 @@ if __name__ == "__main__":
     steps = int(step_time/dt)
     n_max_steps = int(total_time/step_time)
     steps_update = 360
-    starting_food = 2000
-    starting_food_width = 100
+    starting_food = 10000
+    starting_food_width = 150
     Food_width = starting_food_width
     torque = 25 #875. / 180. # torque in rad
     N = 50 #number of particles
     food_rew = food_rew_input  # 1=only food, 0=only compactness
     # ---------------------------------
 
+    folder = 'ratio' + str(food_rew_input) + '_eatspeed' + str(eating_speed) + '_touchpenalty' + str(touch_penalty) + '_gamma' + str(gam)
+    os.makedirs(folder, exist_ok=True)
+
     restart = False
     if (start_MD > 0):
         restart = True
-    models_rootname = 'models_GroupFood_dOBS_FoodRew{}_EatSpeed{}'.format(food_rew, eating_speed)
+    models_rootname = folder + '/models_GroupFood_dOBS_FoodRew{}_EatSpeed{}'.format(food_rew, eating_speed)
     model_structure = [(32, 'relu'),(16, 'relu'),(16, 'relu')]
 
     Agent = AgentActiveMatter(input_dim=n_input, output_dim=n_actions, en_coeff=en_coeff, CL=CL, gamma=gam, models_rootname=models_rootname, lam=lam, lrP=0.001, lrV=0.001,  restart_models=restart, model_structure = model_structure)
@@ -87,11 +89,12 @@ if __name__ == "__main__":
             P = displ*np.array([np.cos(theta),np.sin(theta),0.])
             Food_quantity = starting_food
             Food_width = starting_food_width
-            traj_flag = False
+            traj_flag = True
             if (iMD%50 == 49):
                 traj_flag=True
-            md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, touch_penalty=touch_penalty, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle)
-            traj_file = open('traj'+str(iMD)+'.xyz', 'a')
+            md = MD(md_type='food', index=iMD, obs_type='1overR', N=N, size=100, steps=steps, vel_act=vel_act, vel_tor=vel_tor, food_rew=food_rew, touch_penalty=touch_penalty, dt=dt, torque=torque, traj=traj_flag, cones=cones, cone_angle=cone_angle, data_dir=folder)
+            
+            #traj_file = open(folder + '/traj'+str(iMD)+'.xyz', 'a')
             print('\n\n\n #NEW MD INITIALIZATION!')
             
             obs, rewards, Eaten = md.get_obs_rewards_food(XP=P[0], YP=P[1], Food=Food_quantity, Food_width=Food_width) # gets first obs and advantages
