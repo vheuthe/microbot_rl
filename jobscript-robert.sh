@@ -4,10 +4,10 @@
 #$ -N rl-food
 
 ## Maximum Memory
-#$ -l h_vmem=8G
+#$ -l h_vmem=4G
 
 ## Threads to use
-#$ -pe smp 8
+#$ -pe smp 2
 
 ## Logfile configuration (folder must exist!)
 #$ -j y
@@ -20,6 +20,12 @@
 ## few large jobs, so success emails are also welcome
 #$ -m eas
 #$ -M robert.loeffler@uni-konstanz.de
+
+## Queue
+#$ -q long
+
+## Exclude node scc131 (to old for math instruction set)
+#$ -l h='!=scc131'
 
 #-------------------
 
