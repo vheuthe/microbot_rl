@@ -833,14 +833,22 @@ contains
     ! Reward function for linear translation only along long axis
     implicit none
     real :: orient, dRod, dRodtheta, Rodtheta
+    real :: diffT
     integer :: near
-    if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
-        reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
-    else if (cos(Rodtheta - orient)>=0) then 
-        reward_push_along = 0
-    else
-        reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
-    endif
+    
+    
+    diffT = (Rodtheta - dRodtheta)/2./PI
+    diffT = (diffT - floor(diffT + 0.5))*2*PI 
+    reward_push_along = near * cos( sqrt(abs(diffT))*sqrt(PI) ) * dRod
+    
+    !if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
+    !    reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
+    !else if (cos(Rodtheta - orient)>=0) then 
+    !    reward_push_along = 0
+    !else
+    !    reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
+    !endif
+    
     end function reward_push_along
     
 end subroutine
