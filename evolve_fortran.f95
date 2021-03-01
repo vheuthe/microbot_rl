@@ -1,5 +1,5 @@
 subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
-                     nsteps, tor, vel_act, vel_tor, N, new_XYT)
+                     nsteps, tor, vel_act, vel_tor, N, new_XYT, vel)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================

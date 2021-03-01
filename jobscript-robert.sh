@@ -23,5 +23,6 @@
 
 #-------------------
 
+make
 python3 learning_robert_food.py $SGE_TASK_ID 
 

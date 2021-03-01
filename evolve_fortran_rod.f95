@@ -253,8 +253,8 @@ end subroutine
 subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         mode, rotDir, old_rotDir, &
                         flag_side, flag_LOS, &
-                        ss, ssrod_ext, mR,&
-                        ext_rod, cen_rod,
+                        ss, ssrod_ext, mR, &
+                        ext_rod, cen_rod, &
                         obs_type, cones, cone_angle, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
