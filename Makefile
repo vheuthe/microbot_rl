@@ -13,5 +13,5 @@ PY_MODULES := $(patsubst %.f95, %$(EXT_SUFFIX), $(F95_FILES))
 all: $(PY_MODULES)
 
 %$(EXT_SUFFIX): %.f95
-	f2py -c $*.f95 -m $*
+	f2py3 -c $*.f95 -m $*
 
