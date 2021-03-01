@@ -19,14 +19,10 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     ! =======================================
     real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
     ! =======================================
-    real :: FX(N), FY(N), FR(N), v(N)
+    real :: FX(N), FY(N), FR(N), v
     real :: F_pRX, F_pRY
     real :: F_Perp_X, F_Perp_Y, F_proj
-    real :: mu_K_true = 0, mu_K =0
-    
-    real :: F_Perp(N), Friction(N)
-    real :: delta_velRod, velRod_scf, velC_scf
-    
+    real :: mu_K_true = 0, mu_K =0, F_Perp, Friction
     real :: FXrod, FYrod
     real :: torquerod, rodXcm, rodYcm, rodtheta
     integer :: i, j, it
@@ -153,13 +149,14 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         ! repulsion with rod + activity
         ! =============================
 
-        F_Perp = 0.d0
-
         do i = 1, N
 
             ! ============================
             ! repulsion of single particle
             ! ============================
+            
+            F_Perp = 0.d0
+            Friction = 0.d0
             F_proj = 0.d0
             
             do j = 1, Nrod
@@ -192,7 +189,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     F_Perp_X = (ff*dx - F_pRX)
                     F_Perp_Y = (ff*dy - F_pRY)
                     
-                    F_Perp(i) = F_Perp(i) + sqrt(F_Perp_X**2 + F_Perp_Y**2)
+                    F_Perp = F_Perp + sqrt(F_Perp_X**2 + F_Perp_Y**2)
                    
                     ! mu_K = 1       --> only perpendicular force are conserved.
                     ! mu_K = 0       --> some corrugation.
@@ -224,68 +221,44 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                 ! ========================
                 ! Action includes rotation
                 ! ========================
-                v(i) = vel_act
+                v = vel_act
                 if (act(i)>1) then
-                    v(i) = vel_tor
+                    v = vel_tor
                     FR(i) = FR(i) - 2*tor*(act(i)-2.5)
                 endif
-                
-                FX(i) = FX(i) + cos(new_XYT(i,3))*v(i)*etaCol
-                FY(i) = FY(i) + sin(new_XYT(i,3))*v(i)*etaCol
+
+                if (mu_K_true > 0) then
+                    ! F_Perp * mu_K_true = maximum friction
+                    ! Force parallel to rod is:
+                    ! v*cos(new_XYT(i,3))*cos(rodtheta) + v*sin(new_XYT(i,3))*sin(rodtheta)
+                    if (cos(rodtheta-new_XYT(i,3)) .ge. 0) then
+                        Friction = + min(F_perp*mu_K_true, &
+                            abs(etaCol*v*(cos(rodtheta - new_XYT(i,3))))) 
+                    else 
+                        Friction = - min(F_perp*mu_K_true, &
+                            abs(etaCol*v*(cos(rodtheta - new_XYT(i,3))))) 
+                    endif
+                    
+                endif
+
+                    ! ==== DEBUG ====
+
+                FX(i) = FX(i) + cos(new_XYT(i,3))*v*etaCol - Friction*cos(rodtheta)
+                FY(i) = FY(i) + sin(new_XYT(i,3))*v*etaCol - Friction*sin(rodtheta)
+
+                FXrod = FXrod + Friction*cos(rodtheta)
+                FYrod = FYrod + Friction*sin(rodtheta)
                 
             endif
-
         enddo
 
         
         ! =============================
         ! Check how much was parallel force
-        ! self consistency cycle for friction 
-        
-        ! F_Perp(N): already calculated. Will not change 
-        ! delta_velRod
-        j=0
-        do 
-
-            veLRod_scf = (FXrod*cos(rodtheta) + FYrod*sin(rodtheta) + SUM(Friction) ) / etaTra_par
-            j = j + 1 
-            delta_velRod = SUM(Friction)
-            Friction = 0.
-
-            do i = 1, N
-    
-                if (mu_K_true > 0) then
-                    ! F_Perp * mu_K_true = maximum friction
-                    ! Force parallel to rod is:
-                    ! v*cos(new_XYT(i,3))*cos(rodtheta) + v*sin(new_XYT(i,3))*sin(rodtheta)
-                    
-                    velC_scf = (FX(i)*cos(rodtheta) + FY(i)*sin(rodtheta)) / etaCol
-                    
-                    if (velC_scf .ge. velRod_scf) then
-                        Friction(i) = + min(F_perp(i)*mu_K_true, &
-                            abs(etaCol*(velC_scf - velRod_scf))) 
-                    else 
-                        Friction(i) = + min(F_perp(i)*mu_K_true, &
-                            abs(etaCol*(velC_scf - velRod_scf)))
-                    endif
-                    
-                endif
-
-            enddo 
-            
-            if ( (abs(delta_velRod - SUM(Friction) ) < 1.d-3 ) .or. (j>100) ) EXIT
-
-        
-        enddo
-
-        do i = 1, N
-            FX(i) = FX(i) - Friction(i)*cos(rodtheta)
-            FY(i) = FY(i) - Friction(i)*sin(rodtheta)
-        enddo 
-        
-        FXrod = FXrod + SUM(Friction)*cos(rodtheta)
-        FYrod = FYrod + SUM(Friction)*sin(rodtheta)
-
+        !if ((F_Perp_X .ne. 0).or.(F_Perp_Y .ne. 0)) then
+        !    write(100,*), sqrt(F_Parallel_X**2 + F_Parallel_Y**2), sqrt(F_Perp_X**2 + F_Perp_Y**2),&
+        !     atan(F_Parallel_Y/F_Parallel_X), atan(F_Perp_Y/F_Perp_X), rodtheta
+        !endif
 
     
         ! =============================
