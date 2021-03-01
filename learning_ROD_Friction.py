@@ -60,7 +60,7 @@ if __name__ == "__main__":
     total_time = 7200
     step_time = 5
    # torque = 25
-    start_MD = 0
+    start_MD = 100
 
 
     # ------------------------------------------------
