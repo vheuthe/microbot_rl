@@ -39,7 +39,7 @@ default_parameters = {
     # Runs
     'N': 30,
     'n_start': 0,
-    'n_stop': 10,
+    'n_stop': 100,
     'dt': 0.2,
     'action_time': 6,
     'total_time': 7200,
@@ -98,7 +98,7 @@ def do_run(run_id, agent, data_dir, parameters):
         size = 100, # unused?
         steps = parameters['action_time']/parameters['dt'],
         traj = True, # for now
-        data_folder = data_dir,
+        data_dir = data_dir,
         **parameters
     )
 
@@ -163,6 +163,6 @@ if __name__ == "__main__":
 
     task_id = 0
     if len(sys.argv) > 1:
-        task_id = int(sys.argv[1])
+        task_id = int(sys.argv[1]) - 1
     
     do_task(task_id, data_root)
