@@ -3,13 +3,18 @@ import sys
 import os
 import json
 
+import tensorflow as tf
+tf.config.threading.set_inter_op_parallelism_threads(2)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
 from firstrl import AgentActiveMatter
 from md_env_fortran import MD
 
+job_name = '2021-03-02-schooling-food'
 
-simulation_parameters = {
-    'food_rew': [0.6, 0.8, 1.0],
-    'touch_penalty': [0.0, 0.5, 1.0, 3.0],
+job_parameters = {
+    'food_rew': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    'touch_penalty': [0.5, 1.0, 2.0],
 }
 
 default_parameters = {
@@ -31,7 +36,7 @@ default_parameters = {
     'obs_type': '1overR',
     'training_frequency': 360,
     'training_epochs': 50,
-    'food_dist': 75, # dsitance for new food
+    'food_dist': 200, # distance for new food
     'food_amount': 2000,
     'food_width': 150,
     'food_delay': 100,
@@ -58,12 +63,12 @@ def do_task(task_id, data_root):
     # make a list of dicts out of a dict of lists (parameter ranges)
     # (and take the value at index task_id)
     selected_parameters = [
-        dict(zip(simulation_parameters.keys(), vals)) 
-        for vals in zip(*[a.flatten() for a in np.meshgrid(*simulation_parameters.values())])
+        dict(zip(job_parameters.keys(), vals)) 
+        for vals in zip(*[a.flatten() for a in np.meshgrid(*job_parameters.values())])
     ][task_id]
 
     # initialize data folder
-    data_dir = os.path.join(data_root, 'schooling_food', '_'.join([k+str(v) for k,v in selected_parameters.items()]))
+    data_dir = os.path.join(data_root, job_name, '_'.join([k+str(v) for k,v in selected_parameters.items()]))
     os.makedirs(data_dir, exist_ok=True)
 
     # create and save full parameter set
@@ -102,11 +107,11 @@ def do_run(run_id, agent, data_dir, parameters):
         **parameters
     )
 
-    # set up food
-    food_x = food_y = 0
-    food_amount = 0
-    food_width = 0
-    food_wait = 0
+    # start with closeby food
+    food_x = food_y = parameters['food_width']/3
+    food_amount = parameters['food_amount']
+    food_width = parameters['food_width']
+    food_wait = parameters['food_delay']
 
     # initialize Agent
     obs, rew, eaten = md.get_obs_rewards_food(food_x, food_y, food_amount, food_width)
@@ -133,7 +138,7 @@ def do_run(run_id, agent, data_dir, parameters):
                 food_wait = parameters['food_delay']
 
         # evolve brownian dynamics (fortran)
-        obs, rew, eaten, _done, _info = md.evolve_MD(actions.astype(int), food_x, food_y, food_amount, food_width)
+        obs, rew, eaten, _done, _info = md.evolve_MD(actions.astype(int), XP=food_x, YP=food_y, Food=food_amount, Food_width=food_width)
         food_amount -= eaten
 
         # save to file
