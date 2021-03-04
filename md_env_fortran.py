@@ -28,13 +28,12 @@ import evolve_fortran_discreteFood as evolve
 #===============================================================================
 
 class MD():
-    def __init__(self, md_type, index=0, N=10, size=10, steps=20, vel_act=0.35, vel_tor=0.20, dt=0.2, torque=25.0, cost=1., food_rew=1.0, touch_penalty=3., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True, ss=6.2, max_payoff=100, data_dir='.', **unused):
+    def __init__(self, md_type, index=0, N=10, steps=20, vel_act=0.35, sig_vel_act=0.175, vel_tor=0.20, sig_vel_tor=0.1, dt=0.2, torque=25.0, cost=1., food_rew=1.0, touch_penalty=3., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True, ss=6.2, max_payoff=100, data_dir='.', **unused):
 
         
         self.N = N
         self.rewards = np.zeros(N)
 
-        self.size = size
         self.n_MD_steps =steps
 
         # Parameters of Dynamics
@@ -44,7 +43,9 @@ class MD():
         self.Rm = math.sqrt(2*self.Dt/self.dt)
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
+        self.sig_vel_act = sig_vel_act
         self.vel_tor = vel_tor
+        self.sig_vel_tor = sig_vel_tor
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
         
         
@@ -226,7 +227,7 @@ class MD():
         X = self.particles[:,0]
         Y = self.particles[:,1]
         T = self.particles[:,2]
-        self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.vel_tor, self.N)
+        self.particles = evolve.evolve_md(X, Y, T, action, self.Rm, self.Rr, self.dt, self.n_MD_steps, self.torque, self.vel_act, self.sig_vel_act, self.vel_tor, self.sig_vel_tor, self.N)
         if (self.md_type in ['group', 'switch', 'demix', 'mix']):
             obs, rewards = self.get_obs_rewards(switch, old_switch)
             self.rewards = rewards

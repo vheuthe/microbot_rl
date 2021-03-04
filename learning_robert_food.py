@@ -41,8 +41,10 @@ default_parameters = {
     'total_time': 7200,
     'cones': 5,
     'cone_angle': 180,
-    'vel_act': 0.5, # 0.35
-    'vel_tor': 0.35, # 0.2
+    'vel_act': 0.5,
+    'sig_vel_act': 0.25,
+    'vel_tor': 0.35,
+    'sig_vel_tor': 1.75,
     'torque': 25,
 }
 
@@ -82,7 +84,6 @@ def do_run(run_id, agent, data_dir, parameters):
     md = MD(
         md_type = 'food',
         index = run_id,
-        size = 100, # unused?
         steps = parameters['action_time']/parameters['dt'],
         traj = True, # for now
         data_dir = data_dir,

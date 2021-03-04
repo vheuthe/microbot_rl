@@ -1,5 +1,5 @@
-subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
-                     nsteps, tor, vel_act, vel_tor, N, new_XYT)
+subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, nsteps, tor, &
+                     vel_act, sig_vel_act, vel_tor, sig_vel_tor, N, new_XYT)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -8,11 +8,11 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, nsteps
     real, intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt
+    real, intent(in) :: sig_vel_act, sig_vel_tor
     ! =======================================
     real , intent(out) :: new_XYT(N,3)
     ! =======================================
     real :: velX(N), velY(N), velR(N), v
-    real :: sig_vel_act, sig_vel_tor
     integer :: i, j, it
     real :: dx, dy, r2
     ! =======================================
@@ -28,9 +28,6 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     new_XYT(:,2) = Y
     new_XYT(:,3) = Theta
     
-    
-    sig_vel_act = vel_act / 2.
-    sig_vel_tor = vel_tor / 2.
 
     do it = 1, nsteps
 
