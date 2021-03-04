@@ -3,19 +3,10 @@ import sys
 import os
 import json
 
-import tensorflow as tf
-tf.config.threading.set_inter_op_parallelism_threads(2)
-tf.config.threading.set_intra_op_parallelism_threads(1)
-
 from firstrl import AgentActiveMatter
 from md_env_fortran import MD
 
-job_name = '2021-03-02-schooling-food'
 
-job_parameters = {
-    'food_rew': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-    'touch_penalty': [0.5, 1.0, 2.0],
-}
 
 default_parameters = {
 
@@ -57,23 +48,14 @@ default_parameters = {
 
 
 
-def do_task(task_id, data_root):
-
-    # complicated resorting:
-    # make a list of dicts out of a dict of lists (parameter ranges)
-    # (and take the value at index task_id)
-    selected_parameters = [
-        dict(zip(job_parameters.keys(), vals)) 
-        for vals in zip(*[a.flatten() for a in np.meshgrid(*job_parameters.values())])
-    ][task_id]
+def do_task(parameters, data_dir):
 
     # initialize data folder
-    data_dir = os.path.join(data_root, job_name, '_'.join([k+str(v) for k,v in selected_parameters.items()]))
     os.makedirs(data_dir, exist_ok=True)
 
     # create and save full parameter set
     parameters = default_parameters.copy()
-    parameters.update(selected_parameters)
+    parameters.update(parameters)
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4)
 
@@ -157,17 +139,9 @@ def do_run(run_id, agent, data_dir, parameters):
 
 
 
-
 if __name__ == "__main__":
-    if os.path.exists('/data/scc/robert.loeffler'):
-        data_root = '/data/scc/robert.loeffler'
-    elif os.path.exists('/mnt/d/Simulation'):
-        data_root = '/mnt/d/Simulation'
-    else:
-        data_root = os.path.expanduser('~') + '/SimulationData'
-
-    task_id = 0
+    # mainly for testing
     if len(sys.argv) > 1:
-        task_id = int(sys.argv[1]) - 1
-    
-    do_task(task_id, data_root)
+        do_task({}, sys.argv[1])
+    else:
+        do_task({}, 'sim-test')
