@@ -159,7 +159,7 @@ end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                ratio_rew, touch_penalty, XP, YP, Food, Food_width, max_payoff, ss, &
-               N, NObs, Obs, Rew, Eaten)
+               NObs, N, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
