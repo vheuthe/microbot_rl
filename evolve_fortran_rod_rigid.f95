@@ -20,6 +20,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
     ! =======================================
     real :: FX(N), FY(N), FR(N), v(N)
+    real :: sig_vel_act, sig_vel_tor
     real :: F_pRX, F_pRY
     real :: F_Perp_X, F_Perp_Y, F_proj
     real :: mu_K_true = 0, mu_K =0
@@ -83,16 +84,24 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     
     ! Diffusion for particles is determined by 
     ! Rm and Rr, which creates random forces.
+    ! Rm and Rr already contain the etaCol, I think.
     
     ! Diffusion for rod is determined by mR, which is the diffusion D0
     ! Diffusion is different in two directions: 
     
-    ! mR is a scaling of friction. mR = 1 seems not to be working.
-
+    ! mR is a scaling of friction.
     etaCol     = etaLiq * 6 * PI * ss/2
     etaTra_par = mR * etaLiq * 2 * PI * Lrod / log(Lrod/ss)
     etaTra_per = mR * etaLiq * 4 * PI * Lrod / (log(Lrod/ss) + 1)
     etaRot     = mR * etaLiq * PI * Lrod**3 / 3. /  log(Lrod/ss)
+
+    ! Scaling factor to be compatible with Food Project.
+    eps = etaCol
+    epsRod = etaCol
+    
+    ! Gaussian width for velocity distribution calculated here.
+    sig_vel_act = vel_act / 2.
+    sig_vel_tor = vel_tor / 2.
 
     ! if mu_K > 1 then there is friction alongside rod.
     mu_K = mu
@@ -118,9 +127,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         ! =============================
 
         do i = 1, N
-            FX(i) = gran()*Rm
-            FY(i) = gran()*Rm
-            FR(i) = gran()*Rr            
+            FX(i) = gran()*Rm*etaCol
+            FY(i) = gran()*Rm*etaCol
+            FR(i) = gran()*Rr
         enddo
 
         ! =============================
@@ -224,9 +233,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                 ! ========================
                 ! Action includes rotation
                 ! ========================
-                v(i) = vel_act
+                v(i) = vel_act + gran()*sig_vel_act
                 if (act(i)>1) then
-                    v(i) = vel_tor
+                    v(i) = vel_tor + gran()*sig_vel_tor
                     FR(i) = FR(i) - 2*tor*(act(i)-2.5)
                 endif
                 
