@@ -107,6 +107,10 @@ def do_run(run_id, agent, data_dir, parameters):
         # get actions
         actions, logp = agent.get_actions(flag_logp=True)
 
+        # adjust actions if there is no passive one
+        if agent.n_actions == 3:
+            actions += 1
+
         # renew food if necessary
         if food_amount <= 0:
             food_width = 0
