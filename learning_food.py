@@ -1,11 +1,11 @@
 import numpy as np
+import scipy.stats
 import sys
 import os
 import json
 
 from firstrl import AgentActiveMatter
-from md_env_fortran import MD
-
+from environments.food import FoodEnvironment
 
 
 default_parameters = {
@@ -29,6 +29,7 @@ default_parameters = {
     'cone_angle': 180,
     'training_frequency': 360,
     'training_epochs': 50,
+    'food_mode': 'random',
     'food_dist': 200, # distance for new food
     'food_amount': 2000,
     'food_width': 150,
@@ -80,25 +81,17 @@ def do_task(parameters, data_dir):
 
 def do_run(run_id, agent, data_dir, parameters):
     
-    # set up environment
-    md = MD(
-        md_type = 'food',
-        index = run_id,
-        steps = parameters['action_time']/parameters['dt'],
-        traj = True, # for now
-        data_dir = data_dir,
-        **parameters
-    )
+    # set up
+    environment = FoodEnvironment(**parameters)
 
-    # start with closeby food
-    food_x = food_y = parameters['food_width']/3
-    food_amount = parameters['food_amount']
-    food_width = parameters['food_width']
-    food_wait = parameters['food_delay']
+    # data saving
+    stats_file = open('{}/stats{:02d}.xyz'.format(data_dir, run_id), 'w')
+    if run_id % 10 == 9:
+        traj_file = open('{}/traj{:02d}.xyz'.format(data_dir, run_id), 'w')
 
-    # initialize Agent
-    obs, rew, eaten = md.get_obs_rewards_food(food_x, food_y, food_amount, food_width)
-    agent.initialize(obs)
+    # initialize
+    observables = environment.reset(parameters['N'])
+    agent.initialize(observables)
 
     for step in range(int(parameters['total_time']/parameters['action_time'])):
 
@@ -111,36 +104,39 @@ def do_run(run_id, agent, data_dir, parameters):
         if agent.n_actions == 3:
             actions += 1
 
-        # renew food if necessary
-        if food_amount <= 0:
-            food_width = 0
-            food_wait -= 1
-            if food_wait <= 0:
-                theta = np.random.rand()*np.pi*2
-                displ = np.random.normal(parameters['food_dist'], parameters['food_dist']/2)
-                food_x += displ * np.cos(theta)
-                food_y += displ * np.sin(theta)
-                food_amount = parameters['food_amount']
-                food_width = parameters['food_width']
-                food_wait = parameters['food_delay']
-
-        # evolve brownian dynamics (fortran)
-        obs, rew, eaten, _done, _info = md.evolve_MD(actions.astype(int), XP=food_x, YP=food_y, Food=food_amount, Food_width=food_width)
-        food_amount -= eaten
+        # get environment response
+        observables, rewards = environment.evolve(actions)
 
         # save to file
-        md.print_xyz_food_actions(food_x, food_y, food_amount, food_width, logp, actions.astype(int))
+        #md.print_xyz_food_actions(food_x, food_y, food_amount, food_width, logp, actions.astype(int))
         
-        # add rewrads
-        agent.add_env_timeframe([], obs, rew)
+        # add environment response
+        values = agent.add_env_timeframe([], observables, rewards)
+
+        # Save stats
+        entropies = scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1)
+
+        stats_file.write('{} {} {} {}\n'.format(step, np.mean(rewards), np.mean(entropies), np.mean(values)))
+        if run_id % 10 == 9:
+            # stick to emanueles format for now
+            traj_file.write('\n\n')
+            for f in environment.food:
+                traj_file.write('1 {} {} 0 0 0 {} {} 0\n'.format(*f[0:4]))
+            for p, r, a in zip(environment.particles, rewards, actions):
+                traj_file.write('0 {} {} 0 {} {} {} 6.2 {}\n'.format(p[0], p[1], np.cos(p[2]), np.sin(p[2]), r, a))
 
         # train model
         if (step + 1) % parameters['training_frequency'] == 0:
             agent.train_step(epochs=parameters['training_epochs'])
-            agent.initialize(obs)
+            agent.initialize(observables)
     
     # clean up unfinished trajectories
     agent.finish_episode()
+
+    # clean up io
+    stats_file.close()
+    if run_id % 10 == 9:
+        traj_file.close()
 
 
 

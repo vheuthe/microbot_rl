@@ -1,9 +1,4 @@
 #! /bin/bash
-#$ -S bash
-
-
-#  Task name (for logging and display)
-#$ -N 2021-00-00-rl-change-this
 
 #  Number of tasks (should match the possible parameter sets)
 #$ -t 1-33
@@ -32,7 +27,7 @@ make
 python3 <<ENDOFPYTHON
 
 # folder to which data gets saved
-job_name = '$JOB_NAME'
+job_name = '2021-00-00-rl-change-this'
 
 # parameter ranges that are used
 job_parameters = {
@@ -50,7 +45,7 @@ tensorflow.config.threading.set_intra_op_parallelism_threads(2)
 
 import os
 import numpy as np
-import learning_robert_food
+import learning_food
 
 # get array job index (SGE starts counting at 1!)
 task_id = int($SGE_TASK_ID)
@@ -69,6 +64,6 @@ data_dir = os.path.join(
 )
 
 # start simulation
-learning_robert_food.do_task(selected_parameters, data_dir)
+learning_food.do_task(selected_parameters, data_dir)
 
 ENDOFPYTHON
