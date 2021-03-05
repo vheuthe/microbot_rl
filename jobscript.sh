@@ -1,27 +1,12 @@
-#! /usr/bin/env python3
+#! /bin/bash
+#$ -S bash
 
 
 #  Task name (for logging and display)
-#$ -N rl-schooling-food
+#$ -N 2021-00-00-rl-change-this
 
 #  Number of tasks (should match the possible parameter sets)
 #$ -t 1-33
-
-# folder to which data gets saved
-job_name = '2021-00-00-schooling-food-testing'
-
-# parameter ranges that are used
-job_parameters = {
-    'food_rew': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-    'touch_penalty': [0.5, 1.0, 2.0],
-}
-
-
-# ===============================================
-# Everything below should not need to be adjusted
-
-
-# --- SGE Options ---
 
 ## Reserved Memory and CPU slots
 #$ -l h_vmem=4G
@@ -42,13 +27,18 @@ job_parameters = {
 #$ -l h='!=scc131'
 
 
-# --- Fortran Compilation ---
-# This will throw an OSError if the make process fails with exit state != 0.
-# Note, that the run() call has to happen before the simulation code is 
-# imported, as the compiled libary needs to be present at that point!
+make
 
-import subprocess
-subprocess.run("make", check=True)
+python3 <<ENDOFPYTHON
+
+# folder to which data gets saved
+job_name = '$JOB_NAME'
+
+# parameter ranges that are used
+job_parameters = {
+    'food_rew': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    'touch_penalty': [0.5, 1.0, 2.0],
+}
 
 # --- Impose Thread limitations to tensorflow ---
 
@@ -63,8 +53,7 @@ import numpy as np
 import learning_robert_food
 
 # get array job index (SGE starts counting at 1!)
-# with default to 1 the script can be called manually for testing
-task_id = int(os.getenv('SGE_TASK_ID', '1'))
+task_id = int($SGE_TASK_ID)
 
 # choose one set out of all possible parameter combinations
 selected_parameters = dict(zip(
@@ -81,3 +70,5 @@ data_dir = os.path.join(
 
 # start simulation
 learning_robert_food.do_task(selected_parameters, data_dir)
+
+ENDOFPYTHON
