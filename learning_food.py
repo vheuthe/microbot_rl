@@ -60,7 +60,7 @@ def do_task(selected_parameters, data_dir):
     parameters = default_parameters.copy()
     parameters.update(selected_parameters)
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf-8') as paramfile:
-        json.dump(parameters, paramfile, ensure_ascii=False, indent=4)
+        json.dump(parameters, paramfile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     # instantiate agent with new neural networks 
     agent = AgentActiveMatter(
@@ -137,6 +137,23 @@ def do_run(run_id, agent, data_dir, parameters):
     stats_file.close()
     if run_id % 10 == 9:
         traj_file.close()
+
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Helps parsing integer parameter ranges
+
+    See https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
+    """
+    def default(self, obj):  # pylint: disable=method-hidden
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return json.JSONEncoder.default(self, obj)
 
 
 
