@@ -51,14 +51,14 @@ default_parameters = {
 
 
 
-def do_task(parameters, data_dir):
+def do_task(selected_parameters, data_dir):
 
     # initialize data folder
     os.makedirs(data_dir, exist_ok=True)
 
     # create and save full parameter set
     parameters = default_parameters.copy()
-    parameters.update(parameters)
+    parameters.update(selected_parameters)
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4)
 
