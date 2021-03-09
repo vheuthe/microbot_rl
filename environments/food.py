@@ -31,7 +31,7 @@ class FoodEnvironment():
         self.food_delay = food_delay
         # Obervables and Rewards
         self.cones = cones
-        self.cone_angle = cone_angle
+        self.cone_angle = cone_angle / 180 * np.pi
         self.food_rew = food_rew
         self.touch_penalty = touch_penalty
         # everything that was not catched by the arguments
