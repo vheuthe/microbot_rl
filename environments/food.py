@@ -47,10 +47,12 @@ class FoodEnvironment():
         self.reset_food = {
             'random': self.reset_food_random,
             'alternating': self.reset_food_alternating,
+            'none': self.reset_food_none,
         }[food_mode]
         self.update_food = {
             'random': self.update_food_random,
             'alternating': self.update_food_alternating,
+            'none': self.update_food_none,
         }[food_mode]
 
 
@@ -142,4 +144,11 @@ class FoodEnvironment():
                 self.food[0,1] += displ * np.sin(phi)
                 self.food[0,2] = self.food_amount
                 self.food[0,4] = self.food_delay
+
+    # no food, for steady state analysis (meant to be used without training)
+    def reset_food_none(self):
+        self.food = np.zeros((1,4))
+
+    def update_food_none(self, _eaten):
+        pass
 
