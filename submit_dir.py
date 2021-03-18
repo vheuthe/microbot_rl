@@ -18,4 +18,4 @@ with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
 
 num_tasks = np.product([len(v) for v in job_parameters.values()])
 
-os.system('qsub -n "{}" -t 1-{} -v JOB_DIR="{}" jobscript.sh'.format(job_name, num_tasks, job_dir))
+os.system('qsub -N "{}" -t 1-{} -v JOB_DIR="{}" jobscript.sh'.format(job_name, num_tasks, job_dir))
