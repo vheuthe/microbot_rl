@@ -50,6 +50,27 @@ default_parameters = {
 }
 
 
+def do_array_task(task_id, job_dir):
+
+    # parameter ranges are stored in the job_dir
+    with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
+        job_parameters = json.load(reader)
+
+    # choose one set out of all possible parameter combinations
+    # (task_id's start at 1 !!)
+    selected_parameters = dict(zip(
+        job_parameters.keys(),
+        [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
+    ))
+
+    # construct folder name from relevant parameters
+    data_dir = os.path.join(
+        job_dir, 
+        '_'.join([key + str(val) for key, val in selected_parameters.items()])
+    )
+
+    do_task(selected_parameters, data_dir)
+
 
 def do_task(selected_parameters, data_dir):
 
