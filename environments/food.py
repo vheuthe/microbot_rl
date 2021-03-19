@@ -7,7 +7,7 @@ class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
     def __init__(self, food_mode, dt, action_time, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
-                 food_rew, touch_penalty, cones, cone_angle, food_dist, food_amount, food_width, food_delay, 
+                 food_rew, touch_penalty, max_nn_rew, cones, cone_angle, food_dist, food_amount, food_width, food_delay, 
                  **parameters):
 
         # Time resolution
@@ -34,6 +34,7 @@ class FoodEnvironment():
         self.cone_angle = cone_angle / 180 * np.pi
         self.food_rew = food_rew
         self.touch_penalty = touch_penalty
+        self.max_nn_rew = max_nn_rew
         # everything that was not catched by the arguments
         self.parameters = parameters
 
@@ -80,7 +81,7 @@ class FoodEnvironment():
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
             1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
             self.food[0,0], self.food[0,1], self.food[0,2], self.food[0,3] * (self.food[0,2] > 0),
-            999, 6.2, 4 * self.cones,
+            self.max_nn_rew, 6.2, 4 * self.cones,
         )
 
         return observables
@@ -105,7 +106,7 @@ class FoodEnvironment():
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
             1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
             self.food[0,0], self.food[0,1], self.food[0,2], self.food[0,3] * (self.food[0,2] > 0),
-            999, 6.2, 4 * self.cones,
+            self.max_nn_rew, 6.2, 4 * self.cones,
         )
 
     	# If food got depleeted, it might need to be relocated

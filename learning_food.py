@@ -24,6 +24,7 @@ default_parameters = {
     # Learning
     'food_rew': 0.6,
     'touch_penalty': 3,
+    'max_nn_rew': 999,
     'obs_type': '1overR',
     'cones': 5,
     'cone_angle': 180,
