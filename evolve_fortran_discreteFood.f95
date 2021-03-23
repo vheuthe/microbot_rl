@@ -156,7 +156,7 @@ end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                ratio_rew, touch_penalty, XP, YP, Food, Food_width, max_payoff, ss, &
-               NObs, N, Obs, Rew, Eaten)
+               NObs, N, NFood, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -166,14 +166,17 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     integer, intent(in) :: obs_type
     real, intent(in) :: cone_angle, dead_vision
     real, intent(in) :: ratio_rew, touch_penalty
-    real, intent(in) :: XP, YP, Food, Food_width
+    real, intent(in) :: XP(NFood), YP(NFood)
+    real, intent(in) :: Food(NFood), Food_width(NFood)
     real, intent(in) :: max_payoff, ss
-    integer, intent(in) :: N, NObs
+    integer, intent(in) :: NObs
+    ! implicit input (infered by f2py)
+    integer, intent(in) :: N, NFood
     
     ! output
-    real , intent(out) :: Obs(N,NObs), Rew(N), Eaten
+    real , intent(out) :: Obs(N,NObs), Rew(N), Eaten(NFood)
     ! internal processes
-    integer :: i, j, k, n_cone, cones=-1, start_cone
+    integer :: i, j, k, n_cone, cones=-1, start_cone, iFood
     real :: dx, dy, r, dtheta, val, th, th_orient
     real :: in_sight, covered_l, covered_r
     real :: vision_l, vision_r
@@ -364,85 +367,90 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     enddo
 
     !food_width = sqrt(Food) ! Food is input
-    food_radius = Food_width / 2 !Food_width is diameter, we need radius
+    
+    food_loop: do iFood = 1, NFood
+    
+        food_radius = Food_width(iFood) / 2 !Food_width is diameter, we need radius
 
-    if (food_radius > 0) then
-        particle_loop: do i = 1, N       
-            ! FOOD SOURCE
-            dx = XP - X(i)
-            dy = YP - Y(i)
-            r = sqrt(dx*dx + dy*dy)
-            dtheta = atan2(dy,dx)
-            sp_th = asin(food_radius / r)
-            ! i to j 
-            th = (dtheta - Theta(i))/2./PI
-            ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
-            th = (th - floor(th + 0.5))*2*PI
-            val = food_radius / r ! 
-            
-            ! VALUE OF FOOD
-            if (r > food_radius) then
+        if (food_radius > 0) then
+            particle_loop: do i = 1, N       
+                ! FOOD SOURCE
+                dx = XP(iFood) - X(i)
+                dy = YP(iFood) - Y(i)
+                r = sqrt(dx*dx + dy*dy)
+                dtheta = atan2(dy,dx)
+                sp_th = asin(food_radius / r)
+                ! i to j 
+                th = (dtheta - Theta(i))/2./PI
+                ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
+                th = (th - floor(th + 0.5))*2*PI
+                val = food_radius / r ! 
                 
-                food_sight = 0
-                food_angle = sp_th/(bins/2)
-                
-                ! VISION OF FOOD IS DIVIDED IN DISCRETE BINS.
-                do j = -bins/2, bins/2-1
-                    if ((th + (j+0.5)*food_angle > -(cone_angle/2.)).and.&
-                        (th + (j+0.5)*food_angle <  (cone_angle/2.))) then 
-                        food_sight(j) = 1
-                    endif
-                enddo
-
-                if (all(food_sight == 0)) cycle particle_loop
-                
-                ! even more terribly expensive way
-                ! to account for line of sight
-                LOS_loop: do k = 1, N 
-
-                    if (i==k) cycle
-                    dx2 = X(k)-X(i)
-                    dy2 = Y(k)-Y(i)
-                    r2 = sqrt(dx2*dx2 + dy2*dy2)
-
-                    if ( r2 > r) cycle !only closer particles can obscure
-                
-                    dtheta2 = atan2(dy2,dx2)
-                    dtheta2 = (dtheta2 - Theta(i))/2./PI
-                    dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                    dark = asin(ss / 2. / r2) ! cone of shadow                   
-
-                    if (abs(th-dtheta2) < dark + sp_th) then
-                        do j = -bins/2, bins/2-1
-                            if ((th + (j+0.5)*food_angle > (dtheta2 - dark)).and.&
-                                (th + (j+0.5)*food_angle < (dtheta2 + dark))) then 
-                                food_sight(j) = 0
-                            endif
-                        enddo
-                        
-                        if (all(food_sight == 0)) cycle particle_loop  ! fully covered
-                    endif                    
-                enddo LOS_loop
-
-                do j = -bins/2, bins/2-1
-                    start_cone = 1
-                    cone_loop: do n_cone = start_cone, cones
-                        if ((th + (j+0.5)*food_angle < edge(n_cone,2)).and.&
-                            (th + (j+0.5)*food_angle >= edge(n_cone,1))) then               
-                            Obs(i, n_cone + 3*cones) = Obs(i, n_cone + 3*cones) + val * 1. / bins * food_sight(j)
-                            start_cone = n_cone
-                            exit cone_loop 
+                ! VALUE OF FOOD
+                if (r > food_radius) then
+                    
+                    food_sight = 0
+                    food_angle = sp_th/(bins/2)
+                    
+                    ! VISION OF FOOD IS DIVIDED IN DISCRETE BINS.
+                    do j = -bins/2, bins/2-1
+                        if ((th + (j+0.5)*food_angle > -(cone_angle/2.)).and.&
+                            (th + (j+0.5)*food_angle <  (cone_angle/2.))) then 
+                            food_sight(j) = 1
                         endif
-                    enddo cone_loop
-                enddo 
+                    enddo
 
-            else
-                Obs(i,(3*cones+1):4*cones) = cone_slice / cone_angle
-                Rew(i) = Rew(i) + 1*ratio_rew
-                Eaten = Eaten + 1
-            endif
-        enddo particle_loop
-    endif
+                    if (all(food_sight == 0)) cycle particle_loop
+                    
+                    ! even more terribly expensive way
+                    ! to account for line of sight
+                    LOS_loop: do k = 1, N 
+
+                        if (i==k) cycle
+                        dx2 = X(k)-X(i)
+                        dy2 = Y(k)-Y(i)
+                        r2 = sqrt(dx2*dx2 + dy2*dy2)
+
+                        if ( r2 > r) cycle !only closer particles can obscure
+                    
+                        dtheta2 = atan2(dy2,dx2)
+                        dtheta2 = (dtheta2 - Theta(i))/2./PI
+                        dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
+                        dark = asin(ss / 2. / r2) ! cone of shadow                   
+
+                        if (abs(th-dtheta2) < dark + sp_th) then
+                            do j = -bins/2, bins/2-1
+                                if ((th + (j+0.5)*food_angle > (dtheta2 - dark)).and.&
+                                    (th + (j+0.5)*food_angle < (dtheta2 + dark))) then 
+                                    food_sight(j) = 0
+                                endif
+                            enddo
+                            
+                            if (all(food_sight == 0)) cycle particle_loop  ! fully covered
+                        endif                    
+                    enddo LOS_loop
+
+                    do j = -bins/2, bins/2-1
+                        start_cone = 1
+                        cone_loop: do n_cone = start_cone, cones
+                            if ((th + (j+0.5)*food_angle < edge(n_cone,2)).and.&
+                                (th + (j+0.5)*food_angle >= edge(n_cone,1))) then               
+                                Obs(i, n_cone + 3*cones) = Obs(i, n_cone + 3*cones) + val * 1. / bins * food_sight(j)
+                                start_cone = n_cone
+                                exit cone_loop 
+                            endif
+                        enddo cone_loop
+                    enddo 
+
+                else
+                    Obs(i,(3*cones+1):4*cones) = Obs(i,(3*cones+1):4*cones) + cone_slice / cone_angle
+                    Rew(i) = Rew(i) + 1*ratio_rew
+                    Eaten(iFood) = Eaten(iFood) + 1
+                endif
+                    
+            enddo particle_loop
+        endif
+    enddo food_loop
 
     return
 

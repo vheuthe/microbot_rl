@@ -49,11 +49,13 @@ class FoodEnvironment():
             'random': self.reset_food_random,
             'alternating': self.reset_food_alternating,
             'none': self.reset_food_none,
+            '2sources': self.reset_food_2sources,
         }[food_mode]
         self.update_food = {
             'random': self.update_food_random,
             'alternating': self.update_food_alternating,
             'none': self.update_food_none,
+            '2sources': self.update_food_2sources,
         }[food_mode]
 
 
@@ -105,7 +107,7 @@ class FoodEnvironment():
         observables, reward, eaten = evolve_food.get_o_r_food_task(
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
             1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
-            self.food[0,0], self.food[0,1], self.food[0,2], self.food[0,3] * (self.food[0,2] > 0),
+            self.food[:,0], self.food[:,1], self.food[:,2], self.food[:,3] * (self.food[:,2] > 0),
             self.max_nn_rew, 6.2, 4 * self.cones,
         )
 
@@ -122,7 +124,7 @@ class FoodEnvironment():
         self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
 
     def update_food_alternating(self, eaten):
-        self.food[0,2] -= eaten
+        self.food[0,2] -= eaten[0]
         if self.food[0,2] < 1:
             self.food[0,4] -= 1
             if self.food[0,4] < 1:
@@ -135,15 +137,17 @@ class FoodEnvironment():
         self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
 
     def update_food_random(self, eaten):
-        self.food[0,2] -= eaten
+        self.food[0,2] -= eaten[0]
         if self.food[0,2] < 1:
             self.food[0,4] -= 1
+            self.food[0,3] = 0
             if self.food[0,4] < 1:
                 phi = np.random.rand()*np.pi*2
                 displ = np.random.normal(self.food_dist, self.food_dist/3)
                 self.food[0,0] += displ * np.cos(phi)
                 self.food[0,1] += displ * np.sin(phi)
                 self.food[0,2] = self.food_amount
+                self.food[0,3] = self.food_width
                 self.food[0,4] = self.food_delay
 
     # no food, for steady state analysis (meant to be used without training)
@@ -152,4 +156,31 @@ class FoodEnvironment():
 
     def update_food_none(self, _eaten):
         pass
+
+    # no food, for steady state analysis (meant to be used without training)
+    def reset_food_2sources(self):
+        self.food = np.array([
+            [self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay],
+            [self.food_width/2-self.food_dist, 0, self.food_amount, self.food_width, self.food_delay]
+        ])
+
+    def update_food_2sources(self, eaten):
+        for i in range(eaten.shape[0]):
+            self.food[i,2] -= eaten[i]
+            if self.food[i,2] < 1:
+                self.food[i,3] = 0
+                self.food[i,4] -= 1
+                if self.food[i,4] < 1:
+                    j = (i + 1) % 2
+                    # angle to 2nd food source +- 60°
+                    phi = np.arctan2(
+                        self.food[j,1] - self.food[i,1], 
+                        self.food[j,0] - self.food[i,0]
+                    ) + np.random.choice([np.pi/3, -np.pi/3])
+                    # new food forms a triangle with 2nd and depletet food source
+                    self.food[i,0] += self.food_dist * np.cos(phi)
+                    self.food[i,1] += self.food_dist * np.sin(phi)
+                    self.food[i,2] = self.food_amount
+                    self.food[i,3] = self.food_width
+                    self.food[i,4] = self.food_delay
 
