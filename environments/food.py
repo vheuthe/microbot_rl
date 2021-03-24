@@ -6,16 +6,16 @@ import evolve_fortran_discreteFood as evolve_food
 class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
-    def __init__(self, food_mode, dt, action_time, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
-                 food_rew, touch_penalty, max_nn_rew, cones, cone_angle, food_dist, food_amount, food_width, food_delay, 
+    def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
+                 food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, food_dist, food_amount, food_width, food_delay, 
                  **parameters):
 
         # Time resolution
         self.dt = dt
         self.steps = int(action_time / dt)
         # Brownian dynamics
-        self.Dt = 0.014
-        self.Dr = 1.0 / 350.0
+        self.Dt = Dt
+        self.Dr = Dr
         self.Rm = np.sqrt(2*self.Dt/self.dt)
         self.Rr = np.sqrt(2*self.Dr/self.dt)
         # Active Properties
@@ -32,6 +32,7 @@ class FoodEnvironment():
         # Obervables and Rewards
         self.cones = cones
         self.cone_angle = cone_angle / 180 * np.pi
+        self.visual_particle_size = visual_particle_size
         self.food_rew = food_rew
         self.touch_penalty = touch_penalty
         self.max_nn_rew = max_nn_rew
@@ -83,7 +84,7 @@ class FoodEnvironment():
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
             1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
             self.food[0,0], self.food[0,1], self.food[0,2], self.food[0,3] * (self.food[0,2] > 0),
-            self.max_nn_rew, 6.2, 4 * self.cones,
+            self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
         )
 
         return observables
@@ -108,7 +109,7 @@ class FoodEnvironment():
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
             1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
             self.food[:,0], self.food[:,1], self.food[:,2], self.food[:,3] * (self.food[:,2] > 0),
-            self.max_nn_rew, 6.2, 4 * self.cones,
+            self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
         )
 
     	# If food got depleeted, it might need to be relocated
