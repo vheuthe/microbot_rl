@@ -8,9 +8,15 @@ from firstrl import AgentActiveMatter
 from environments.food import FoodEnvironment
 
 
-root_dir = '/data/scc/robert.loeffler/2021-03-10-rl-alternating'
+assert len(sys.argv) > 1
 
-for task in os.listdir(root_dir):
+root_dir = os.path.abspath(sys.argv[1])
+
+assert os.path.isdir(root_dir)
+
+tasks = [entry for entry in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, entry))]
+
+for task in tasks:
 
     with open(os.path.join(root_dir, task, 'parameters.json')) as reader:
         parameters = json.load(reader)
