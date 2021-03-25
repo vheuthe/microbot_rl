@@ -226,7 +226,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
             r = sqrt(dx*dx + dy*dy)
             
             dtheta = atan2(dy,dx)
-            sp_th = asin(ss/2. / r)
+            sp_th = asin(6.2/2. / r)
             ! i to j ============================================
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI 
