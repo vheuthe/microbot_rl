@@ -40,6 +40,7 @@ class FoodEnvironment():
         self.parameters = parameters
 
         # Current State
+        self.rng = None
         # n*(x,y,θ)
         self.particles = []
         # n*(x,y,amount,width,delaycounter, ...)
@@ -60,19 +61,22 @@ class FoodEnvironment():
         }[food_mode]
 
 
-    def reset(self, n):
+    def reset(self, n, seed=None):
         """Initializes the environment with n particles and new food"""
+
+        # set up rng, this is important for reproducibility of evaluation runs
+        self.rng = np.random.default_rng(seed)
 
         # generate grid position in a random order
         a = np.int(np.sqrt(n) / 2) + 1
         x, y = np.meshgrid(range(-a, a+1), range(-a, a+1))
         pos = np.array(list(zip(x.flat, y.flat)))
-        np.random.shuffle(pos)
+        self.rng.shuffle(pos)
 
         # distribute particles with random θ on the first n positions
         self.particles = np.append(
             20 * pos[0:n, :],
-            2 * np.pi * np.random.rand(n, 1),
+            2 * np.pi * self.rng.random((n, 1)),
             axis=1
         )
 
@@ -143,8 +147,8 @@ class FoodEnvironment():
             self.food[0,4] -= 1
             self.food[0,3] = 0
             if self.food[0,4] < 1:
-                phi = np.random.rand()*np.pi*2
-                displ = np.random.normal(self.food_dist, self.food_dist/3)
+                phi = self.rng.random()*np.pi*2
+                displ = self.rng.normal(self.food_dist, self.food_dist/3)
                 self.food[0,0] += displ * np.cos(phi)
                 self.food[0,1] += displ * np.sin(phi)
                 self.food[0,2] = self.food_amount
@@ -177,7 +181,7 @@ class FoodEnvironment():
                     phi = np.arctan2(
                         self.food[j,1] - self.food[i,1], 
                         self.food[j,0] - self.food[i,0]
-                    ) + np.random.choice([np.pi/3, -np.pi/3])
+                    ) + self.rng.choice([np.pi/3, -np.pi/3])
                     # new food forms a triangle with 2nd and depletet food source
                     self.food[i,0] += self.food_dist * np.cos(phi)
                     self.food[i,1] += self.food_dist * np.sin(phi)
