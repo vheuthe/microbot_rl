@@ -28,7 +28,7 @@ default_parameters = {
     'obs_type': '1overR',
     'cones': 5,
     'cone_angle': 180,
-    'self.visual_particle_size': 6.2,
+    'visual_particle_size': 6.2,
     'training_frequency': 360,
     'training_epochs': 50,
     'food_mode': 'random',
@@ -49,7 +49,7 @@ default_parameters = {
     'vel_act': 0.5,
     'sig_vel_act': 0.25,
     'vel_tor': 0.35,
-    'sig_vel_tor': 1.75,
+    'sig_vel_tor': 0.175,
     'torque': 25,
 }
 
