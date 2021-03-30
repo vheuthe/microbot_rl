@@ -71,7 +71,7 @@ for task in tasks:
 
         data['food'][0, step] = np.array([])
         data['particles'][0, step] = environment.particles
-        data['stats'][0, step] = np.hstack((rewards.reshape(-1,1), entropies.reshape(-1,1), values.reshape(-1,1)))
+        data['stats'][0, step] = np.hstack((rewards.reshape(-1,1), entropies.reshape(-1,1), np.array(values).reshape(-1,1)))
         data['actions'][0, step] = np.hstack((actions.reshape((-1,1)), logp))
         data['observables'][0, step] = observables
 
