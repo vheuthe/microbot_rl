@@ -135,7 +135,7 @@ def do_task(selected_parameters, data_dir):
 
 
 
-def do_episode(agent, parameters, /, stats_file=None, traj_file=None, train_agent=False, seed=None):
+def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agent=False, seed=None):
     
     # set up
     environment = FoodEnvironment(**parameters)
