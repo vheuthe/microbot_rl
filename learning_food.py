@@ -19,17 +19,18 @@ default_parameters = {
     'lam': 0.97,
     'lrPI': 0.003,
     'lrV': 0.003,
+    'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
 
-    # Learning
+    # Training
     'food_rew': 0.6,
-    'touch_penalty': 3,
+    'touch_penalty': 0, # 3,
     'max_nn_rew': 999,
     'obs_type': '1overR',
     'cones': 5,
     'cone_angle': 180,
     'visual_particle_size': 6.2,
-    'training_frequency': 360,
+    'training_frequency': 240,
     'training_epochs': 50,
     'food_mode': 'random',
     'food_dist': 200, # distance for new food
@@ -37,19 +38,18 @@ default_parameters = {
     'food_width': 150,
     'food_delay': 100,
 
-    # Runs
+    # Episodes
     'N': 30,
-    'n_start': 0,
-    'n_stop': 100,
+    'training_episodes': 200,
     'dt': 0.2,
     'action_time': 6,
-    'total_time': 7200,
+    'episode_time': 7200,
     'Dt': 0, # 0.014,
     'Dr': 0, # 1.0 / 350.0,
     'vel_act': 0.5,
-    'sig_vel_act': 0.25,
+    'sig_vel_act': 0, # 0.25,
     'vel_tor': 0.35,
-    'sig_vel_tor': 0.175,
+    'sig_vel_tor': 0, # 0.175,
     'torque': 25,
 }
 
@@ -94,34 +94,55 @@ def do_task(selected_parameters, data_dir):
         **parameters
     )
 
-    # loop over simulations, sequentially improving the same network
-    for run_id in range(parameters['n_start'], parameters['n_stop']):
-        do_run(run_id, agent, data_dir, parameters)
-        if (run_id + 1) % 20 == 0:
+    # sequentially train the agent
+    for episode in range(parameters['training_episodes']):
+
+        if (episode + 1) % 10 == 0:
+            with open('{}/train_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file, \
+                    open('{}/train_{:02d}_traj.xyz'.format(data_dir, episode), 'w') as traj_file:
+                do_episode(agent, parameters, stats_file=stats_file, traj_file=traj_file, train_agent=True)
+        
+        else:
+            with open('{}/train_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file:
+                do_episode(agent, parameters, stats_file=stats_file, train_agent=True)
+
+        if (episode + 1) % 20 == 0:
             agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
     
+    # no training after this point, leftover experience can be thrown away
     agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
+    agent.reset_memory()
+
+    # do some episodes with fixed seeds for evaluation
+    for seed in range(10):
+
+        if seed == 0:
+            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file, \
+                    open('{}/evaluate_{:02d}_traj.xyz'.format(data_dir, episode), 'w') as traj_file:
+                do_episode(agent, parameters, stats_file=stats_file, traj_file=traj_file, seed=seed)
+        
+        else:
+            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file:
+                do_episode(agent, parameters, stats_file=stats_file, seed=seed)
+        
+        # just to free up resources
+        agent.reset_memory()
+
+    # do one episode without food to evaluate steady state behavior
+    with open('{}/nofood_stats.xyz'.format(data_dir, episode), 'w') as stats_file, \
+            open('{}/nofood_traj.xyz'.format(data_dir, episode), 'w') as traj_file:
+        do_episode(agent, {**parameters, 'food_mode': 'none'}, stats_file=stats_file, traj_file=traj_file, seed=0)
 
 
 
-def do_run(run_id, agent, data_dir, parameters):
+def do_episode(agent, parameters, /, stats_file=None, traj_file=None, train_agent=False, seed=None):
     
     # set up
     environment = FoodEnvironment(**parameters)
-
-    # data saving
-    stats_file = open('{}/stats{:02d}.xyz'.format(data_dir, run_id), 'w')
-    if run_id % 10 == 9:
-        traj_file = open('{}/traj{:02d}.xyz'.format(data_dir, run_id), 'w')
-
-    # initialize
     observables = environment.reset(parameters['N'])
-
     agent.initialize(observables)
 
-    for step in range(int(parameters['total_time']/parameters['action_time'])):
-
-        print(run_id, step)
+    for step in range(int(parameters['episode_time']/parameters['action_time'])):
 
         # get actions
         actions, logp = agent.get_actions(flag_logp=True)
@@ -138,9 +159,9 @@ def do_run(run_id, agent, data_dir, parameters):
 
         # Save stats
         entropies = scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1)
-
-        stats_file.write('{} {} {} {}\n'.format(step, np.mean(rewards), np.mean(entropies), np.mean(values)))
-        if run_id % 10 == 9:
+        if stats_file:
+            stats_file.write('{} {} {} {}\n'.format(step, np.mean(rewards), np.mean(entropies), np.mean(values)))
+        if traj_file:
             # stick to emanueles format for now
             traj_file.write('\n\n')
             for f in environment.food:
@@ -149,17 +170,12 @@ def do_run(run_id, agent, data_dir, parameters):
                 traj_file.write('0 {} {} 0 {} {} {} 6.2 {}\n'.format(p[0], p[1], np.cos(p[2]), np.sin(p[2]), r, a))
 
         # train model
-        if (step + 1) % parameters['training_frequency'] == 0:
+        if train_agent and (step + 1) % parameters['training_frequency'] == 0:
             agent.train_step(epochs=parameters['training_epochs'])
             agent.initialize(observables)
     
     # clean up unfinished trajectories
     agent.finish_episode()
-
-    # clean up io
-    stats_file.close()
-    if run_id % 10 == 9:
-        traj_file.close()
 
 
 

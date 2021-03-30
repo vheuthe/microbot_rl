@@ -73,7 +73,9 @@ class AgentActiveMatter():
   Complete class for Reinforcement Learning.
   Contains two Neural Networks for Actor and Critic, tracks and stores the trajectories
   '''
-  def __init__(self, input_dim=5, output_dim=3, lrPI=0.01, lrV=0.01, gamma=0.95, CL=0.03, en_coeff=0.0, lam=1.00, batch_size=32, target_kl=0.02, models_rootname='./model', restart_models = False, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')], **unused_parameters):
+  def __init__(self, input_dim, output_dim, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
+               restart_models = False, models_rootname='./model', model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')],
+               **unused_parameters):
 
     # internal knowledge
     self.optimizer = tf.optimizers.Adam(learning_rate=lrPI) # optimizer
@@ -83,7 +85,6 @@ class AgentActiveMatter():
     self.en_coeff = en_coeff                                # entropy coefficient
     self.lrPI = lrPI                                        # learning rate policy
     self.lrV = lrV                                          # learning rate value
-    self.batch_size = batch_size                            # batch_size
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.checkpointID = 0                                   # counter for model checkpoints
 
@@ -101,14 +102,14 @@ class AgentActiveMatter():
 
       self.input_dim = loaded_input_dim
       self.n_actions = loaded_output_dim
-      self.reset_batch()    
+      self.reset_memory()    
 
     else:
       print('Starting new model')
       
       self.input_dim = input_dim
       self.n_actions = output_dim
-      self.reset_batch()    
+      self.reset_memory()    
 
       assert model_structure, 'model structure is not defined!'
 
@@ -153,7 +154,7 @@ class AgentActiveMatter():
       self.checkpointID += 1
 
 
-  def reset_batch(self):
+  def reset_memory(self):
     '''
     set batch of memory to null
     '''
@@ -301,7 +302,8 @@ class AgentActiveMatter():
 
   def train_step(self, epochs=10):
     '''
-    train step, to be called after batch_size examples are taken.
+    Train the model with accumulated experience.
+
     In the first part, the (normalized) General Advantages Estimations are
     calculated.
     Then, it calculates the derivative for the clipped-PPO
@@ -354,4 +356,4 @@ class AgentActiveMatter():
     #    np.savetxt(f, loss_history)
 
     # --- reset internal values ----
-    self.reset_batch()
+    self.reset_memory()
