@@ -129,8 +129,8 @@ def do_task(selected_parameters, data_dir):
         agent.reset_memory()
 
     # do one episode without food to evaluate steady state behavior
-    with open('{}/nofood_stats.xyz'.format(data_dir, episode), 'w') as stats_file, \
-            open('{}/nofood_traj.xyz'.format(data_dir, episode), 'w') as traj_file:
+    with open('{}/nofood_stats.xyz'.format(data_dir), 'w') as stats_file, \
+            open('{}/nofood_traj.xyz'.format(data_dir), 'w') as traj_file:
         do_episode(agent, {**parameters, 'food_mode': 'none'}, stats_file=stats_file, traj_file=traj_file, seed=0)
 
 
