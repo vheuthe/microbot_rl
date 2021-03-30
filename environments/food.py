@@ -7,7 +7,7 @@ class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
     def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
-                 food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, food_dist, food_amount, food_width, food_delay, 
+                 input_dim, food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, food_dist, food_amount, food_width, food_delay, 
                  **parameters):
 
         # Time resolution
@@ -30,6 +30,7 @@ class FoodEnvironment():
         self.food_width = food_width
         self.food_delay = food_delay
         # Obervables and Rewards
+        self.n_obs = input_dim
         self.cones = cones
         self.cone_angle = cone_angle / 180 * np.pi
         self.visual_particle_size = visual_particle_size
@@ -84,12 +85,7 @@ class FoodEnvironment():
         self.reset_food()
 
         # compute observables for initial state s_0
-        observables, _reward, _eaten = evolve_food.get_o_r_food_task(
-            self.particles[:,0], self.particles[:,1], self.particles[:,2], 
-            1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
-            self.food[0,0], self.food[0,1], self.food[0,2], self.food[0,3] * (self.food[0,2] > 0),
-            self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
-        )
+        observables, _reward, _eaten = self.get_state()
 
         return observables
 
@@ -109,6 +105,14 @@ class FoodEnvironment():
         )
         
         # Compute Observables and reward r for new state s'
+        observables, reward, eaten = self.get_state()
+
+    	# If food got depleeted, it might need to be relocated
+        self.update_food(eaten)
+
+        return observables, reward
+
+    def get_state(self):
         observables, reward, eaten = evolve_food.get_o_r_food_task(
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
             1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
@@ -116,10 +120,12 @@ class FoodEnvironment():
             self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
         )
 
-    	# If food got depleeted, it might need to be relocated
-        self.update_food(eaten)
+        if self.n_obs == 5:
+            observables = observables[:,15:]
+        elif self.n_obs == 10:
+            observables = observables[:,[0,3,6,9,12,15,16,17,18,19]]
 
-        return observables, reward
+        return observables, reward, eaten
 
 
     # - - - different food scenarios - - -

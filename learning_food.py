@@ -117,10 +117,6 @@ def do_run(run_id, agent, data_dir, parameters):
     # initialize
     observables = environment.reset(parameters['N'])
 
-    # mechanic to ignore neighbors
-    if parameters['input_dim'] == 5:
-        observables = observables[:,15:]
-
     agent.initialize(observables)
 
     for step in range(int(parameters['total_time']/parameters['action_time'])):
@@ -136,13 +132,6 @@ def do_run(run_id, agent, data_dir, parameters):
 
         # get environment response
         observables, rewards = environment.evolve(actions)
-
-        # mechanic to ignore neighbors
-        if parameters['input_dim'] == 5:
-            observables = observables[:,15:]
-
-        # save to file
-        #md.print_xyz_food_actions(food_x, food_y, food_amount, food_width, logp, actions.astype(int))
         
         # add environment response
         values = agent.add_env_timeframe([], observables, rewards)
