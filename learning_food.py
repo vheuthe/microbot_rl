@@ -117,12 +117,12 @@ def do_task(selected_parameters, data_dir):
     for seed in range(10):
 
         if seed == 0:
-            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file, \
-                    open('{}/evaluate_{:02d}_traj.xyz'.format(data_dir, episode), 'w') as traj_file:
+            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed), 'w') as stats_file, \
+                    open('{}/evaluate_{:02d}_traj.xyz'.format(data_dir, seed), 'w') as traj_file:
                 do_episode(agent, parameters, stats_file=stats_file, traj_file=traj_file, seed=seed)
         
         else:
-            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file:
+            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed), 'w') as stats_file:
                 do_episode(agent, parameters, stats_file=stats_file, seed=seed)
         
         # just to free up resources
