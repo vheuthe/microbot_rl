@@ -7,7 +7,8 @@ class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
     def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
-                 input_dim, food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, food_dist, food_amount, food_width, food_delay, 
+                 input_dim, food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, obs_noise,
+                 food_dist, food_amount, food_width, food_delay,
                  **parameters):
 
         # Time resolution
@@ -34,6 +35,7 @@ class FoodEnvironment():
         self.cones = cones
         self.cone_angle = cone_angle / 180 * np.pi
         self.visual_particle_size = visual_particle_size
+        self.obs_noise = obs_noise
         self.food_rew = food_rew
         self.touch_penalty = touch_penalty
         self.max_nn_rew = max_nn_rew
@@ -120,6 +122,11 @@ class FoodEnvironment():
             self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
         )
 
+        # Add noise (clip those observables that are positive only)
+        observables += self.rng.normal(0, self.obs_noise, observables.shape)
+        observables[:,[0,3,6,9,12,15,16,17,18,19]] = observables[:,[0,3,6,9,12,15,16,17,18,19]].clip(0, None)
+
+        # Reduce Information
         if self.n_obs == 5:
             observables = observables[:,15:]
         elif self.n_obs == 10:

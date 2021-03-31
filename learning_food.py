@@ -30,6 +30,7 @@ default_parameters = {
     'cones': 5,
     'cone_angle': 180,
     'visual_particle_size': 6.2,
+    'obs_noise': 0,
     'training_frequency': 240,
     'training_epochs': 50,
     'food_mode': 'random',

@@ -11,7 +11,7 @@ from environments.food import FoodEnvironment
 assert len(sys.argv) > 1
 
 root_dir = os.path.abspath(sys.argv[1])
-totaltime = 10 * 3600
+totaltime = 2 * 3600
 
 assert os.path.isdir(root_dir)
 
@@ -19,7 +19,7 @@ tasks = [entry for entry in os.listdir(root_dir) if os.path.isdir(os.path.join(r
 
 for task in tasks:
 
-    for seed in range(10):
+    for seed in range(5):
 
         if os.path.isfile(os.path.join(root_dir, task, 'evaluate_{:02d}_stats.xyz'.format(seed))):
             pass # continue
