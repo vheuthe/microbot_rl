@@ -183,7 +183,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, cone_slice
     real :: food_radius
     ! vision of food
-    integer :: bins = 40
+    integer :: bins = 200
     real :: food_angle, max_rew
     real, allocatable :: edge(:,:), food_sight(:)
     real, parameter :: PI = 3.14159265358979323846264
@@ -204,7 +204,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
         edge(i+1,1) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*i/cones     + i * dead_vision
         edge(i+1,2) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*(i+1)/cones + i * dead_vision
     enddo 
-    cone_slice = edge(0,2) - edge(0,1)
+    cone_slice = edge(1,2) - edge(1,1)
 
     ! ! Maximum payoff for compactness
     ! if (obs_type == 1) then 
@@ -384,7 +384,17 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                 th = (dtheta - Theta(i))/2./PI
                 ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
                 th = (th - floor(th + 0.5))*2*PI
-                val = food_radius / r ! 
+
+                ! Value of food,
+                ! factor 3 is there to make it comparable in amount with particle obs
+                if (obs_type == 1) then 
+                    val = 3 * min((food_radius/r), 1.0)
+                else if (obs_type == 2) then
+                    val = 3 * min((food_radius/r)**2, 1.0)
+                else 
+                    print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                    STOP
+                endif
                 
                 ! VALUE OF FOOD
                 if (r > food_radius) then
@@ -443,7 +453,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     enddo 
 
                 else
-                    Obs(i,(3*cones+1):4*cones) = Obs(i,(3*cones+1):4*cones) + cone_slice / cone_angle
+                    Obs(i,(3*cones+1):4*cones) = Obs(i,(3*cones+1):4*cones) + cone_slice / cone_angle * val
                     Rew(i) = Rew(i) + 1*ratio_rew
                     Eaten(iFood) = Eaten(iFood) + 1
                 endif

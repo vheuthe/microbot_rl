@@ -26,7 +26,7 @@ default_parameters = {
     'food_rew': 0.6,
     'touch_penalty': 0, # 3,
     'max_nn_rew': 999,
-    'obs_type': '1overR',
+    'obs_type': '1overR2',
     'cones': 5,
     'cone_angle': 180,
     'visual_particle_size': 6.2,

@@ -7,7 +7,7 @@ class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
     def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
-                 input_dim, food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, obs_noise,
+                 input_dim, food_rew, touch_penalty, max_nn_rew, cones, cone_angle, visual_particle_size, obs_type, obs_noise,
                  food_dist, food_amount, food_width, food_delay,
                  **parameters):
 
@@ -35,6 +35,7 @@ class FoodEnvironment():
         self.cones = cones
         self.cone_angle = cone_angle / 180 * np.pi
         self.visual_particle_size = visual_particle_size
+        self.obs_type = {'1overR': 1, '1overR2': 2}[obs_type]
         self.obs_noise = obs_noise
         self.food_rew = food_rew
         self.touch_penalty = touch_penalty
@@ -117,7 +118,7 @@ class FoodEnvironment():
     def get_state(self):
         observables, reward, eaten = evolve_food.get_o_r_food_task(
             self.particles[:,0], self.particles[:,1], self.particles[:,2], 
-            1, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
+            self.obs_type, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
             self.food[:,0], self.food[:,1], self.food[:,2], self.food[:,3] * (self.food[:,2] > 0),
             self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
         )
