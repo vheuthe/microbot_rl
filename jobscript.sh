@@ -7,7 +7,7 @@
 
 ## Logfile configuration
 #$ -j y
-#$ -o /data/scc/robert.loeffler/Logs/
+#$ -o /data/scc/robert.loeffler/Logs/$JOB_NAME.$JOB_ID-$TASK_ID.log
 
 ## Send email on abort
 #$ -m a
@@ -20,6 +20,7 @@
 ## Exclude node scc131 (to old for math instruction set)
 #$ -l h='!=scc131'
 
+date --iso-8601=seconds
 
 make
 
@@ -42,3 +43,6 @@ job_dir = os.path.abspath('$JOB_DIR')
 learning_food.do_array_task(task_id, job_dir)
 
 ENDOFPYTHON
+
+date --iso-8601=seconds
+
