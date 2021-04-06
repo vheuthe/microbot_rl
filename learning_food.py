@@ -140,7 +140,7 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
     
     # set up
     environment = FoodEnvironment(**parameters)
-    observables = environment.reset(parameters['N'])
+    observables = environment.reset(parameters['N'], seed=seed)
     agent.initialize(observables)
 
     for step in range(int(parameters['episode_time']/parameters['action_time'])):
