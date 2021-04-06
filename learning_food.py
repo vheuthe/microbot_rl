@@ -1,8 +1,9 @@
+import itertools
+import json
 import numpy as np
 import scipy.stats
 import sys
 import os
-import json
 
 from firstrl import AgentActiveMatter
 from environments.food import FoodEnvironment
@@ -41,10 +42,9 @@ default_parameters = {
 
     # Episodes
     'N': 30,
-    'training_episodes': 200,
+    'training_mode': 'dynamic',
     'dt': 0.2,
     'action_time': 6,
-    'episode_time': 7200,
     'Dt': 0, # 0.014,
     'Dr': 0, # 1.0 / 350.0,
     'vel_act': 0.5,
@@ -95,55 +95,73 @@ def do_task(selected_parameters, data_dir):
         **parameters
     )
 
-    # sequentially train the agent
-    for episode in range(parameters['training_episodes']):
-
-        if (episode + 1) % 10 == 0:
-            with open('{}/train_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file, \
-                    open('{}/train_{:02d}_traj.xyz'.format(data_dir, episode), 'w') as traj_file:
-                do_episode(agent, parameters, stats_file=stats_file, traj_file=traj_file, train_agent=True)
-        
-        else:
-            with open('{}/train_{:02d}_stats.xyz'.format(data_dir, episode), 'w') as stats_file:
-                do_episode(agent, parameters, stats_file=stats_file, train_agent=True)
-
-        if (episode + 1) % 20 == 0:
-            agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
+    # sequentially train the agent,
+    # write trajectories only every 10th episode
+    for episode in range(100):
+        do_episode(
+            agent,
+            parameters,
+            stats_file = '{}/train_{:02d}_stats.xyz'.format(data_dir, episode),
+            traj_file = None if (episode + 1) % 10 else '{}/train_{:02d}_traj.xyz'.format(data_dir, episode),
+            train_agent = True,
+            stop_time = 2*3600,
+        )
     
-    # no training after this point, leftover experience can be thrown away
     agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
-    agent.reset_memory()
+
+    # increase episode length
+    for episode in range(100,130):
+        do_episode(
+            agent,
+            parameters,
+            stats_file = '{}/train_{:02d}_stats.xyz'.format(data_dir, episode),
+            traj_file = None if (episode + 1) % 10 > 0 else '{}/train_{:02d}_traj.xyz'.format(data_dir, episode),
+            train_agent = True,
+            stop_time = 10*3600,
+        )
+    
+    # no training after this point
+    agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
 
     # do some episodes with fixed seeds for evaluation
-    for seed in range(10):
-
-        if seed == 0:
-            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed), 'w') as stats_file, \
-                    open('{}/evaluate_{:02d}_traj.xyz'.format(data_dir, seed), 'w') as traj_file:
-                do_episode(agent, parameters, stats_file=stats_file, traj_file=traj_file, seed=seed)
-        
-        else:
-            with open('{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed), 'w') as stats_file:
-                do_episode(agent, parameters, stats_file=stats_file, seed=seed)
-        
-        # just to free up resources
-        agent.reset_memory()
+    for seed in range(5):
+        do_episode(
+            agent,
+            parameters,
+            stats_file = '{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed),
+            traj_file = None if seed > 0 else '{}/evaluate_{:02d}_traj.xyz'.format(data_dir, seed),
+            seed = seed,
+            stop_food_counter = 11,
+            stop_time = 20*3600, # as backup
+        )
 
     # do one episode without food to evaluate steady state behavior
-    with open('{}/nofood_stats.xyz'.format(data_dir), 'w') as stats_file, \
-            open('{}/nofood_traj.xyz'.format(data_dir), 'w') as traj_file:
-        do_episode(agent, {**parameters, 'food_mode': 'none'}, stats_file=stats_file, traj_file=traj_file, seed=0)
+    do_episode(
+        agent,
+        {**parameters, 'food_mode': 'none'},
+        stats_file = '{}/nofood_stats.xyz'.format(data_dir),
+        traj_file = '{}/nofood_traj.xyz'.format(data_dir),
+        seed = 0,
+        stop_time = 10*3600,
+    )
 
 
 
-def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agent=False, seed=None):
+def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agent=False, seed=None, stop_time=np.inf, stop_food_counter=np.inf):
     
-    # set up
+    # argument checks
+    assert np.isfinite(stop_time) or np.isfinite(stop_food_counter), "No stop condition set!"
+
+    if stats_file:
+        stats_file = open(stats_file, 'w')
+    if traj_file:
+        traj_file = open(traj_file, 'w')
+
     environment = FoodEnvironment(**parameters)
     observables = environment.reset(parameters['N'], seed=seed)
     agent.initialize(observables)
 
-    for step in range(int(parameters['episode_time']/parameters['action_time'])):
+    for step in itertools.count():
 
         # get actions
         actions, logp = agent.get_actions(flag_logp=True)
@@ -174,9 +192,20 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
         if train_agent and (step + 1) % parameters['training_frequency'] == 0:
             agent.train_step(epochs=parameters['training_epochs'])
             agent.initialize(observables)
+
+        # stop episode
+        if step*parameters['action_time'] >= stop_time or environment.food_counter >= stop_food_counter:
+            break
     
     # clean up unfinished trajectories
     agent.finish_episode()
+    if not train_agent:
+        agent.reset_memory()
+  
+    if stats_file:
+        stats_file.close()
+    if traj_file:
+        traj_file.close()
 
 
 

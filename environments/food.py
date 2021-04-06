@@ -49,6 +49,7 @@ class FoodEnvironment():
         self.particles = []
         # n*(x,y,amount,width,delaycounter, ...)
         self.food = []
+        self.food_counter = 0
 
         # register functions for choosen food scenario
         self.reset_food = {
@@ -141,6 +142,7 @@ class FoodEnvironment():
     # alternating between +/- food_dist/2
     def reset_food_alternating(self):
         self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
+        self.food_counter = 1
 
     def update_food_alternating(self, eaten):
         self.food[0,2] -= eaten[0]
@@ -150,10 +152,12 @@ class FoodEnvironment():
                 self.food[0,0] = - np.sign(self.food[0,0]) * self.food_dist / 2
                 self.food[0,2] = self.food_amount
                 self.food[0,4] = self.food_delay
+                self.food_counter += 1
 
     # random new position at food_dist (+/-food_dist/3) from old position
     def reset_food_random(self):
         self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
+        self.food_counter = 1
 
     def update_food_random(self, eaten):
         self.food[0,2] -= eaten[0]
@@ -168,6 +172,7 @@ class FoodEnvironment():
                 self.food[0,2] = self.food_amount
                 self.food[0,3] = self.food_width
                 self.food[0,4] = self.food_delay
+                self.food_counter += 1
 
     # no food, for steady state analysis (meant to be used without training)
     def reset_food_none(self):
@@ -182,6 +187,7 @@ class FoodEnvironment():
             [self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay],
             [self.food_width/2-self.food_dist, 0, self.food_amount, self.food_width, self.food_delay]
         ])
+        self.food_counter = 2
 
     def update_food_2sources(self, eaten):
         for i in range(eaten.shape[0]):
@@ -202,4 +208,5 @@ class FoodEnvironment():
                     self.food[i,2] = self.food_amount
                     self.food[i,3] = self.food_width
                     self.food[i,4] = self.food_delay
+                    self.food_counter += 1
 
