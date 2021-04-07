@@ -34,10 +34,10 @@ default_parameters = {
     'obs_noise': 0,
     'training_frequency': 240,
     'training_epochs': 50,
-    'food_mode': 'random',
+    'food_mode': 'randombox',
     'food_dist': 200, # distance for new food
     'food_amount': 2000,
-    'food_width': 150,
+    'food_width': 100,
     'food_delay': 100,
 
     # Episodes

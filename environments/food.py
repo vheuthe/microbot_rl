@@ -44,7 +44,7 @@ class FoodEnvironment():
         self.parameters = parameters
 
         # Current State
-        self.rng = None
+        self.foodrng = None
         # n*(x,y,θ)
         self.particles = []
         # n*(x,y,amount,width,delaycounter, ...)
@@ -57,12 +57,14 @@ class FoodEnvironment():
             'alternating': self.reset_food_alternating,
             'none': self.reset_food_none,
             '2sources': self.reset_food_2sources,
+            'randombox': self.reset_food_randombox,
         }[food_mode]
         self.update_food = {
             'random': self.update_food_random,
             'alternating': self.update_food_alternating,
             'none': self.update_food_none,
             '2sources': self.update_food_2sources,
+            'randombox': self.update_food_randombox,
         }[food_mode]
 
 
@@ -70,18 +72,19 @@ class FoodEnvironment():
         """Initializes the environment with n particles and new food"""
 
         # set up rng, this is important for reproducibility of evaluation runs
-        self.rng = np.random.default_rng(seed)
+        self.foodrng = np.random.default_rng(seed)
+        self.obsrng = np.random.default_rng(seed)
 
         # generate grid position in a random order
         a = np.int(np.sqrt(n) / 2) + 1
         x, y = np.meshgrid(range(-a, a+1), range(-a, a+1))
         pos = np.array(list(zip(x.flat, y.flat)))
-        self.rng.shuffle(pos)
+        self.foodrng.shuffle(pos)
 
         # distribute particles with random θ on the first n positions
         self.particles = np.append(
             20 * pos[0:n, :],
-            2 * np.pi * self.rng.random((n, 1)),
+            2 * np.pi * self.foodrng.random((n, 1)),
             axis=1
         )
 
@@ -125,7 +128,7 @@ class FoodEnvironment():
         )
 
         # Add noise (clip those observables that are positive only)
-        observables += self.rng.normal(0, self.obs_noise, observables.shape)
+        observables += self.obsrng.normal(0, self.obs_noise, observables.shape)
         observables[:,[0,3,6,9,12,15,16,17,18,19]] = observables[:,[0,3,6,9,12,15,16,17,18,19]].clip(0, None)
 
         # Reduce Information
@@ -165,8 +168,8 @@ class FoodEnvironment():
             self.food[0,4] -= 1
             self.food[0,3] = 0
             if self.food[0,4] < 1:
-                phi = self.rng.random()*np.pi*2
-                displ = self.rng.normal(self.food_dist, self.food_dist/3)
+                phi = self.foodrng.random()*np.pi*2
+                displ = self.foodrng.normal(self.food_dist, self.food_dist/3)
                 self.food[0,0] += displ * np.cos(phi)
                 self.food[0,1] += displ * np.sin(phi)
                 self.food[0,2] = self.food_amount
@@ -201,7 +204,7 @@ class FoodEnvironment():
                     phi = np.arctan2(
                         self.food[j,1] - self.food[i,1], 
                         self.food[j,0] - self.food[i,0]
-                    ) + self.rng.choice([np.pi/3, -np.pi/3])
+                    ) + self.foodrng.choice([np.pi/3, -np.pi/3])
                     # new food forms a triangle with 2nd and depletet food source
                     self.food[i,0] += self.food_dist * np.cos(phi)
                     self.food[i,1] += self.food_dist * np.sin(phi)
@@ -210,3 +213,20 @@ class FoodEnvironment():
                     self.food[i,4] = self.food_delay
                     self.food_counter += 1
 
+    # random within a box comparable to the experiment
+    def reset_food_randombox(self):
+        self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
+        self.food_counter = 1
+
+    def update_food_randombox(self, eaten):
+        self.food[0,2] -= eaten[0]
+        if self.food[0,2] < 1:
+            self.food[0,4] -= 1
+            self.food[0,3] = 0
+            if self.food[0,4] < 1:
+                self.food[0,0] = self.foodrng.uniform(-150, 150)
+                self.food[0,1] = self.foodrng.uniform(-100, 100)
+                self.food[0,2] = self.food_amount
+                self.food[0,3] = self.food_width
+                self.food[0,4] = self.food_delay
+                self.food_counter += 1
