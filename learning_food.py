@@ -131,8 +131,8 @@ def do_task(selected_parameters, data_dir):
             stats_file = '{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed),
             traj_file = None if seed > 0 else '{}/evaluate_{:02d}_traj.xyz'.format(data_dir, seed),
             seed = seed,
-            stop_food_counter = 11,
-            stop_time = 20*3600, # as backup
+            # stop_food_counter = 11,
+            stop_time = 10*3600, # as backup
         )
 
     # do one episode without food to evaluate steady state behavior
