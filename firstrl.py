@@ -86,7 +86,6 @@ class AgentActiveMatter():
     self.lrPI = lrPI                                        # learning rate policy
     self.lrV = lrV                                          # learning rate value
     self.target_kl = target_kl                              # target KL divergence for update early stop
-    self.checkpointID = 0                                   # counter for model checkpoints
 
     self.particles = []                         # initialize memory (to zero)
 
@@ -113,45 +112,49 @@ class AgentActiveMatter():
 
       assert model_structure, 'model structure is not defined!'
 
-      # Create Actor NN      
-      # First Dense Layer
-      policy_layers_list = [tf.keras.layers.Dense(model_structure[0][0], activation=model_structure[0][1], input_shape=(self.input_dim,))]
-      # All intermediate Layers
-      for size, act in model_structure[1:]:
-        policy_layers_list.append(tf.keras.layers.Dense(size, activation=act))
-      policy_layers_list.append(tf.keras.layers.Dense(self.n_actions, activation='linear'))
-      self.policy = tf.keras.Sequential( policy_layers_list )
-      # ------------------------------------------
+      # Actor Neural Network
+      self.policy = tf.keras.Sequential(
+        [
+          # Input mask
+          tf.keras.Input(shape=(self.input_dim,)),
+          # Hidden Layers
+          *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
+          # Output Layer defining actions
+          tf.keras.layers.Dense(self.n_actions, activation='linear')
+        ]
+      )
 
-      # ------------------------------------------
-      # Create Critic NN
-      # First Dense Layer
-      critic_layers_list = [tf.keras.layers.Dense(model_structure[0][0], activation=model_structure[0][1], input_shape=(self.input_dim,))]
-      # All intermediate Layers
-      for size, act in model_structure[1:]:
-        critic_layers_list.append(tf.keras.layers.Dense(size, activation=act))
-      critic_layers_list.append(tf.keras.layers.Dense(1, activation='linear'))
-      self.critic = tf.keras.Sequential( critic_layers_list )
-      # ------------------------------------------
+      # Critic Neural Network
+      self.critic = tf.keras.Sequential(
+        [
+          # Input mask
+          tf.keras.Input(shape=(self.input_dim,)),
+          # Hidden Layers
+          *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
+          # Output Layer defining value of state
+          tf.keras.layers.Dense(1, activation='linear')
+        ]
+      )
+
+      # The critic layer is optimized with a default algorithm, so it can be compiled for speed
       self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
-      # ------------------------------------------
+
+
 
 #  -----------------------------
-  def save_models(self, path, final_save = False):
+  def save_models(self, path):
     '''
     Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
     '''
-    if (final_save):
-       self.critic.save(path+'_critic')
-       self.policy.save(path+'_policy')
-#      tf.keras.models.save_model(self.critic, path+'_critic/')
-#      tf.keras.models.save_model(self.policy, path+'_policy/')
-    else:
-      cpath = path+'_critic/checkpoints/ckpt-'+str(self.checkpointID)
-      ppath = path+'_policy/checkpoints/ckpt-'+str(self.checkpointID)
-      self.critic.save_weights(cpath)
-      self.policy.save_weights(ppath)
-      self.checkpointID += 1
+    self.critic.save(path + '_critic')
+    self.policy.save(path + '_policy')
+
+  def save_weights(self, path, ckpt_id):
+    '''
+    Saves the weights of critic and policy in tf checkpoint format, the structure of the model has to be saved seperately
+    '''
+    self.critic.save_weights(path + '_critic/checkpoints/' + str(ckpt_id))
+    self.policy.save_weights(path + '_policy/checkpoints/' + str(ckpt_id))
 
 
   def reset_memory(self):
@@ -325,7 +328,7 @@ class AgentActiveMatter():
     adv = self.adv
     
     
-    for i in range(epochs):
+    for _i in range(epochs):
       with tf.GradientTape() as tape:
 
         new_logp = tf.nn.log_softmax(self.policy(obs))

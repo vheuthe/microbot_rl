@@ -95,6 +95,8 @@ def do_task(selected_parameters, data_dir):
         **parameters
     )
 
+    agent.save_models(os.path.join(data_dir, 'model'))
+
     # sequentially train the agent,
     # write trajectories only every 10th episode
     for episode in range(100):
@@ -106,11 +108,10 @@ def do_task(selected_parameters, data_dir):
             train_agent = True,
             stop_time = 2*3600,
         )
-    
-    agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
+        agent.save_weights(os.path.join(data_dir, 'model'), 'train_{:02d}'.format(episode))
 
     # increase episode length
-    for episode in range(100,130):
+    for episode in range(100,150):
         do_episode(
             agent,
             parameters,
@@ -119,9 +120,10 @@ def do_task(selected_parameters, data_dir):
             train_agent = True,
             stop_time = 10*3600,
         )
+        agent.save_weights(os.path.join(data_dir, 'model'), 'train_{:02d}'.format(episode))
     
     # no training after this point
-    agent.save_models(os.path.join(data_dir, 'model'), final_save = True)
+    agent.save_models(os.path.join(data_dir, 'model'))
 
     # do some episodes with fixed seeds for evaluation
     for seed in range(5):
