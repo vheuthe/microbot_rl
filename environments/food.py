@@ -1,7 +1,7 @@
 
 import numpy as np
-from fortran import evolve_food
-
+from fortran import evolve_food # pylint: disable=no-name-in-module
+# alternatively: create empty fortran/__init__.py
 
 class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
