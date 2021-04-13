@@ -1,6 +1,6 @@
 
 import numpy as np
-import evolve_fortran_discreteFood as evolve_food
+from fortran import evolve_food
 
 
 class FoodEnvironment():

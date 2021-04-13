@@ -22,7 +22,7 @@
 
 date --iso-8601=seconds
 
-make
+make -C fortran
 
 python3 <<ENDOFPYTHON
 
