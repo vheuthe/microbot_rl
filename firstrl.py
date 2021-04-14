@@ -5,6 +5,10 @@ import scipy.signal
 
 tf.keras.backend.set_floatx('float32')
 
+# Documentation is optimized for pdoc:
+# $ pip3 install pdoc
+# $ pdoc firstrl.py
+
 # Ausiliary functions
 
 def from_policy_to_actions(logp):
@@ -21,48 +25,54 @@ def from_policy_to_actions(logp):
 
 def discount_cumsum(x, discount):
     """
-    magic from rllab for computing discounted cumulative sums of vectors.
-    input:
-        vector x,
-        [x0,
-         x1,
-         x2]
-    output:
-        [x0 + discount * x1 + discount^2 * x2,
-         x1 + discount * x2,
-         x2]
+    Magic from rllab for computing discounted cumulative sums of vectors.
+
+    Returns the discounted cummulative sum 
+    `[x0 + discount * x1 + discount^2 * x2, x1 + discount * x2, x2]` 
+    for an array-like input vector `x`.
     """
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
 
 
 # This is an ausiliary class that memorize the trajectory of a single particle
 
-class SAM():
+class Trajectory():
   '''
-  SmartActiveMatter class, which stores individual history of single particles.
-  contains:
-   - all past observables (obs), actions (act), logp of actions (logp), rewards (rew), and values of state (val)
-  instantaneous state is stored in self.current
+  Utility class to store a single trajectory
+
+  A trajectory is defined as a sequence of states, actions and rewards: 
+  `s -> a -> r,s' -> a' -> r',s''`.
+  Each state is stored in the form of the corresponding set of observables
+  and the current value estimate of that state. Alongside with each action,
+  also the probability distribution from which the action was drawn is stored
+  (it is needed later to calculate the loss function).
+
+  This class does not check correct order of adding states and actions, the
+  caller has to take care about proper usage.
   '''
-  def __init__(self, obs):
+
+  def __init__(self, observables):
+    '''Starts the Trajectory with initial state `s0`.'''
 
     # check obs shape is (1, n_inputs)!
-    self.current = obs
-    self.obs = np.empty((0,obs.shape[1]))
+    self.current = observables
+    self.obs = np.empty((0,observables.shape[1]))
     self.act = np.empty((0), dtype=np.int8)
     self.rew = []
     self.val = []
     self.logp = []
 
-  def add_obs_rew_val(self, o, r, v):
-    self.obs = np.append(self.obs, self.current, axis=0)
-    self.current = o
-    self.val = np.append(self.val, v)
-    self.rew = np.append(self.rew, r)
-
-  def add_act_logp(self, a, logp):
-    self.act = np.append(self.act, a)
+  def add_action(self, action, logp):
+    '''Adds an action `a` and the corresponding probability distribution.'''
+    self.act = np.append(self.act, action)
     self.logp = np.append(self.logp, logp)
+
+  def add_state(self, reward, observables, value):
+    '''Adds the reward `r` for a previous action and the new state `s'`.'''
+    self.obs = np.append(self.obs, self.current, axis=0)
+    self.current = observables
+    self.val = np.append(self.val, value)
+    self.rew = np.append(self.rew, reward)
 
 # ----------------------------------
 # ACTUAL REINFORCEMENT LEARNING CODE
@@ -144,14 +154,15 @@ class AgentActiveMatter():
 #  -----------------------------
   def save_models(self, path):
     '''
-    Saves critic and policy models in tf format at position defined by models_rootname + '_critic/' or '_policy'
+    Saves critic and policy models in TensorFlow format at `path + '_critic/'` and `path + '_policy/'`.
     '''
     self.critic.save(path + '_critic')
     self.policy.save(path + '_policy')
 
   def save_weights(self, path, ckpt_id):
     '''
-    Saves the weights of critic and policy in tf checkpoint format, the structure of the model has to be saved seperately
+    Saves the weights of critic and policy in TensorFlow checkpoint-format,
+    the structure of the model has to be saved separately.
     '''
     self.critic.save_weights(path + '_critic/checkpoints/' + str(ckpt_id))
     self.policy.save_weights(path + '_policy/checkpoints/' + str(ckpt_id))
@@ -174,7 +185,7 @@ class AgentActiveMatter():
     get first observables for all paricles
     obs MUST be of shape (N_particles, input_dim)
     '''
-    self.particles = [SAM(o.reshape(1,self.input_dim)) for o in obs]    # creates list of SAM objects, where to store individual particles
+    self.particles = [Trajectory(o.reshape(1,self.input_dim)) for o in obs]    # creates list of SAM objects, where to store individual particles
 
   def add_env_timeframe(self, lost, new_obs, rewards, isdone=False):
     '''
@@ -196,10 +207,10 @@ class AgentActiveMatter():
       obs = obs.reshape(1,-1)
       if i < len(self.particles):
         val = self.critic(self.particles[i].current).numpy()[0,0]
-        self.particles[i].add_obs_rew_val(obs, rew, val)
+        self.particles[i].add_state(rew, obs, val)
         vals.append(val)
       else:
-        self.particles.append(SAM(obs))
+        self.particles.append(Trajectory(obs))
         vals.append(np.nan)
 
     # Ends current episode
@@ -230,7 +241,7 @@ class AgentActiveMatter():
       pi_logp = tf.nn.log_softmax(pi_logits)
       a = from_policy_to_actions(pi_logp)
       logp = pi_logp[0, a]
-      par.add_act_logp(a, logp)
+      par.add_action(a, logp)
       #print('HERE #par.actions: {}'.format(len(par.act)))
       #print('HERE #par.rewards: {}'.format(len(par.rew)))
       actions = np.append(actions, a)
@@ -243,7 +254,7 @@ class AgentActiveMatter():
 
   def finish_path(self, particle, lost = False):
     """
-    - FROM SPINNING UP's PPO CODE -
+    **FROM SPINNING UP's PPO CODE**
     Call this at the end of a trajectory, or when one gets cut off
     by an epoch ending. This looks back in the buffer to where the
     trajectory started, and uses rewards and value estimates from
@@ -255,7 +266,7 @@ class AgentActiveMatter():
     should be V(s_T), the value function estimated for the last state.
     This allows us to bootstrap the reward-to-go calculation to account
     for timesteps beyond the arbitrary episode horizon (or epoch cutoff).
-    ----
+    
     In this realization, each particle is considered as an individual
     trajectory.
     If the particle is lost, it is considered as it received a "done"
