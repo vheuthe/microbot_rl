@@ -166,7 +166,7 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
     for step in itertools.count():
 
         # get actions
-        actions, logp = agent.get_actions(flag_logp=True)
+        actions, logp = agent.get_actions()
 
         # adjust actions if there is no passive one
         if agent.n_actions == 3:
@@ -176,7 +176,7 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
         observables, rewards = environment.evolve(actions)
         
         # add environment response
-        values = agent.add_env_timeframe([], observables, rewards)
+        values = agent.add_environment_response([], observables, rewards)
 
         # Save stats
         entropies = scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1)

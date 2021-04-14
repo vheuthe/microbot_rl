@@ -54,7 +54,7 @@ for task in tasks:
         print(task, step)
 
         # get actions
-        actions, logp = agent.get_actions(flag_logp=True)
+        actions, logp = agent.get_actions()
 
         # adjust actions if there is no passive one
         if agent.n_actions == 3:
@@ -64,7 +64,7 @@ for task in tasks:
         observables, rewards = environment.evolve(actions)
         
         # add environment response
-        values = agent.add_env_timeframe([], observables, rewards)
+        values = agent.add_environment_response([], observables, rewards)
 
         # Save stats
         entropies = scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1)

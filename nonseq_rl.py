@@ -1,8 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import scipy.signal
-import pydot
-import graphviz
 
 tf.keras.backend.set_floatx('float32')
 

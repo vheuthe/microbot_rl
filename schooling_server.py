@@ -8,7 +8,7 @@ import itertools
 import numpy as np
 import random
 from firstrl import AgentActiveMatter
-import evolve_fortran_discreteFood as evolve
+from fortran import evolve_food
 
 # DEFAULT CONFIG
 parameters = {
@@ -34,12 +34,12 @@ parameters = {
   'target_kl': 0.02,
   'save_models': True,
   'models_savepath': './model',
-  'restart_models': False,
+  'load_models': None,
   }
 
 def get_observables_rewards(x, y, theta, food_x=0.0, food_y=0.0, food_amount=0.0, food_radius=1.0, reward_ratio=0.5, touch_penalty=3.0, input_dim=15, **unused):
   '''Wrapper around the fortran calculation for observables and reward'''
-  return evolve.get_o_r_food_task(x, y, theta, 1, np.pi, 0, reward_ratio,
+  return evolve_food.get_o_r_food_task(x, y, theta, 1, np.pi, 0, reward_ratio,
     touch_penalty, food_x, food_y, food_amount, 2*food_radius, 999, 6.15, input_dim)
 
 
@@ -48,11 +48,11 @@ def get_observables_rewards(x, y, theta, food_x=0.0, food_y=0.0, food_amount=0.0
 def serve(parameters):
 
   # create RL Agent
-  rl = AgentActiveMatter(**parameters)
+  agent = AgentActiveMatter(**parameters)
 
   # update parameters in case a loaded model changed the dimensions
-  parameters['input_dim'] = rl.input_dim
-  parameters['output_dim'] = rl.n_actions
+  parameters['input_dim'] = agent.input_dim
+  parameters['output_dim'] = agent.n_actions
 
   #initialize food
   if parameters['food_mode'] == 1:
@@ -124,30 +124,30 @@ def serve(parameters):
 
         # feed data to RL network
         if update == 0:
-          rl.initialize(obs)
+          agent.initialize(obs)
           vals = np.zeros(len(rew))
         elif update % parameters['training_frequency'] == 0:
-          vals = rl.add_env_timeframe(invalid, obs, rew, False)
-          rl.train_step(parameters['training_epochs'])
-          rl.initialize(obs)
+          vals = agent.add_environment_response(invalid, obs, rew)
+          agent.train_step(parameters['training_epochs'])
+          agent.initialize(obs)
           print("Training network ...")
         else:
-          vals = rl.add_env_timeframe(invalid, obs, rew, False)
+          vals = agent.add_environment_response(invalid, obs, rew)
 
         # get actions and probabilitoes
-        actions, pi_logp_all = rl.get_actions(True)
+        actions, logp = agent.get_actions()
         # ensure that actions is column vector
         actions = actions.reshape((-1,1))
         # check number of actions
-        if rl.n_actions == 3:
+        if agent.n_actions == 3:
           actions = actions + 1
-          pi_logp_all = np.append(np.full(actions.shape, -np.inf), pi_logp_all, axis=1)
-        elif rl.n_actions != 4:
+          logp = np.append(np.full(actions.shape, -np.inf), logp, axis=1)
+        elif agent.n_actions != 4:
           raise NotImplementedError('Unsupported output_dim')
         # add food info as first row and flatten in 'Fortran' style
         data = np.append(
             [[food_x, food_y, parameters['food_radius']*(food_current > 0), parameters['food_amount'], food_current, 0, 0]],
-            np.concatenate((actions.reshape((-1,1)), pi_logp_all, np.array(rew).reshape((-1,1)), np.array(vals).reshape((-1,1))), axis=1),
+            np.concatenate((actions.reshape((-1,1)), logp, np.array(rew).reshape((-1,1)), np.array(vals).reshape((-1,1))), axis=1),
             axis=0
           ).flatten('F')
         # and send them (as bytestream)
@@ -158,7 +158,7 @@ def serve(parameters):
 
         if parameters['save_models'] :
           print('Saving models to ' + parameters['models_savepath'])
-          rl.save_models(parameters['models_savepath'], True)
+          agent.save_models(parameters['models_savepath'])
 
         break
 

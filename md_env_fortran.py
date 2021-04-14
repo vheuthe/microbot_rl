@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-import evolve_fortran_discreteFood as evolve
+from fortran import evolve_discreteFood as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -171,7 +171,7 @@ class MD():
 #------------------------------------------------------
     def get_obs_rewards(self, switch=-1, old_switch=-1):
         if self.md_type == 'group':
-        	return get_o_r_group_fortran()
+        	return self.get_o_r_group_fortran()
         elif (self.md_type == 'switch'):
         	return self.get_o_r_switch_task_fortran(switch, old_switch)
         elif (self.md_type in ['demix', 'mix']):

@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 from scipy.stats import entropy as sk_entropy
-import evolve_fortran as evolve
+from fortran import evolve_food
 
 # Loading models - checking consistency
 
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     for a in angles:
         p[-1,2] = a
         p[0,:3] = [xpos-np.cos(a), ypos-np.sin(a), 0] # shadow particle just for keeping even number 
-        obs, rewards = evolve.get_o_r_mix_tasks(
+        obs, rewards = evolve_food.get_o_r_mix_tasks(
             p[:,0], p[:,1], p[:,2],   # X , Y, Theta    respectively
             1.0, 2, -1,               # mixing cost, demixing mode, switch_flag
             10, N)                    # N_Obs, N

@@ -25,7 +25,7 @@ parameters = {
   'target_kl': 0.02,
   'save_models': True,
   'models_savepath': './model',
-  'restart_models': False
+  'load_models': None
   }
 
 
@@ -51,7 +51,7 @@ def parse_input(inputdata, input_dim):
 def serve(parameters):
 
   # create RL Agent
-  rl = AgentActiveMatter(**parameters)
+  agent = AgentActiveMatter(**parameters)
 
   # create TCP socket for communication
   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,19 +80,19 @@ def serve(parameters):
 
         # feed data to RL network
         if frame == 0:
-          rl.initialize(obs)
+          agent.initialize(obs)
         elif frame % parameters['training_frequency'] == 0:
-          rl.add_env_timeframe(lost, obs, rewards, False)
-          rl.train_step(parameters['training_epochs'])
-          rl.initialize(obs)
+          agent.add_environment_response(lost, obs, rewards)
+          agent.train_step(parameters['training_epochs'])
+          agent.initialize(obs)
           print("Training network ...")
         else:
-          rl.add_env_timeframe(lost, obs, rewards, False)
+          agent.add_environment_response(lost, obs, rewards)
 
         # get actions and probabilitoes
-        actions, pi_logp_all = rl.get_actions(True)
+        actions, logp = agent.get_actions()
         # flatten in 'Fortran' style
-        data = np.append(actions.flatten('F'), pi_logp_all.flatten('F'))
+        data = np.append(actions.flatten('F'), logp.flatten('F'))
         # and send them (as bytestream)
         connection.sendall(struct.pack(str(len(data))+"d", *data))
 
@@ -101,7 +101,7 @@ def serve(parameters):
 
         if parameters['save_models'] :
           print('Saving models to ' + parameters['models_savepath'])
-          rl.save_models(parameters['models_savepath'], True)
+          agent.save_models(parameters['models_savepath'])
 
         break
 

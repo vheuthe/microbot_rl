@@ -6,7 +6,6 @@ from firstrl import AgentActiveMatter
 from scipy.stats import entropy as entropy
 import scipy
 import time
-from tqdm import tqdm
 
 
 # FOR KL convergence
@@ -61,12 +60,12 @@ if __name__ == "__main__":
 
     # ------------------------------------------------
 
-    restart = False
-    if (start_MD > 0):
-        restart = True
+    load_models = None
     models_rootname = 'model_sim_NoSkew_T{}_muK{}_{}sAct'.format(torque, mu_K, step_time)
+    if (start_MD > 0):
+        load_models = models_rootname
 
-    Agent = AgentActiveMatter(input_dim=n_input, output_dim=n_actions, en_coeff=en_coeff, CL=CL, gamma=gam, models_rootname=models_rootname, lam=lam, lrP=0.0005, lrV=0.001,  restart_models=restart)
+    Agent = AgentActiveMatter(input_dim=n_input, output_dim=n_actions, en_coeff=en_coeff, CL=CL, gamma=gam, lam=lam, lrPI=0.0005, lrV=0.001, target_kl=0.02, load_models=load_models)
 
     # ------------------------------------------------
 
@@ -75,7 +74,7 @@ if __name__ == "__main__":
     n_max_steps = int(total_time/step_time)
 
 
-    for iMD in  tqdm(range(start_MD, start_MD + n_MD)):
+    for iMD in  range(start_MD, start_MD + n_MD):
             # reinitialize the class MD with the new index
             traj_flag=False
             if (iMD%1 == 0):
@@ -89,25 +88,24 @@ if __name__ == "__main__":
             print('\n\n\n #NEW MD INITIALIZATION!')
             obs, rewards = md.get_obs_rewards() # gets first obs and advantages
             Agent.initialize(obs)
-            done = False
             # -----------------------------------------
             for step in range(n_max_steps):
                 
                 #if (iMD == n_MD-1):
                 #    np.savetxt(obs_file, obs)
-                actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
+                actions, logp = Agent.get_actions() #return actions vector to give particles, and label
                 obs, rewards, done, info = md.evolve_MD(actions.astype(int)) #evolve systems from given actions
                 #print(obs)
                 md.print_xyz_actions(actions, logp)
                 #print(obs[0,2],obs[0,7])
                 if ((step>0) and (step%steps_update == 0)):
                     lost = [i for i in range(obs.shape[0])]
-                    Agent.add_env_timeframe(lost, obs, rewards, done)
+                    Agent.add_environment_response(lost, obs, rewards)
                     Agent.train_step(epochs=50)
                     Agent.initialize(obs)
                 else:
-                    Agent.add_env_timeframe([], obs, rewards, done)
+                    Agent.add_environment_response([], obs, rewards)
                 print('{} {} {}'.format(iMD, step, np.sum(rewards)))
 
-    Agent.save_models(path=models_rootname, final_save = True)
+    Agent.save_models(path=models_rootname)
 

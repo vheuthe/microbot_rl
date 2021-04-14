@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-import evolve_fortran_rod_arbitrary as evolve
+from fortran import evolve_rod_arbitrary as evolve
 # ---------------------------------------
 
 # ---------------------------------------
