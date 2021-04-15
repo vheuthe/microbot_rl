@@ -259,8 +259,8 @@ class AgentActiveMatter():
     # just double check ...
     assert len(traj.obs) - 1 == len(traj.val) - 1 == len(traj.act) == len(traj.logp) == len(traj.rew)
 
-    # adds the states and actions to the memory
-    self.obs = np.append(self.obs, np.array(traj.obs), axis=0)
+    # adds the states (except the last) and actions choosen for those states to the memory
+    self.obs = np.append(self.obs, np.array(traj.obs[:-1]), axis=0)
     self.actions = np.append(self.actions, traj.act)
     self.logp = np.append(self.logp, traj.logp)
 
