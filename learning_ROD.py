@@ -1,7 +1,7 @@
 # TEST WITH MD
 import numpy as np
 import sys
-from md_env_fortran_rod import MD_ROD
+from environments.rod import MD_ROD
 from firstrl import AgentActiveMatter
 from scipy.stats import entropy as entropy
 import scipy
