@@ -156,10 +156,10 @@ class AgentActiveMatter():
 
   def reset_memory(self):
     '''Erases all cumulated experience'''
-    self.obs = np.empty((0,self.input_dim))
+    self.observables = np.empty((0,self.input_dim))
     self.logp = np.empty((0))
-    self.adv = np.empty((0))
-    self.target = np.empty((0))
+    self.advantage = np.empty((0))
+    self.estimated_return = np.empty((0))
     self.actions = np.empty((0), dtype=np.int8)
 
 
@@ -250,7 +250,7 @@ class AgentActiveMatter():
       # not sufficient to add (s, a, r, s')
       return
 
-    if len(traj.act) == len(traj.obs):
+    if len(traj.act) > len(traj.rew):
       # no reward for the last action, this happens when the particle got lost,
       # so the last action should be discarded
       traj.act.pop()
@@ -260,22 +260,24 @@ class AgentActiveMatter():
     assert len(traj.obs) - 1 == len(traj.val) - 1 == len(traj.act) == len(traj.logp) == len(traj.rew)
 
     # adds the states (except the last) and actions choosen for those states to the memory
-    self.obs = np.append(self.obs, np.array(traj.obs[:-1]), axis=0)
+    self.observables = np.append(self.observables, np.array(traj.obs[:-1]), axis=0)
     self.actions = np.append(self.actions, traj.act)
     self.logp = np.append(self.logp, traj.logp)
 
-    # as our episodes have infinite horizon, add the last value as last reward
-    # to have a proper estimate of the return (this is ignored for the GAE)
+    # as our episodes have infinite horizon, add the value of the last state as last reward
+    # to bootstrap the estimate of the return. The true return can only be calculated if the
+    # episode reaches a final state, which is not possible in this scenario.
+    # (this additional reward is ignored in the calculation of GAE.)
     rews = np.append(traj.rew, traj.val[-1])
     vals = np.array(traj.val)
 
     # compute Generalized Advantage Estimate to train policy
     # (for details, see https://arxiv.org/abs/1506.02438v6)
     deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
-    self.adv = np.append(self.adv, discount_cumsum(deltas, self.gamma * self.lam))
+    self.advantage = np.append(self.advantage, discount_cumsum(deltas, self.gamma * self.lam))
 
-    # compute rewards-to-go (estimate of return) as targets for the value function
-    self.target = np.append(self.target, discount_cumsum(rews, self.gamma)[:-1])
+    # compute estimated return as target for the value function
+    self.estimated_return = np.append(self.estimated_return, discount_cumsum(rews, self.gamma)[:-1])
 
 
   def finish_episode(self):
@@ -299,9 +301,9 @@ class AgentActiveMatter():
     self.finish_episode()
 
     # normalize advantage for better convergence
-    adv_std = np.std(self.adv)
+    adv_std = np.std(self.advantage)
     if (adv_std > 0.1e-1):
-        self.adv = (self.adv - np.mean(self.adv)) / adv_std
+        self.advantage = (self.advantage - np.mean(self.advantage)) / adv_std
 
     # -- POLICY FITTING --
     for i in range(epochs):
@@ -310,14 +312,21 @@ class AgentActiveMatter():
       with tf.GradientTape() as tape:
 
         # calculate loss function with clipped PPO:
+        #
         # for details, see
         # - https://arxiv.org/abs/1707.06347
         # - https://spinningup.openai.com/en/latest/algorithms/ppo.html
-        new_logp_dist = tf.nn.log_softmax(self.policy(self.obs))
+        #
+        # here:
+        # π_θ_k(a|s) == exp(self.logp)
+        # π_θ(a|s) == exp(new_logp)
+        # A^{π_θ_k}(s,a) == self.adv
+        # ε == self.CL
+        new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
         new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * new_logp_dist, axis=1)
         probability_ratio = tf.exp(new_logp - self.logp)
-        min_adv = np.where(self.adv > 0, (1+self.CL) * self.adv, (1-self.CL) * self.adv)
-        loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.adv, min_adv))
+        max_adv = np.where(self.advantage > 0, (1+self.CL) * self.advantage, (1-self.CL) * self.advantage)
+        loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
 
         # additional loss function to keep finite entropy:
         # DKL(P_uniform || P_new) = -log(P_new) calculates the Kullback-Leibler divergence
@@ -339,7 +348,7 @@ class AgentActiveMatter():
         break
 
     # -- CRITIC FITTING --
-    self.critic.fit(x=self.obs, y=self.target, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
+    self.critic.fit(x=self.observables, y=self.estimated_return, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # clean up
     self.reset_memory()
