@@ -309,7 +309,7 @@ class AgentActiveMatter():
       # (all operations in the `with` block are recorded somehow in the C++ backend)
       with tf.GradientTape() as tape:
 
-        # calculate loss function with clipped PPO.
+        # calculate loss function with clipped PPO:
         # for details, see
         # - https://arxiv.org/abs/1707.06347
         # - https://spinningup.openai.com/en/latest/algorithms/ppo.html
@@ -319,21 +319,19 @@ class AgentActiveMatter():
         min_adv = np.where(self.adv > 0, (1+self.CL) * self.adv, (1-self.CL) * self.adv)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.adv, min_adv))
         
-        # additional loss function to keep finite entropy
-        # TODO: any references for this trick?
-        # approx KL divergence respect to flat - to reduce certainty.
-        # DKL(P_flat || Pi_new)
-        loss_DKL = self.en_coeff * tf.reduce_mean(-new_logp_dist)
+        # additional loss function to keep finite entropy:
+        # DKL(P_uniform || P_new) = -log(P_new) calculates the Kullback-Leibler divergence
+        # between the current distribution and a uniform distribution. If en_coeff > 0 this
+        # term biases the loss function towards more entropy, to keep a minimum amount of
+        # explorative behavior in the policy
+        loss = loss_ppo2 + self.en_coeff * tf.reduce_mean(-new_logp_dist)
         
-        # total loss
-        loss = loss_ppo2 + loss_DKL
-
       # calculate numerical derivative of the loss function in respect to the policy parameters θ
       grads = tape.gradient(loss, self.policy.trainable_variables)
       # optimize the policy along these gradients
       self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 
-      # early stopping to prevent overfitting 
+      # early stopping to prevent overfitting
       # (should already be accomplished by the PPO algorithm (?))
       approx_kl = tf.reduce_mean(self.logp - new_logp)
       if (approx_kl > 1.5 * self.target_kl):
