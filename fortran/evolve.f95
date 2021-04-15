@@ -21,7 +21,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
     ss12 = ss6*ss6
-    ! =======================================   
+    ! =======================================
 
     new_XYT(:,1) = X
     new_XYT(:,2) = Y
@@ -36,7 +36,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     ! =============================
     ! thermal motion + activity
     ! =============================
-         
+
         do i = 1, N
             velX(i) = gran()*Rm
             velY(i) = gran()*Rm
@@ -78,8 +78,8 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
                   velX(i) = velX(i) - ff*dx
                   velY(i) = velY(i) - ff*dy
                   velX(j) = velX(j) + ff*dx
-                  velY(j) = velY(j) + ff*dy                  
-              endif 
+                  velY(j) = velY(j) + ff*dy
+              endif
           enddo
       enddo
 
@@ -97,7 +97,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
 
     return
 
-contains 
+contains
 
     real FUNCTION gran()
     !     polar form of the Box-Muller transformation
@@ -146,7 +146,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     Rew = 0
     ! cone_angle must be a positive angle in radiants
     cone_angle_reduced = cone_angle / 2./ PI
-    
+
     ! calculate real number of sight cones
     select case (mode)
     case (1) ! pure mixing
@@ -156,46 +156,46 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
     case (3) ! switch mixing/demixing
         cones = (NObs - 2) / 2
     end select
-    
+
     allocate(edges(cones+1))
     do i = 0, cones
-        edges(i+1) = -cone_angle/2. + cone_angle*i/cones  
-    enddo 
-    
+        edges(i+1) = -cone_angle/2. + cone_angle*i/cones
+    enddo
+
     do i = 1, N-1
         do j = i+1, N
-        
+
             other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
-            
+
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
             sp_th = atan(ss, r2)
-            ! i to j 
+            ! i to j
             th = (dtheta - Theta(i))/2./PI
-            th = (th - floor(th + 0.5))*2 
+            th = (th - floor(th + 0.5))*2
             ! th goes from [-1, 1], correspondin to [-pi, pi]
-            
+
             ! n_cone = 1 .. n_cone
             ! for theta in range [ -cone_angle , cone_angle]
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
-                        
-            if (obs_type == 1) then 
+
+            if (obs_type == 1) then
                 val = (6.8/r)
             else if (obs_type == 2) then
                 val = (6.8/r**2)
-            else 
+            else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-            
+
             if ((n_cone < cones+1) .and. (n_cone>0)) then
                 ! terribly expensive way
                 ! to account for line of sight
                 visible = 1
                 if (flag_LOS) then
-                    do k = 1, N 
+                    do k = 1, N
                         if ((i==k).or.(j==k)) cycle
                         dx2 = X(k)-X(i)
                         dy2 = Y(k)-Y(i)
@@ -214,11 +214,11 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                 Obs(i,n_cone+other*cones) = Obs(i,n_cone+other*cones)+val*visible
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
-            
+
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
-            th = (th - floor(th + 0.5))*2 
+            th = (th - floor(th + 0.5))*2
 
             ! n_cone = 1 .. n_cone
             ! for theta in range [ -cone_angle , cone_angle]
@@ -229,7 +229,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                 visible = 1
                 dtheta = atan2(-dy,-dx)
                 if (flag_LOS) then
-                    do k = 1, N 
+                    do k = 1, N
                         if ((i==k).or.(j==k)) cycle
                         dx2 = X(k)-X(j)
                         dy2 = Y(k)-Y(j)
@@ -241,15 +241,15 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                             visible = 0
                             exit
                         endif
-                    enddo            
+                    enddo
                 endif
                 Obs(j,n_cone+other*cones) = Obs(j,n_cone+other*cones)+val*visible
             !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
         enddo
     enddo
-    
-    
+
+
     do i = 1, N
         select case (mode)
             case (1) ! pure mixing
@@ -258,7 +258,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
             case (2) ! pure demixing
                 Rew(i) = sum(Obs(i, 1:cones)) - cost*sum(Obs(i, (cones+1):(cones*2)))
             case (3) ! switch mixing/demixing
-                if (switch == 0) then 
+                if (switch == 0) then
                     Rew(i) = sum(Obs(i, 1:cones)) - cost*sum(Obs(i, (cones+1):(cones*2)))
                 else if (switch == 1) then
                     Rew(i) = (sum(Obs(i, 1:cones)) + sum(Obs(i, (cones+1):(cones*2)))) &
@@ -270,11 +270,11 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, obs_type, cone_ang
                 Obs(i, (2*cones+1)+switch) = 1
         end select
     enddo
-    
+
     do i = 1, N
        if ( sum(Obs(i,1:(2*cones))) .eq. 0 ) Rew(i) = -2
     enddo
-    
+
     return
 
 end subroutine
@@ -292,10 +292,10 @@ subroutine get_neigh(X, Y, NN, N)
     real :: dx, dy, r2, ss2=8*8
 
     NN = 0
-    
+
     do i = 1, N-1
         do j = i+1, N
-        
+
             other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
@@ -304,7 +304,7 @@ subroutine get_neigh(X, Y, NN, N)
                 NN(i,other+1) = NN(i,other+1) + 1
                 NN(j,other+1) = NN(j,other+1) + 1
             endif
-            
+
         enddo
     enddo
     return
@@ -328,50 +328,50 @@ subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, flag_P
 
     Obs = 0
     Rew = 0
-    
+
     ! cone_angle must be a positive angle in radiants
     cone_angle_reduced = cone_angle / 2. / PI
-    
+
     ! calculate real number of sight cones
     cones = NObs
     if (flag_P) cones = NObs / 2
-   
+
     Obs = 0
     Rew = 0
 
     do i = 1, N-1
-        
+
         ! FELLOW PARTICLES
         do j = i+1, N
-        
+
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
-            
+
             ! i to j ============================================
             th = (dtheta - Theta(i))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
-            th = (th - floor(th + 0.5))*2 
+            th = (th - floor(th + 0.5))*2
 
             ! n_cone = 1 .. n_cone
             ! for theta in range [ -cone_angle , cone_angle]
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced)*cones )+1
-                        
-            if (obs_type == 1) then 
+
+            if (obs_type == 1) then
                 val = (6.8/r)
             else if (obs_type == 2) then
                 val = (6.8/r**2)
-            else 
+            else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-            
+
             if ((n_cone < cones+1) .and. (n_cone>0)) then
                 ! terribly expensive way
                 ! to account for line of sight
                 visible = 1
-                do k = 1, N 
+                do k = 1, N
                     if ((i==k).or.(j==k)) cycle
                     dx2 = X(k)-X(i)
                     dy2 = Y(k)-Y(i)
@@ -387,22 +387,22 @@ subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, flag_P
                 Obs(i,n_cone) = Obs(i,n_cone)+val*visible
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
-            
+
             ! j to i ============================================
             th = (dtheta + PI - Theta(j))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
-            th = (th - floor(th + 0.5))*2 
+            th = (th - floor(th + 0.5))*2
 
             ! n_cone = 1 .. n_cone
             ! for theta in range [ -cone_angle , cone_angle]
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
-            
+
             if ((n_cone < cones+1) .and. (n_cone>0)) then
                 ! terribly expensive way
                 ! to account for line of sight
                 dtheta = atan2(-dy,-dx)
                 visible = 0
-                do k = 1, N 
+                do k = 1, N
                     if ((i==k).or.(j==k)) cycle
                     dx2 = X(k)-X(j)
                     dy2 = Y(k)-Y(j)
@@ -414,41 +414,41 @@ subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, flag_P
                         visible = 0
                         exit
                     endif
-                enddo            
+                enddo
 
                 Obs(j,n_cone) = Obs(j,n_cone)+val
             !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
         enddo
-        
+
         ! PREDATOR
         dx = X(j)-XP
         dy = Y(j)-YP
         r = sqrt(dx*dx + dy*dy)
         dtheta = atan2(dy,dx)
-        ! i to j 
+        ! i to j
         th = (dtheta - Theta(i))/2./PI
         ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
-        th = (th - floor(th + 0.5))*2 
+        th = (th - floor(th + 0.5))*2
 
         ! n_cone = 1 .. n_cone
         ! for theta in range [ -cone_angle , cone_angle]
         n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
-        
-        if (obs_type == 1) then 
+
+        if (obs_type == 1) then
             val = (6.8/r)
         else if (obs_type == 2) then
             val = (6.8/r)**2 / 6.8
-        else 
+        else
             print*, 'ERROR NO OBS_TYPE IS DEFINED!'
             STOP
         endif
-        
+
         if ((n_cone < cones+1) .and. (n_cone>0)) then
             ! terribly expensive way
             ! to account for line of sight
             visible = 1
-            do k = 1, N 
+            do k = 1, N
                 if ((i==k).or.(j==k)) cycle
                 dx2 = X(k)-X(i)
                 dy2 = Y(k)-Y(i)
@@ -474,4 +474,3 @@ subroutine get_o_r_group_predator_task(X, Y, Theta, obs_type, cone_angle, flag_P
     return
 
 end subroutine
-

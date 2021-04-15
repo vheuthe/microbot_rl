@@ -23,7 +23,7 @@ for task in tasks:
         parameters = json.load(reader)
 
     agent = AgentActiveMatter(
-        models_rootname = os.path.join(root_dir, task, 'model'), 
+        models_rootname = os.path.join(root_dir, task, 'model'),
         restart_models = True,
         **parameters
     )
@@ -62,7 +62,7 @@ for task in tasks:
 
         # get environment response
         observables, rewards = environment.evolve(actions)
-        
+
         # add environment response
         values = agent.add_environment_response([], observables, rewards)
 

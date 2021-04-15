@@ -99,8 +99,8 @@ def serve(parameters):
         # calculate observables and reward
         # TODO food is for now just a constant quantity at constant position
         obs, rew, eaten = get_observables_rewards(
-          x[~lost], y[~lost], theta[~lost], 
-          food_x, food_y, food_current, parameters['food_radius']*(food_current > 0), 
+          x[~lost], y[~lost], theta[~lost],
+          food_x, food_y, food_current, parameters['food_radius']*(food_current > 0),
           parameters['reward_ratio'], parameters['touch_penalty'], parameters['input_dim'])
         food_current -= eaten
 
@@ -176,5 +176,3 @@ if __name__ == "__main__":
     serve(parameters)
   except:
     traceback.print_exc(file=sys.stdout)
-
-

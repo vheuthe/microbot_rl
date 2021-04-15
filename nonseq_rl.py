@@ -100,7 +100,7 @@ class AgentActiveMatter():
 
       self.critic = tf.keras.models.load_model(models_rootname+'_critic/')
       self.policy = tf.keras.models.load_model(models_rootname+'_policy/')
-      
+
       if (seq_flag == True):
           loaded_input_dim = self.critic.layers[0].input_shape[1]
           loaded_output_dim = self.policy.layers[-1].output_shape[1]
@@ -156,7 +156,7 @@ class AgentActiveMatter():
             self.policy.summary()
 
             # -------------------------------------------
-            
+
             # ------------------------------------------
             input_all = tf.keras.Input(shape=(self.input_dim,))
             print(input_all.shape)
@@ -173,8 +173,8 @@ class AgentActiveMatter():
             self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
             self.critic.summary()
             # -------------------------------------------
-              
-      
+
+
 
 #  -----------------------------
   def save_models(self, path, final_save = False):

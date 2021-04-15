@@ -1,4 +1,4 @@
-subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, & 
+subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
                         nsteps, tor, vel_act, vel_tor, &
                         ext_rod, cen_rod, mu_K,&
@@ -23,7 +23,7 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     real :: FXrod, FYrod
     real :: torquerod, rodXcm, rodYcm, rodtheta
     integer :: i, j, it
-    real :: dx, dy, r2, drodx, drody 
+    real :: dx, dy, r2, drodx, drody
     ! =======================================
     ! force parameters
     real :: eps = 1., ss = 6.8, ss2, ss6, ss12, ff, epsRod=1.0
@@ -34,12 +34,12 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
     ss12 = ss6*ss6
-    ! =======================================   
+    ! =======================================
 
     new_XYT(:,1) = X
     new_XYT(:,2) = Y
     new_XYT(:,3) = Theta
-    
+
     new_XY_rod(:,1) = Xrod
     new_XY_rod(:,2) = Yrod
     massRod = mR / Nrod
@@ -62,7 +62,7 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1))
 
     Lrod2 = (new_XY_rod(Nrod,2)-new_XY_rod(1,2))**2 + (new_XY_rod(Nrod,1)-new_XY_rod(1,1))**2
-    
+
     Irod = 1. / 12. * massRod * Nrod * Lrod2 * IR ! INERTIA multiplied by IR factor
 
     do it = 1, nsteps
@@ -71,7 +71,7 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
         FX = 0.d0
         FY = 0.d0
         FR = 0.d0
-        
+
         FXrod = 0.d0
         FYrod = 0.d0
         torquerod = 0.d0
@@ -122,8 +122,8 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
                   FX(i) = FX(i) - ff*dx
                   FY(i) = FY(i) - ff*dy
                   FX(j) = FX(j) + ff*dx
-                  FY(j) = FY(j) + ff*dy                  
-              endif 
+                  FY(j) = FY(j) + ff*dy
+              endif
           enddo
       enddo
 
@@ -136,19 +136,19 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
         ! ============================
         ! repulsion of single particle
         ! ============================
-        
+
         F_pRX = 0.d0
         F_pRY = 0.d0
-        
+
         do j = 1, Nrod
             drodx = new_XY_rod(j,1) - rodXcm
             drody = new_XY_rod(j,2) - rodYcm
 
             dx = new_XY_rod(j,1) - new_XYT(i,1)
             dy = new_XY_rod(j,2) - new_XYT(i,2)
-     
+
             r2 = dx*dx + dy*dy
-              
+
             if (r2 < ss2*fact(j,2)) then
                     ff = fact(j,4)*ss12/(r2**6) - fact(j,3)*ss6/(r2**3)
                     ff = 12.*epsRod*fact(j,1)*ff/r2
@@ -162,19 +162,19 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
                     FY(i) = FY(i) - ff*dy
 
                     FXrod = FXrod + ff*dx
-                    FYrod = FYrod + ff*dy                  
+                    FYrod = FYrod + ff*dy
 
                     F_pRX = F_pRX + ff*dx
                     F_pRY = F_pRY + ff*dy
-                      
+
                     ! =======================
                     ! component of force in direction of rod
 
                     torquerod = torquerod + ff * (drodx*dy-drody*dx)
-                    !print*, 'Force: ', ff*dx, ff*dy, 'Torque: ', ff * (drodx*dy-drody*dx), 'Irod: ', Irod 
-              endif 
+                    !print*, 'Force: ', ff*dx, ff*dy, 'Torque: ', ff * (drodx*dy-drody*dx), 'Irod: ', Irod
+              endif
           enddo
-          
+
           ! =============================
           ! from F_pRX, F_pRY to friction
           ! =============================
@@ -187,9 +187,9 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
           FY(i) = FY(i) - sin(rodtheta)*frictionF
           FXrod = FXrod + cos(rodtheta)*frictionF
           FYrod = FYrod + sin(rodtheta)*frictionF
-          
+
       enddo
-    
+
     ! =============================
     ! move
     ! =============================
@@ -207,21 +207,21 @@ subroutine evolve_md_rod(mR, IR, X,Y,Theta, Xrod, Yrod, &
     rodXcm = rodXcm + dt*FXrod/Nrod/massRod
     rodYcm = rodYcm + dt*FYrod/Nrod/massRod
     rodtheta = rodtheta + dt*torquerod/Irod ! FAKE Inertia
-    
+
     ! =============================
-    ! transform rod 
+    ! transform rod
     ! =============================
 
       do i = 1, Nrod
           new_XY_rod(i,1) = (i-(Nrod+1)/2.0)*cos(rodtheta)*distRod + rodXcm
           new_XY_rod(i,2) = (i-(Nrod+1)/2.0)*sin(rodtheta)*distRod + rodYcm
-      enddo 
+      enddo
 
     enddo
 
     return
 
-contains 
+contains
 
     real FUNCTION gran()
     !     polar form of the Box-Muller transformation
@@ -269,8 +269,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     logical, intent(in) :: flag_LOS
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
-    integer :: iter_touch, adj(N,N) 
-    integer, intent(out) :: touch(N)   
+    integer :: iter_touch, adj(N,N)
+    integer, intent(out) :: touch(N)
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
     real, intent(in) :: ss,  ssrod_ext, mR, ext_rod, cen_rod
@@ -282,17 +282,17 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 
     Obs = 0
     Rew = 0
-  
+
     adj = 0
-  
+
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
     rod_L = true_ssrod * (Nrod - 1)
-    
-    ssrod = ssrod_ext    
+
+    ssrod = ssrod_ext
     if (ssrod==0) ssrod = true_ssrod
 
     ! Nrod EVEN number!
@@ -316,12 +316,12 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     ! cone_angle must be a positive angle in radiants
     allocate(edge(cones+1))
     do i = 0, cones
-        edge(i+1) = -cone_angle/2. + cone_angle*i/cones  
-    enddo 
+        edge(i+1) = -cone_angle/2. + cone_angle*i/cones
+    enddo
     cone_slice = cone_angle / cones
 
     ! =============================
-    ! CONSISTENCY CHECK ON N_OBS == 
+    ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
         case (1)
             if (.not.(NObs == (2+flag_side)*cones)) then
@@ -333,17 +333,17 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 print*, 'ERROR consistency NObs'
                 STOP
             endif
-        case (3) 
+        case (3)
             if (.not.(NObs == (2+flag_side)*cones)) then
                 print*, 'ERROR consistency  NObs'
                 STOP
             endif
-        case (4) 
+        case (4)
             if (.not.(NObs == (2+flag_side)*cones+1)) then
                 print*, 'ERROR consistency NObs'
                 STOP
             endif
-        case (5) 
+        case (5)
             if (.not.(NObs == (2+flag_side)*cones)) then
                 print*, 'ERROR consistency NObs'
                 STOP
@@ -357,13 +357,13 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 
     do i = 1, N-1
         do j = i+1, N
-        
+
             !side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
             !                Yrod(1),Xrod(Nrod),Yrod(Nrod))
-            
+
             side = 0
-            ! side = 0 means on the same side of rod.  
-            ! if flag_side == 1 then visibility is across rod.            
+            ! side = 0 means on the same side of rod.
+            ! if flag_side == 1 then visibility is across rod.
             if ((side == 0).or.(flag_side == 1)) then
 
                 dx = X(j)-X(i)
@@ -374,62 +374,62 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
-                
+
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
-                ! i to j 
+                ! i to j
                 ! th goes from [-pi, pi]
                 th = (dtheta - Theta(i))/2./PI
                 th = (th - floor(th + 0.5))*2*PI
-                
+
                 ! n_cone = 1 .. n_cone
                 ! for theta in range [ -cone_angle , cone_angle]
-                            
-                if (obs_type == 1) then 
+
+                if (obs_type == 1) then
                 val = (true_ss/r)
                 else if (obs_type == 2) then
                     val = (true_ss/r**2)
-                else 
+                else
                     print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                     STOP
                 endif
-                
+
                 covered_l = 0
-                covered_r = 0   
+                covered_r = 0
                 if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                     ! terribly expensive way
                     ! to account for line of sight
 
                     if (flag_LOS) then
-                        do k = 1, N 
-                            
+                        do k = 1, N
+
                             if ((i==k).or.(j==k)) cycle
-                            
+
                             dx2 = X(k)-X(i)
                             dy2 = Y(k)-Y(i)
                             r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                             if (r2 > r) cycle !only closer particles can obscure
-                            
+
                             dtheta2 = atan2(dy2,dx2)
                             dtheta2 = (dtheta2 - Theta(i))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                             dark = atan(ss, r2)/2 ! cone of shadow
-                           
+
 
                             if (abs(th-dtheta2) < dark + sp_th) then
                                 if (th .lt. dtheta2) then
-                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                                 else if (th .ge. dtheta2) then
                                     covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                                 endif
-                                
+
                                 if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                             endif
-                            
+
                         enddo
                     endif
-                    
+
                     vision_l = th+sp_th-covered_l
                     vision_r = th-sp_th+covered_r
 
@@ -437,26 +437,26 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         ! fraction of particle in sight
                         ! if particle in cone
                         in_sight = 0.
-                        
-                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
-                        
+
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
+
                         Obs(i,n_cone+side*cones) = Obs(i,n_cone+side*cones)+val*in_sight
                     enddo
-                    
+
                 !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
                 endif
-                
+
                 ! j to i
                 th = (dtheta + PI - Theta(j))/2./PI
                 ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
                 th = (th - floor(th + 0.5))*2*PI
                 covered_l = 0
-                covered_r = 0   
+                covered_r = 0
                 if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                     ! terribly expensive way
                     ! to account for line of sight
                     if (flag_LOS) then
-                        do k = 1, N 
+                        do k = 1, N
                             if ((i==k).or.(j==k)) cycle
                             dx2 = X(k)-X(j)
                             dy2 = Y(k)-Y(j)
@@ -466,7 +466,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                             dtheta2 = (dtheta2 - Theta(j))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                             dark = atan(ss, r2)/2.
-                            
+
                             ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                             if (abs(th-dtheta2) < dark+sp_th) then
                                 if (th .lt. dtheta2) then
@@ -474,11 +474,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                                 else if (th .ge. dtheta2) then
                                     covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                                 endif
-                                
+
                                 if (covered_l+covered_r > 2*sp_th) exit
                             endif
-                            
-                        enddo            
+
+                        enddo
                     endif
 
                     vision_l = th+sp_th-covered_l
@@ -488,11 +488,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         ! fraction of particle in sight
                         ! if particle in cone
                         in_sight = 0.
-                                            
-                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
-                        
+
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
+
                         Obs(j,n_cone+side*cones) = Obs(j,n_cone+side*cones)+val*in_sight
-                                            
+
                     enddo
                 endif
             endif
@@ -508,65 +508,65 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 
         a = Theta(i)  ! orientation of particle respect to x-axis.
         b = dRodtheta ! direction of motion of rod.
- 
+
         do j = 1, Nrod
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
             if (r < near2(i)) near2(i) = r
-      
+
             dtheta = atan2(dy,dx)
-            ! particle sees rod 
+            ! particle sees rod
             th = (dtheta - Theta(i))/2./PI
-            th = (th - floor(th + 0.5))*2*PI 
+            th = (th - floor(th + 0.5))*2*PI
             sp_th = atan(ssrod, r)/2.
             ! -----------------------------
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
-            if (obs_type == 1) then 
+            if (obs_type == 1) then
                 val = (true_ssrod)/r*fact(i)
             else if (obs_type == 2) then
                 val = (true_ssrod/r**2)*fact(i)
-            else 
+            else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-                        
+
             covered_l = 0
-            covered_r = 0   
+            covered_r = 0
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                 ! terribly expensive way
                 ! to account for line of sight
 
                 if (flag_LOS) then
-                    do k = 1, N 
-                        
+                    do k = 1, N
+
                         dx2 = X(k)-X(i)
                         dy2 = Y(k)-Y(i)
                         r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                         if (r2 > r) cycle !only closer particles can obscure
-                        
+
                         dtheta2 = atan2(dy2,dx2)
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                         dark = atan(ss, r2)/2 ! cone of shadow
-                       
+
 
                         if (abs(th-dtheta2) < dark + sp_th) then
                             if (th .lt. dtheta2) then
-                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                             else if (th .ge. dtheta2) then
                                 covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                             endif
-                            
+
                             if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                         endif
-                        
+
                     enddo
                 endif
-                
+
                 vision_l = th+sp_th-covered_l
                 vision_r = th-sp_th+covered_r
 
@@ -574,7 +574,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     ! fraction of particle in sight
                     ! if particle in cone
                     in_sight = 0.
-                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
                     Obs(i,n_cone+(1+flag_side)*cones) = Obs(i,n_cone+(1+flag_side)*cones)+val*in_sight
                 enddo
 
@@ -582,9 +582,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             endif
             if (near2(i) <= ss_touch*1.25) touch(i) = 1
         enddo
-        
+
     enddo
-    
+
     iter_touch = 1
     do while (iter_touch == 1)
         iter_touch = 0
@@ -599,7 +599,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             enddo
         enddo
     enddo
-        
+
     do i = 1, N
         a = Theta(i)
         b = dRodtheta
@@ -608,7 +608,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         r = sqrt(dx*dx + dy*dy)
         torque = cos(a)*dy - sin(a)*dx
 
-        
+
         ! different reward functions to choose from
         select case (mode)
             case (1)
@@ -620,23 +620,23 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 Rew(i) = reward_move_back(r/true_ss, dRod, a, b, touch(i))
                 Obs(i, (2+flag_side)*cones+1) = cos(a)
                 Obs(i, (2+flag_side)+2) = sin(a)
-            case (3) 
+            case (3)
                 ! reward positive irrespective to direction of rotation
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) * mR 
+                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) * mR
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                 endif
-                
-            case (4) 
+
+            case (4)
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! no penalty for translation of center of mass.
                 ! NON - NEGATIVE REWARD
                                 ! reward positive irrespective to direction of rotation
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, touch(i), dRod * 24. / rod_L) * mR 
+                    Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, touch(i), dRod * 24. / rod_L) * mR
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                     Obs(i, (2+flag_side)+1) = rotDir
@@ -644,7 +644,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
         end select
-        
+
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
 
@@ -653,10 +653,10 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 contains
 
     real FUNCTION ff(x,y,x1,y1,x2,y2)
-      implicit none 
+      implicit none
       real :: x1,y1,x2,y2,x,y
       ff = (x-x1)*(y2-y1) - (y-y1)*(x2-x1)
-      return 
+      return
     end function
 
     integer FUNCTION crossing(x1,y1,x2,y2,rx1,ry1,rx2,ry2)
@@ -680,20 +680,20 @@ contains
 
       reward_rotate =  ((rotRod * tq) - dRod) * near
       return
-    end function reward_rotate    
+    end function reward_rotate
 
     real FUNCTION reward_move_back(rss, dRod, a, b, near)
     ! reward function for linear translation in direction (-x)
-      implicit none 
+      implicit none
       !
       real :: rss, a, b, dRod
       integer :: near
       reward_move_back =  -cos(b) * dRod * cos(a)**2 / rss * near * 10.
       return
-    end function reward_move_back    
-    
+    end function reward_move_back
+
     real FUNCTION reward_move(rss, dRod, a, b, rot, near)
-    ! Reward function for linear translation in any direction. 
+    ! Reward function for linear translation in any direction.
     ! Maximum reward when particle is aligned with rod direction.
     ! substracts a cost for rotation
       implicit none
@@ -703,7 +703,7 @@ contains
       reward_move = (dRod * cos(ab_half) / rss * near  - abs(rot)) * 10.
       return
     end function reward_move
-    
+
 end subroutine
 
 
@@ -727,8 +727,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     logical, intent(in) :: flag_LOS
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
-    integer :: iter_touch, adj(N,N) 
-    integer, intent(out) :: touch(N)   
+    integer :: iter_touch, adj(N,N)
+    integer, intent(out) :: touch(N)
     real :: dx, dy, r, dtheta, val, th, cmRod(2), oldcmRod(2)
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
     real, intent(in) :: ss,  ssrod_ext, mR
@@ -740,17 +740,17 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
     Obs = 0
     Rew = 0
-  
+
     adj = 0
-  
+
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
     rod_L = true_ssrod * (Nrod - 1)
-    
-    ssrod = ssrod_ext    
+
+    ssrod = ssrod_ext
     if (ssrod==0) ssrod = true_ssrod
 
     oldcmRod(1) = SUM(oldXrod)/Nrod
@@ -768,12 +768,12 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     ! cone_angle must be a positive angle in radiants
     allocate(edge(cones+1))
     do i = 0, cones
-        edge(i+1) = -cone_angle/2. + cone_angle*i/cones  
-    enddo 
+        edge(i+1) = -cone_angle/2. + cone_angle*i/cones
+    enddo
     cone_slice = cone_angle / cones
 
     ! =============================
-    ! CONSISTENCY CHECK ON N_OBS == 
+    ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
         case (1)
             if (.not.(NObs == (2+flag_diff)*cones)) then
@@ -785,17 +785,17 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                 print*, 'ERROR consistency NObs'
                 STOP
             endif
-        case (3) 
+        case (3)
             if (.not.(NObs == (2+flag_diff)*cones)) then
                 print*, 'ERROR consistency  NObs'
                 STOP
             endif
-        case (4) 
+        case (4)
             if (.not.(NObs == (2+flag_diff)*cones+1)) then
                 print*, 'ERROR consistency NObs'
                 STOP
             endif
-        case (5) 
+        case (5)
             if (.not.(NObs == (2+flag_diff)*cones)) then
                 print*, 'ERROR consistency NObs'
                 STOP
@@ -809,12 +809,12 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
     do i = 1, N-1
         do j = i+1, N
-        
+
             !side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
             !                Yrod(1),Xrod(Nrod),Yrod(Nrod))
-            
+
             side = 0
-            ! side = 0 means on the same side of rod.  
+            ! side = 0 means on the same side of rod.
             if ((side == 0)) then
 
                 dx = X(j)-X(i)
@@ -825,62 +825,62 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
-                
+
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
-                ! i to j 
+                ! i to j
                 ! th goes from [-pi, pi]
                 th = (dtheta - Theta(i))/2./PI
                 th = (th - floor(th + 0.5))*2*PI
-                
+
                 ! n_cone = 1 .. n_cone
                 ! for theta in range [ -cone_angle , cone_angle]
-                            
-                if (obs_type == 1) then 
+
+                if (obs_type == 1) then
                 val = (true_ss/r)
                 else if (obs_type == 2) then
                     val = (true_ss/r**2)
-                else 
+                else
                     print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                     STOP
                 endif
-                
+
                 covered_l = 0
-                covered_r = 0   
+                covered_r = 0
                 if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                     ! terribly expensive way
                     ! to account for line of sight
 
                     if (flag_LOS) then
-                        do k = 1, N 
-                            
+                        do k = 1, N
+
                             if ((i==k).or.(j==k)) cycle
-                            
+
                             dx2 = X(k)-X(i)
                             dy2 = Y(k)-Y(i)
                             r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                             if (r2 > r) cycle !only closer particles can obscure
-                            
+
                             dtheta2 = atan2(dy2,dx2)
                             dtheta2 = (dtheta2 - Theta(i))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                             dark = atan(ss, r2)/2 ! cone of shadow
-                           
+
 
                             if (abs(th-dtheta2) < dark + sp_th) then
                                 if (th .lt. dtheta2) then
-                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                                 else if (th .ge. dtheta2) then
                                     covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                                 endif
-                                
+
                                 if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                             endif
-                            
+
                         enddo
                     endif
-                    
+
                     vision_l = th+sp_th-covered_l
                     vision_r = th-sp_th+covered_r
 
@@ -888,26 +888,26 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                         ! fraction of particle in sight
                         ! if particle in cone
                         in_sight = 0.
-                        
-                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
-                        
+
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
+
                         Obs(i,n_cone+side*cones) = Obs(i,n_cone+side*cones)+val*in_sight
                     enddo
-                    
+
                 !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
                 endif
-                
+
                 ! j to i
                 th = (dtheta + PI - Theta(j))/2./PI
                 ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
                 th = (th - floor(th + 0.5))*2*PI
                 covered_l = 0
-                covered_r = 0   
+                covered_r = 0
                 if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                     ! terribly expensive way
                     ! to account for line of sight
                     if (flag_LOS) then
-                        do k = 1, N 
+                        do k = 1, N
                             if ((i==k).or.(j==k)) cycle
                             dx2 = X(k)-X(j)
                             dy2 = Y(k)-Y(j)
@@ -917,7 +917,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                             dtheta2 = (dtheta2 - Theta(j))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                             dark = atan(ss, r2)/2.
-                            
+
                             ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                             if (abs(th-dtheta2) < dark+sp_th) then
                                 if (th .lt. dtheta2) then
@@ -925,11 +925,11 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                                 else if (th .ge. dtheta2) then
                                     covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                                 endif
-                                
+
                                 if (covered_l+covered_r > 2*sp_th) exit
                             endif
-                            
-                        enddo            
+
+                        enddo
                     endif
 
                     vision_l = th+sp_th-covered_l
@@ -939,11 +939,11 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                         ! fraction of particle in sight
                         ! if particle in cone
                         in_sight = 0.
-                                            
-                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
-                        
+
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
+
                         Obs(j,n_cone+side*cones) = Obs(j,n_cone+side*cones)+val*in_sight
-                                            
+
                     enddo
                 endif
             endif
@@ -959,65 +959,65 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
         a = Theta(i)  ! orientation of particle respect to x-axis.
         b = dRodtheta ! direction of motion of rod.
- 
+
         do j = 1, Nrod
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
             if (r < near2(i)) near2(i) = r
-      
+
             dtheta = atan2(dy,dx)
-            ! particle sees rod 
+            ! particle sees rod
             th = (dtheta - Theta(i))/2./PI
-            th = (th - floor(th + 0.5))*2*PI 
+            th = (th - floor(th + 0.5))*2*PI
             sp_th = atan(ssrod, r)/2.
             ! -----------------------------
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
-            if (obs_type == 1) then 
+            if (obs_type == 1) then
                 val = (true_ssrod)/r
             else if (obs_type == 2) then
                 val = (true_ssrod/r**2)
-            else 
+            else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-                        
+
             covered_l = 0
-            covered_r = 0   
+            covered_r = 0
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                 ! terribly expensive way
                 ! to account for line of sight
 
                 if (flag_LOS) then
-                    do k = 1, N 
-                        
+                    do k = 1, N
+
                         dx2 = X(k)-X(i)
                         dy2 = Y(k)-Y(i)
                         r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                         if (r2 > r) cycle !only closer particles can obscure
-                        
+
                         dtheta2 = atan2(dy2,dx2)
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                         dark = atan(ss, r2)/2 ! cone of shadow
-                       
+
 
                         if (abs(th-dtheta2) < dark + sp_th) then
                             if (th .lt. dtheta2) then
-                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                             else if (th .ge. dtheta2) then
                                 covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                             endif
-                            
+
                             if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                         endif
-                        
+
                     enddo
                 endif
-                
+
                 vision_l = th+sp_th-covered_l
                 vision_r = th-sp_th+covered_r
 
@@ -1025,7 +1025,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                     ! fraction of particle in sight
                     ! if particle in cone
                     in_sight = 0.
-                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2. 
+                    in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
                     ! orientational divided observations
                     Obs(i,2*n_cone-1) = Obs(i,2*n_cone-1) + val*in_sight*cos(th)
                     Obs(i,2*n_cone)   = Obs(i,2*n_cone)   + val*in_sight*sin(th)
@@ -1035,9 +1035,9 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
             endif
             if (near2(i) <= ss_touch*1.25) touch(i) = 1
         enddo
-        
+
     enddo
-    
+
     iter_touch = 1
     do while (iter_touch == 1)
         iter_touch = 0
@@ -1052,7 +1052,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
             enddo
         enddo
     enddo
-        
+
     do i = 1, N
         a = Theta(i)
         b = dRodtheta
@@ -1061,7 +1061,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
         r = sqrt(dx*dx + dy*dy)
         torque = cos(a)*dy - sin(a)*dx
 
-        
+
         ! different reward functions to choose from
         select case (mode)
             case (1)
@@ -1073,33 +1073,33 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                 Rew(i) = reward_move_back(r/true_ss, dRod, a, b, touch(i))
                 Obs(i, (2+flag_diff)*cones+1) = cos(a)
                 Obs(i, (2+flag_diff)+2) = sin(a)
-            case (3) 
+            case (3)
                 ! reward positive irrespective to direction of rotation
                 ! no penalty for translation of center of mass.
                 if (sum(Obs(i, ((1+flag_diff)*cones+(cones+1)/2):&
                                ((1+flag_diff)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) * mR 
+                    Rew(i) = reward_rotate(rotRod, torque, touch(i), dRod * 24. / rod_L) * mR
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                 endif
-                
-            case (4) 
+
+            case (4)
                 ! reward positive only if clockwise (-1) or anti-clockwise (+1).
                 ! no penalty for translation of center of mass.
                 ! NON - NEGATIVE REWARD
                                 ! reward positive irrespective to direction of rotation
                 if (sum(Obs(i, ((1+flag_diff)*cones+(cones+1)/2):&
                                ((1+flag_diff)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, touch(i), dRod * 24. / rod_L) * mR 
+                    Rew(i) = reward_rotate(abs(rotRod), torque*old_rotDir, touch(i), dRod * 24. / rod_L) * mR
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                     Obs(i, (2+flag_diff)+1) = rotDir
                 endif
-                
+
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
         end select
-        
+
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
 
@@ -1108,10 +1108,10 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 contains
 
     real FUNCTION ff(x,y,x1,y1,x2,y2)
-      implicit none 
+      implicit none
       real :: x1,y1,x2,y2,x,y
       ff = (x-x1)*(y2-y1) - (y-y1)*(x2-x1)
-      return 
+      return
     end function
 
     integer FUNCTION crossing(x1,y1,x2,y2,rx1,ry1,rx2,ry2)
@@ -1135,20 +1135,20 @@ contains
 
       reward_rotate =  ((rotRod * tq) - dRod) * near
       return
-    end function reward_rotate    
+    end function reward_rotate
 
     real FUNCTION reward_move_back(rss, dRod, a, b, near)
     ! reward function for linear translation in direction (-x)
-      implicit none 
+      implicit none
       !
       real :: rss, a, b, dRod
       integer :: near
       reward_move_back =  -cos(b) * dRod * cos(a)**2 / rss * near * 10.
       return
-    end function reward_move_back    
-    
+    end function reward_move_back
+
     real FUNCTION reward_move(rss, dRod, a, b, rot, near)
-    ! Reward function for linear translation in any direction. 
+    ! Reward function for linear translation in any direction.
     ! Maximum reward when particle is aligned with rod direction.
     ! substracts a cost for rotation
       implicit none
@@ -1158,5 +1158,5 @@ contains
       reward_move = (dRod * cos(ab_half) / rss * near  - abs(rot)) * 10.
       return
     end function reward_move
-    
+
 end subroutine

@@ -45,7 +45,7 @@ def map_local_swirl(pos, orient, sigma, rotation):
         local_swirl[i,6] = rotation[i]
         local_swirl[i,7] = np.dot(gaussian(dist, 0, sigma), rotation)
     return local_swirl
-    
+
 def how_much_rot(traj, last, first):
     theta_new = np.arctan2(particles[last, :, 4], particles[last, :, 3])
     theta_old = np.arctan2(particles[first, :, 4], particles[first, :, 3])
@@ -78,9 +78,9 @@ def local_vorticity(pos, orient):
         orthodist = displ / dist
         local_vortex[i] = np.dot(gaussian(dist, 0, 50), (rel_orient[:,1]/displ[:,0] - rel_orient[:,0]/displ[:,1]))
     return local_vortex
-    
+
 if __name__ == "__main__":
-    # READS FOOD_REW AS INPUT    
+    # READS FOOD_REW AS INPUT
     traj_name = sys.argv[1]
     Np = np.int(sys.argv[2])
     rot_avg = np.int(sys.argv[3])
@@ -112,4 +112,3 @@ if __name__ == "__main__":
             #np.savetxt('local_swirl_'+traj_name+'_frame{:04d}.xyz'.format(iframe), np.c_[local_swirl, local_vortex])
             np.savetxt('local_swirl_'+traj_name+'_frame{:04d}.xyz'.format(iframe), local_vortex)
         print(iframe, volume, elongation, np.sum(abs(local_vortex))/W, np.max(local_vortex), sigma)
-        

@@ -27,14 +27,14 @@ if __name__ == "__main__":
     L = np.float128(96)
     dist = 1.3
     Nrod, rod = spherical_lens(L, dist, Xcenter)
-    mass = 30 
+    mass = 30
     inertia = 0
     cm = np.mean(rod, axis=0)
     print(cm.shape)
     for i in range(rod.shape[0]):
         r2 = (rod[i,0]-cm[0])**2+(rod[i,1]-cm[1])**2
         inertia += r2 * mass / Nrod * rod[i,2] / (Nrod * cm[2])
-    
+
     penalty = 0.0
 
     radius = np.sqrt(Xcenter*Xcenter + L*L/4)

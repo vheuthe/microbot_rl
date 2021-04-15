@@ -23,7 +23,7 @@ class FoodEnvironment():
         self.sig_vel_act = sig_vel_act
         self.vel_tor = vel_tor
         self.sig_vel_tor = sig_vel_tor
-        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
+        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
         # Food configuration
         self.food_dist = food_dist
         self.food_amount = food_amount
@@ -98,7 +98,7 @@ class FoodEnvironment():
 
     def evolve(self, actions):
         """Simulates the environment dynamics p(s', r | s, a)
-        
+
         As the Environment keeps track of the current state, only the choosen actions have to be
         passed to the function.
         """
@@ -106,10 +106,10 @@ class FoodEnvironment():
         # Evolve multiple steps of brownian dynamics for one action
         self.particles = evolve_food.evolve_md(
             self.particles[:,0], self.particles[:,1], self.particles[:,2], actions,
-            self.Rm, self.Rr, self.dt, self.steps, self.torque, 
+            self.Rm, self.Rr, self.dt, self.steps, self.torque,
             self.vel_act, self.sig_vel_act, self.vel_tor, self.sig_vel_tor
         )
-        
+
         # Compute Observables and reward r for new state s'
         observables, reward, eaten = self.get_state()
 
@@ -120,8 +120,8 @@ class FoodEnvironment():
 
     def get_state(self):
         observables, reward, eaten = evolve_food.get_o_r_food_task(
-            self.particles[:,0], self.particles[:,1], self.particles[:,2], 
-            self.obs_type, self.cone_angle, 0, self.food_rew, self.touch_penalty, 
+            self.particles[:,0], self.particles[:,1], self.particles[:,2],
+            self.obs_type, self.cone_angle, 0, self.food_rew, self.touch_penalty,
             self.food[:,0], self.food[:,1], self.food[:,2], self.food[:,3] * (self.food[:,2] > 0),
             self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
         )
@@ -201,7 +201,7 @@ class FoodEnvironment():
                     j = (i + 1) % 2
                     # angle to 2nd food source +- 60°
                     phi = np.arctan2(
-                        self.food[j,1] - self.food[i,1], 
+                        self.food[j,1] - self.food[i,1],
                         self.food[j,0] - self.food[i,0]
                     ) + self.foodrng.choice([np.pi/3, -np.pi/3])
                     # new food forms a triangle with 2nd and depletet food source

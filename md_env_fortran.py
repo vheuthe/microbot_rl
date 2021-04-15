@@ -14,9 +14,9 @@ from fortran import evolve_discreteFood as evolve
 
 #===============================================================================
 # class MDEnv(gym.Env):
-# 
+#
 #     def __init__(self):
-# 
+#
 #   def step(self, action):
 #     ...
 #   def reset(self):
@@ -30,7 +30,7 @@ from fortran import evolve_discreteFood as evolve
 class MD():
     def __init__(self, md_type, index=0, N=10, steps=20, vel_act=0.35, sig_vel_act=0.175, vel_tor=0.20, sig_vel_tor=0.1, dt=0.2, torque=25.0, cost=1., food_rew=1.0, touch_penalty=3., obs_type='1overR', cone_angle=180., dead_vision=0., flag_LOS = False, cones=5, traj=True, ss=6.2, max_payoff=100, data_dir='.', **unused):
 
-        
+
         self.N = N
         self.rewards = np.zeros(N)
 
@@ -46,9 +46,9 @@ class MD():
         self.sig_vel_act = sig_vel_act
         self.vel_tor = vel_tor
         self.sig_vel_tor = sig_vel_tor
-        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)  
-        
-        
+        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+
+
         assert obs_type in  ['1overR', '1overR2'], 'ERROR IN OBS TYPE'
         if (obs_type == '1overR'):
             self.obs_type=1
@@ -56,8 +56,8 @@ class MD():
             self.obs_type=2
         else:
             print('error in receiving obs_type: only "1overR" and "1overR2" accepted. Got {}'.format(obs_type))
-        
-        
+
+
         # output trjectory
         self.traj = traj
         if (self.traj):
@@ -65,7 +65,7 @@ class MD():
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
         assert self.md_type in ['group', 'mix', 'demix', 'switch', 'food'], 'MD type not recognized'
-        
+
         # Observables and reward functions & parameters
         self.flag_LOS = flag_LOS
         self.cone_angle = np.abs(cone_angle)/180.*np.pi # sight is [-cone_angle/2, cone_angle/2], in radiants
@@ -73,10 +73,10 @@ class MD():
 
         self.cost = cost
         self.touch_penalty = touch_penalty
-        
+
         self.max_payoff = max_payoff
         self.ss = 6.2
-        
+
         if (md_type in ['group']):
             self.Nobs = 2*cones
             self.mode = 0
@@ -93,9 +93,9 @@ class MD():
             self.Nobs = 4*cones
             self.mode = 4
             self.food_rew = food_rew
-        
+
 # --------------------------
-# INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi] 
+# INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi]
     def reinitialize_random_for_MD(self, index):
         sN = np.int(np.sqrt(self.N))+1
         particles = np.random.rand(self.N, 3)*[0.0,0.0,2*np.pi]
@@ -106,7 +106,7 @@ class MD():
                   oo = np.random.randint(pos.shape[0])
                   particles[i*sN+j,:] += pos[oo]*20.0
                   pos = np.delete(pos, oo, axis=0)
-        open(self.filexyz, "w") 
+        open(self.filexyz, "w")
         return particles
 
 #------------------------------------------------------
@@ -114,7 +114,7 @@ class MD():
     def print_xyz(self, switch=-1):
         if (self.traj):
             p = self.particles
-            xyz_file = open(self.filexyz, "a") 
+            xyz_file = open(self.filexyz, "a")
             xyz_file.write('\n\n')
             for i in range(self.N):
                 if (self.md_type in ['demix', 'mix']):
@@ -128,7 +128,7 @@ class MD():
     def print_xyz_food(self, Xfood, Yfood, Food, Food_width):
         if (self.traj):
             p = self.particles
-            xyz_file = open(self.filexyz, "a") 
+            xyz_file = open(self.filexyz, "a")
             xyz_file.write('\n\n')
             xyz_file.write('1 {} {} 0.0 {} {} {} {}\n'.format(Xfood, Yfood, 0, 0, Food, Food_width))
             for i in range(self.N):
@@ -142,8 +142,8 @@ class MD():
             # calculate probability of different actions
             prob = np.exp(logp)
             s_entropy = entropy(prob, axis=1)
-            # 
-            xyz_file = open(self.filexyz, "a") 
+            #
+            xyz_file = open(self.filexyz, "a")
             xyz_file.write('\n\n')
             xyz_file.write('1 {} {} 0.0 {} {} {} {} 0.0 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(Xfood, Yfood, 0, 0, Food, Food_width))
             for i in range(self.N):
@@ -156,8 +156,8 @@ class MD():
             # calculate probability of different actions
             prob = np.exp(logp)
             s_entropy = entropy(prob, axis=1)
-            # 
-            xyz_file = open(self.filexyz, "a") 
+            #
+            xyz_file = open(self.filexyz, "a")
             xyz_file.write('\n\n')
             for i in range(self.N):
                 if (self.md_type in ['demix', 'mix']):
@@ -183,14 +183,14 @@ class MD():
         return obs, rewards
 #---------------------
     def get_o_r_switch_task_fortran(self, switch=-1, old_switch=-1):
-        p = self.particles 
+        p = self.particles
         assert switch >= 0
         assert old_switch >= 0
         obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, switch, old_switch, self.obs_type, self.cone_angle, 0, self.flag_LOS, self.Nobs, self.N) #self.cost is cost associated to having "others" in sight
         return obs, rewards
 #---------------------
     def get_o_r_mix_tasks_fortran(self, obs_type):
-        p = self.particles 
+        p = self.particles
         obs, rewards = evolve.get_o_r_mix_tasks(p[:,0], p[:,1], p[:,2], self.cost, self.mode, -1, -1, obs_type, self.cone_angle, self.dead_vision, self.flag_LOS, self.Nobs, self.N) #1.0 is cost associated to having "others" in sight. -1 is fake switch
         return obs, rewards
 #-----------------------------------------------------
@@ -201,27 +201,27 @@ class MD():
     def get_obs_rewards_food(self, XP=0, YP=0, Food=0, Food_width=-1):
         if (Food_width == -1):
             Food_width = np.sqrt(Food)
-        return self.get_o_r_group_food_task_fortran(XP, YP, Food, Food_width)  
+        return self.get_o_r_group_food_task_fortran(XP, YP, Food, Food_width)
 #---------------------
     def get_o_r_group_food_task_fortran(self, XP, YP, Food, Food_width = -1):
-        p = self.particles 
+        p = self.particles
         self.dead_vision = 0
-        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, self.touch_penalty , XP, YP, Food, Food_width, self.max_payoff, self.ss, self.Nobs, self.N) 
+        obs, rewards, eaten = evolve.get_o_r_food_task(p[:,0], p[:,1], p[:,2], self.obs_type, self.cone_angle, self.dead_vision, self.food_rew, self.touch_penalty , XP, YP, Food, Food_width, self.max_payoff, self.ss, self.Nobs, self.N)
         self.obs = obs
-        return obs, rewards, eaten          
-#------------------------------------------------------          
-        
+        return obs, rewards, eaten
+#------------------------------------------------------
+
     def get_NN(self):
         p = self.particles
         return evolve.get_neigh(p[:,0], p[:,1], self.N)
 
 #------------------------------------------------------
     def get_order(self):
-        p = self.particles 
+        p = self.particles
         order, swirl = evolve.get_order_param(p[:,0], p[:,1], p[:,2], self.N)
         return order, swirl
-        
-#------------------------------------------------------          
+
+#------------------------------------------------------
     def evolve_MD(self, action, switch=-1, old_switch=-1, XP=-100., YP=-100., Food=0, Food_width=-1, flag_mobility = False):
         done = False
         X = self.particles[:,0]
@@ -237,8 +237,8 @@ class MD():
             self.rewards = rewards
             return obs, rewards, eaten, done, {}
 
-#------------------------------------------------------          
-      
+#------------------------------------------------------
+
 #
 # ------------------------------------
 # End of class MD

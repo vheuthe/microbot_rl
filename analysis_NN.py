@@ -80,10 +80,10 @@ def load_scenario(name_file, x, y):
     sc = open(name_file, "r")
     pxy = np.loadtxt(name_file)
     N = pxy.shape[0] + 2
-    assert N%2 == 0 
+    assert N%2 == 0
     p = np.zeros((N,4))
     p[N//2:,3]=1
-    p[1:-1,:2]=pxy 
+    p[1:-1,:2]=pxy
     p[-1,:] = [x,y,0,1]
     p[0 ,:] = [x,y,0,0]
     return p
@@ -99,13 +99,13 @@ if __name__ == "__main__":
 
     # From Scenario to Observables
     # Particle in the middle rotates from -Pi/2 to 3/2 Pi in 100 steps
-    angles = np.linspace(-np.pi/2., 3/2.*np.pi, 100) 
+    angles = np.linspace(-np.pi/2., 3/2.*np.pi, 100)
     N = p.shape[0]
     result = open('results_{}'.format(input_scenario), "w")
-    
+
     for a in angles:
         p[-1,2] = a
-        p[0,:3] = [xpos-np.cos(a), ypos-np.sin(a), 0] # shadow particle just for keeping even number 
+        p[0,:3] = [xpos-np.cos(a), ypos-np.sin(a), 0] # shadow particle just for keeping even number
         obs, rewards = evolve_food.get_o_r_mix_tasks(
             p[:,0], p[:,1], p[:,2],   # X , Y, Theta    respectively
             1.0, 2, -1,               # mixing cost, demixing mode, switch_flag

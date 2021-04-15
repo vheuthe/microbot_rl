@@ -13,9 +13,9 @@ import sys
 
 #===============================================================================
 # class MDEnv(gym.Env):
-# 
+#
 #     def __init__(self):
-# 
+#
 #   def step(self, action):
 #     ...
 #   def reset(self):
@@ -32,7 +32,7 @@ class MD():
         self.dt = dt
         self.vel_prey = vel
         self.torque_prey = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
-        
+
         self.N = N
         self.size = size
         self.n_MD_steps =steps
@@ -46,19 +46,19 @@ class MD():
         self.particles = self.reinitialize_random_for_MD(index)
         self.md_type = md_type
         assert self.md_type in ['group', 'demix'], 'MD type not recognized'
-        
+
 # --------------------------
-# INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi] 
+# INITIALIZE RANDOMLY X,Y IN A BOX [-10:10,-10:10] AND THETA [-pi, pi]
     def reinitialize_random_for_MD(self, index):
         particles = (2*np.random.rand(self.N,3) - [1,1,1]) * [self.size,self.size,np.pi]
-        open(self.filexyz, "w") 
+        open(self.filexyz, "w")
         return particles
 
 # ACTUALLY MOVE THE PARTICLES
     def move_all(self, action): # action is vector of ALL actions
         p = self.particles
         g_rand_p = np.random.normal(0,self.Rm,(self.N,3))
-        g_rand_p[:,2] =  g_rand_p[:,2] / self.Rm * self.Rr 
+        g_rand_p[:,2] =  g_rand_p[:,2] / self.Rm * self.Rr
         # ACTIVE FORCE OF PREY, IF ACTIVATE
         actvel_p = np.zeros((self.N,3))
         for i in range(self.N):
@@ -72,7 +72,7 @@ class MD():
         # PRINT TRAJECTORY
     def print_xyz(self):
         p = self.particles
-        xyz_file = open(self.filexyz, "a") 
+        xyz_file = open(self.filexyz, "a")
         xyz_file.write(str(self.N)+'\n\n')
         for i in range(self.N):
             xyz_file.write('p '+str(p[i,0])+ ' '+str(p[i,1])+' 0.0 ' + str(p[i,2]) + '\n')
@@ -87,8 +87,8 @@ class MD():
             for j in range(self.N):
                 if i!=j:
                     n_cone, dist = get_cone_sight(p[i], p[j])
-                    if n_cone > -1 and n_cone < 5: 
-                        #if dist < 15: 
+                    if n_cone > -1 and n_cone < 5:
+                        #if dist < 15:
                         rewards[i]     += 2/(dist/5+10)*value_cone[n_cone]
                         obs[i][n_cone] += 2/(dist/5+10)
             if (obs[i] == 0).all(): rewards[i] -= 2
@@ -105,8 +105,8 @@ class MD():
                 if i!=j:
                     other = (i//(self.N//2) + j//(self.N//2))%2
                     n_cone, dist = get_cone_sight(p[i], p[j])
-                    if n_cone > -1 and n_cone < 5: 
-                        #if dist < 15: 
+                    if n_cone > -1 and n_cone < 5:
+                        #if dist < 15:
                         if (other == 1):
                             rewards[i]     += 2/(dist/5+10)*value_cone[n_cone] * -0.5
                         else:
@@ -121,7 +121,7 @@ class MD():
         	   return self.get_o_r_group()
         elif self.md_type == 'demix':
         	   return self.get_o_r_demix()
-    
+
 
     def evolve_MD(self, action):
         done = False
@@ -131,7 +131,7 @@ class MD():
             self.particles = self.particles + dp * self.dt
             #  predator = predator + dpredator * dt / m / eta
             obs, rewards = self.get_obs_rewards()
-            if (obs==0).all(): 
+            if (obs==0).all():
                 done = True
         return obs, rewards, done, {}
 #
@@ -149,5 +149,5 @@ def get_cone_sight(A, B):
     dist = math.sqrt(dx*dx + dy*dy)
     dist_theta = math.atan2(dy, dx)
     rel_theta = ((dist_theta - A[2])/math.pi + 1.0)%(2.0)-0.5
-    n_cone = math.floor(rel_theta*5) 
+    n_cone = math.floor(rel_theta*5)
     return int(n_cone), dist

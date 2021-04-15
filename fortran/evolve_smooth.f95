@@ -21,7 +21,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     ss2  = ss*ss
     ss6  = ss2*ss2*ss2
     ss12 = ss6*ss6
-    ! =======================================   
+    ! =======================================
 
     new_XYT(:,1) = X
     new_XYT(:,2) = Y
@@ -36,7 +36,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
     ! =============================
     ! thermal motion + activity
     ! =============================
-         
+
         do i = 1, N
             velX(i) = gran()*Rm
             velY(i) = gran()*Rm
@@ -78,8 +78,8 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
                   velX(i) = velX(i) - ff*dx
                   velY(i) = velY(i) - ff*dy
                   velX(j) = velX(j) + ff*dx
-                  velY(j) = velY(j) + ff*dy                  
-              endif 
+                  velY(j) = velY(j) + ff*dy
+              endif
           enddo
       enddo
 
@@ -97,7 +97,7 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, &
 
     return
 
-contains 
+contains
 
     real FUNCTION gran()
     !     polar form of the Box-Muller transformation
@@ -137,10 +137,10 @@ subroutine get_neigh(X, Y, NN, N)
     real :: dx, dy, r2, ss2=8*8
 
     NN = 0
-    
+
     do i = 1, N-1
         do j = i+1, N
-        
+
             other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
@@ -149,7 +149,7 @@ subroutine get_neigh(X, Y, NN, N)
                 NN(i,other+1) = NN(i,other+1) + 1
                 NN(j,other+1) = NN(j,other+1) + 1
             endif
-            
+
         enddo
     enddo
     return
@@ -180,7 +180,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
     Rew = 0
     NN = 0
 
-    
+
     ! calculate real number of sight cones
     select case (mode)
     case (1) ! pure mixing
@@ -190,15 +190,15 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
     case (3) ! switch mixing/demixing
         cones = (NObs - 2) / 2
     end select
-    
+
     ! to calculate smooth vision
     allocate(edge(cones,2))
     do i = 0, cones-1
         edge(i+1,1) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*i/cones     + i * dead_vision
         edge(i+1,2) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*(i+1)/cones + i * dead_vision
-    enddo 
+    enddo
     cone_slice = cone_angle / cones
-    
+
     ! print*, 'EDGES'
     ! do i = 1, cones
         ! print*, edge(i,1)/PI*180, edge(i,2)/PI*180
@@ -206,73 +206,73 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
 
     do i = 1, N-1
         do j = i+1, N
-        
+
             other = -int(sign(0.5, (i-N/2-0.5)*(j-N/2-0.5))-0.5)
-            
+
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
-            
+
             if (r < ss*1.5) then
                 NN(i,1+other) = NN(i,1+other)+1
                 NN(j,1+other) = NN(j,1+other)+1
             endif
-            
+
             dtheta = atan2(dy,dx)
             sp_th = atan(ss, r)/2.
-            ! i to j 
+            ! i to j
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI
             ! th goes from [-pi, pi]
-            
+
             ! n_cone = 1 .. n_cone
             ! for theta in range [ -cone_angle , cone_angle]
-                        
-            if (obs_type == 1) then 
+
+            if (obs_type == 1) then
                 val = (6.8/r)
             else if (obs_type == 2) then
                 val = (6.8/r**2)
-            else 
+            else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-            
+
             covered_l = 0
-            covered_r = 0   
+            covered_r = 0
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                 ! terribly expensive way
                 ! to account for line of sight
 
                 if (flag_LOS) then
-                    do k = 1, N 
-                        
+                    do k = 1, N
+
                         if ((i==k).or.(j==k)) cycle
-                        
+
                         dx2 = X(k)-X(i)
                         dy2 = Y(k)-Y(i)
                         r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                         if (r2 > r) cycle !only closer particles can obscure
-                        
+
                         dtheta2 = atan2(dy2,dx2)
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                         dark = atan(ss, r2)/2 ! cone of shadow
-                       
+
 
                         if (abs(th-dtheta2) < dark + sp_th) then
                             if (th .lt. dtheta2) then
-                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                             else if (th .ge. dtheta2) then
                                 covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                             endif
-                            
+
                             if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
                         endif
-                        
+
                     enddo
                 endif
-                
+
                 vision_l = th+sp_th-covered_l
                 vision_r = th-sp_th+covered_r
 
@@ -280,32 +280,32 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
                     ! fraction of particle in sight
                     ! if particle in cone
                     in_sight = 0.
-                    
-                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
-                    
+
+                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.
+
                     Obs(i,n_cone+other*cones) = Obs(i,n_cone+other*cones)+val*in_sight
-                    
+
                     if (Obs(i, n_cone + other*cones) > 6.8/5.5 * (cone_slice) / atan(6.2/6.) ) then
                         print*, "ERROR"
                     endif
-                    
-                    
+
+
                 enddo
-                
+
             !    Rew(i) = Rew(i)+val*(1.-other*(1+cost))
             endif
-            
+
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = (th - floor(th + 0.5))*2*PI
             covered_l = 0
-            covered_r = 0   
+            covered_r = 0
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                 ! terribly expensive way
                 ! to account for line of sight
                 if (flag_LOS) then
-                    do k = 1, N 
+                    do k = 1, N
                         if ((i==k).or.(j==k)) cycle
                         dx2 = X(k)-X(j)
                         dy2 = Y(k)-Y(j)
@@ -315,7 +315,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
                         dtheta2 = (dtheta2 - Theta(j))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                         dark = atan(ss, r2)/2.
-                        
+
                         ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                         if (abs(th-dtheta2) < dark+sp_th) then
                             if (th .lt. dtheta2) then
@@ -323,11 +323,11 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
                             else if (th .ge. dtheta2) then
                                 covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                             endif
-                            
+
                             if (covered_l+covered_r > 2*sp_th) exit
                         endif
-                        
-                    enddo            
+
+                    enddo
                 endif
 
                 vision_l = th+sp_th-covered_l
@@ -337,18 +337,18 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
                     ! fraction of particle in sight
                     ! if particle in cone
                     in_sight = 0.
-                                        
-                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
-                    
+
+                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.
+
                     Obs(j,n_cone+other*cones) = Obs(j,n_cone+other*cones)+val*in_sight
-                                        
+
                 enddo
               !    Rew(j) = Rew(j)+val*(1.-other*(1+cost))
             endif
         enddo
     enddo
-    
-    
+
+
     do i = 1, N
         select case (mode)
             case (1) ! pure mixing
@@ -357,7 +357,7 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
             case (2) ! pure demixing
                 Rew(i) = sum(Obs(i, 1:cones)) - cost*sum(Obs(i, (cones+1):(cones*2)))
             case (3) ! switch mixing/demixing
-                if (old_switch == 0) then 
+                if (old_switch == 0) then
                     Rew(i) = sum(Obs(i, 1:cones)) - cost*sum(Obs(i, (cones+1):(cones*2)))
                 else if (old_switch == 1) then
                     Rew(i) = (sum(Obs(i, 1:cones)) + sum(Obs(i, (cones+1):(cones*2)))) &
@@ -370,11 +370,11 @@ subroutine get_o_r_mix_tasks(X, Y, Theta, cost, mode, switch, old_switch, obs_ty
             case(4) ! neighbor count
         end select
     enddo
-    
+
     do i = 1, N
        if ( sum(Obs(i,1:(2*cones))) .eq. 0 ) Rew(i) = -2
     enddo
-    
+
     return
 
 end subroutine
@@ -406,7 +406,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
 
     Obs = 0
     Rew = 0
-    
+
     ! CONES
     ! 2/3 orientational weighted vision - 1/3 food vision
     cones = NObs / 3
@@ -416,84 +416,84 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     do i = 0, cones-1
         edge(i+1,1) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*i/cones     + i * dead_vision
         edge(i+1,2) = (-cone_angle/2. - (cones-1)*dead_vision/2.) + cone_angle*(i+1)/cones + i * dead_vision
-    enddo 
+    enddo
     cone_slice = edge(0,2) - edge(0,1)
 
     ! Maximum payoff for compactness
-    if (obs_type == 1) then 
-        max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0) 
+    if (obs_type == 1) then
+        max_payoff = 0.25 * (6.8 / ss)    * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
     else if (obs_type == 2) then
         max_payoff = 0.15 * (6.8 / ss)**2 * (1 - ratio_rew) * (cone_angle / 2.) / atan(1.0)
-    else 
+    else
         print*, 'ERROR NO OBS_TYPE IS DEFINED!'
         STOP
     endif
 
     do i = 1, N-1
-        
+
         ! FELLOW PARTICLES
         do j = i+1, N
-        
+
             dx = X(j)-X(i)
             dy = Y(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
-            
+
             dtheta = atan2(dy,dx)
             sp_th = atan(ss, r)/2.
             ! i to j ============================================
             th = (dtheta - Theta(i))/2./PI
-            th = (th - floor(th + 0.5))*2*PI 
+            th = (th - floor(th + 0.5))*2*PI
             ! th in [-pi, pi]
             th_orient = (Theta(j)- Theta(i))/2./PI
-            th_orient = (th_orient - floor(th_orient + 0.5))*2*PI 
-            
-            if (obs_type == 1) then 
+            th_orient = (th_orient - floor(th_orient + 0.5))*2*PI
+
+            if (obs_type == 1) then
                 val = (6.8/r)
             else if (obs_type == 2) then
                 val = (6.8/r)**2
-            else 
+            else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
             endif
-            
+
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
                 Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty !* (1 - ratio_rew), penalty to touch - always active
                 Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty !* (1 - ratio_rew), penalty to touch - always active
             endif
-            
-            
+
+
             covered_l = 0
-            covered_r = 0   
-            
+            covered_r = 0
+
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
             ! terribly expensive way
             ! to account for line of sight
-                do k = 1, N 
-    
+                do k = 1, N
+
                     if ((i==k).or.(j==k)) cycle
                     dx2 = X(k)-X(i)
                     dy2 = Y(k)-Y(i)
                     r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                     if (r2 > r) cycle !only closer particles can obscure
-                
+
                     dtheta2 = atan2(dy2,dx2)
                     dtheta2 = (dtheta2 - Theta(i))/2./PI
                     dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                    dark = atan(ss, r2)/2 ! cone of shadow                   
+                    dark = atan(ss, r2)/2 ! cone of shadow
 
                     if (abs(th-dtheta2) < dark + sp_th) then
                         if (th .lt. dtheta2) then
-                            covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                            covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                         else if (th .ge. dtheta2) then
                             covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                         endif
-                        
+
                         if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
-                    endif                    
+                    endif
                 enddo
-                
+
                 vision_l = th+sp_th-covered_l
                 vision_r = th-sp_th+covered_r
 
@@ -501,30 +501,30 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     ! fraction of particle in sight
                     ! if particle in cone
                     in_sight = 0.
-                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2. 
-                    
+                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.
+
                     Obs(i,2*n_cone-1) = Obs(i,2*n_cone-1)+val*in_sight*cos(th_orient)
                     Obs(i,2*n_cone  ) = Obs(i,2*n_cone  )+val*in_sight*sin(th_orient)
-                    Rew(i) = Rew(i) +  val*in_sight * (1-ratio_rew)                     
-                    
+                    Rew(i) = Rew(i) +  val*in_sight * (1-ratio_rew)
+
                 enddo
             endif
-            
-           
+
+
             ! j to i
             th = (dtheta + PI - Theta(j))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = (th - floor(th + 0.5))*2*PI
             th_orient = (Theta(i)- Theta(j))/2./PI
-            th_orient = (th_orient - floor(th_orient + 0.5))*2*PI 
+            th_orient = (th_orient - floor(th_orient + 0.5))*2*PI
 
             covered_l = 0
-            covered_r = 0   
+            covered_r = 0
 
             if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
             ! terribly expensive way
             ! to account for line of sight
-                do k = 1, N 
+                do k = 1, N
                     if ((i==k).or.(j==k)) cycle
                     dx2 = X(k)-X(j)
                     dy2 = Y(k)-Y(j)
@@ -534,7 +534,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     dtheta2 = (dtheta2 - Theta(j))/2./PI
                     dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
                     dark = atan(ss, r2)/2.
-                    
+
                     ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                     if (abs(th-dtheta2) < dark+sp_th) then
                         if (th .lt. dtheta2) then
@@ -542,11 +542,11 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                         else if (th .ge. dtheta2) then
                             covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                         endif
-                        
+
                         if (covered_l+covered_r > 2*sp_th) exit
                     endif
-                    
-                enddo            
+
+                enddo
 
                 vision_l = th+sp_th-covered_l
                 vision_r = th-sp_th+covered_r
@@ -555,12 +555,12 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                     ! fraction of particle in sight
                     ! if particle in cone
                     in_sight = 0.
-                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.                     
+                    in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) /sp_th/2.
 
                     Obs(j,2*n_cone-1) = Obs(j,2*n_cone-1)+val*in_sight*cos(th_orient)
                     Obs(j,2*n_cone  ) = Obs(j,2*n_cone  )+val*in_sight*sin(th_orient)
-                    
-                    Rew(j) = Rew(j) +  val*in_sight * (1-ratio_rew)                     
+
+                    Rew(j) = Rew(j) +  val*in_sight * (1-ratio_rew)
                 enddo
             endif
         enddo
@@ -574,28 +574,28 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     Food_radius = Food_width / 2 !Food_width is diameter, we need radius
 
     if (food_radius > 0) then
-        do i = 1, N       
+        do i = 1, N
             ! FOOD SOURCE
             dx = XP - X(i)
             dy = YP - Y(i)
             r = sqrt(dx*dx + dy*dy)
             dtheta = atan2(dy,dx)
             sp_th = atan(Food_width, r)/2.
-            ! i to j 
+            ! i to j
             th = (dtheta - Theta(i))/2./PI
             ! th goes from [-0.5, 0.5], correspondin to [-pi, pi]
             th = (th - floor(th + 0.5))*2*PI
             val = Food_width / r
-            
+
             ! VALUE OF FOOD
             if (r > food_radius) then
                 covered_l = 0
-                covered_r = 0   
-                
+                covered_r = 0
+
                 if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
                 ! terribly expensive way
                 ! to account for line of sight
-                    do k = 1, N 
+                    do k = 1, N
 
                         if (i==k) cycle
                         dx2 = X(k)-X(i)
@@ -603,23 +603,23 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                         r2 = sqrt(dx2*dx2 + dy2*dy2)
 
                         if (r2 > r) cycle !only closer particles can obscure
-                    
+
                         dtheta2 = atan2(dy2,dx2)
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                        dark = atan(ss, r2)/2 ! cone of shadow                   
+                        dark = atan(ss, r2)/2 ! cone of shadow
 
                         if (abs(th-dtheta2) < dark + sp_th) then
                             if (th .lt. dtheta2) then
-                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark)) 
+                                covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
                             else if (th .ge. dtheta2) then
                                 covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
                             endif
-                            
+
                             if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
-                        endif                    
+                        endif
                     enddo
-                    
+
                     vision_l = th+sp_th-covered_l
                     vision_r = th-sp_th+covered_r
 
@@ -627,8 +627,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
                         ! fraction of particle in sight
                         ! if particle in cone
                         in_sight = 0.
-                        in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) / sp_th / 2. 
-                        
+                        in_sight = max((min(vision_l, edge(n_cone,2)) - max(vision_r, edge(n_cone,1))), 0.) / sp_th / 2.
+
                         Obs(i,n_cone + 2*cones) = Obs(i,n_cone + 2*cones)+val*in_sight
                     enddo
 
@@ -656,7 +656,7 @@ subroutine get_order_param(X, Y, Theta, order_gl, swirl_gl, N)
     real , intent(in) :: X(N), Y(N), Theta(N)
     integer, intent(in) :: N
     ! output
-    real , intent(out) :: order_gl, swirl_gl !, order_loc(N), swirl_loc(N) 
+    real , intent(out) :: order_gl, swirl_gl !, order_loc(N), swirl_loc(N)
     ! internal processes
     integer :: i
     real :: dx, dy, r, or_x, or_y
@@ -680,7 +680,7 @@ subroutine get_order_param(X, Y, Theta, order_gl, swirl_gl, N)
         or_x = or_x + cos(Theta(i))
         or_y = or_y + sin(Theta(i))
     enddo
-    
+
     order_gl = sqrt(or_x**2 + or_y**2) / N
     swirl_gl = swirl_gl / N
 

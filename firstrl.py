@@ -14,8 +14,8 @@ def discount_cumsum(x, discount):
     """
     Magic from rllab for computing discounted cumulative sums of vectors.
 
-    Returns the discounted cummulative sum 
-    `[x0 + discount * x1 + discount^2 * x2, x1 + discount * x2, x2]` 
+    Returns the discounted cummulative sum
+    `[x0 + discount * x1 + discount^2 * x2, x1 + discount * x2, x2]`
     for an array-like input vector `x`.
     """
     return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
@@ -26,7 +26,7 @@ class Trajectory():
   '''
   Utility class to store a single trajectory
 
-  A trajectory is defined as a sequence of states, actions and rewards: 
+  A trajectory is defined as a sequence of states, actions and rewards:
   `s -> a -> r,s' -> a' -> r',s''`.
   Each state is stored in the form of the corresponding set of observables
   and the current value estimate of that state. Alongside with each action,
@@ -73,8 +73,8 @@ class AgentActiveMatter():
                **unused_parameters):
     '''
     Constructs a new RL Agent.
-    
-    If `load_models` is set, models are loaded from `load_models + '_critic/'` and 
+
+    If `load_models` is set, models are loaded from `load_models + '_critic/'` and
     `load_models + '_policy/'`, otherwise new models are constructed based on
     `input_dim`, `output_dim` and `model_structure`.
 
@@ -99,15 +99,15 @@ class AgentActiveMatter():
 
       self.input_dim = self.critic.layers[0].input_shape[1]
       self.n_actions = self.policy.layers[-1].output_shape[1]
-      self.reset_memory()    
+      self.reset_memory()
 
     else:
       print('Starting new model')
       assert model_structure, 'model structure is not defined!'
-      
+
       self.input_dim = input_dim
       self.n_actions = output_dim
-      self.reset_memory()    
+      self.reset_memory()
 
       # Actor Neural Network
       self.policy = tf.keras.Sequential(
@@ -167,12 +167,12 @@ class AgentActiveMatter():
     '''Initialize new trajectories with `observables` of shape `(n_particles, input_dim)`.'''
     self.particles = [
       Trajectory(obs, self.critic(obs.reshape(1,-1))) for obs in observables
-    ]    
+    ]
 
 
   def get_actions(self):
     '''
-    Returns a list of actions `a` and their corresponding `log(P)` distribution from which 
+    Returns a list of actions `a` and their corresponding `log(P)` distribution from which
     they have been drawn, given the current state `s` of the Particles.
     '''
 
@@ -189,7 +189,7 @@ class AgentActiveMatter():
     # save for training
     for par, a, dist in zip(self.particles, actions, logp):
       par.add_action(a, dist[a])
-    
+
     return actions, logp
 
 
@@ -197,9 +197,9 @@ class AgentActiveMatter():
     '''
     Update the Agent with the rewards for the last actions and the new states.
 
-    If particles got lost since the last action, their IDs (= index position of 
+    If particles got lost since the last action, their IDs (= index position of
     the corresponding actions) need to be provided in order finish their trajectories.
-    `observables` is expected to be of shape `(n_particle, input_dim)` wich may not 
+    `observables` is expected to be of shape `(n_particle, input_dim)` wich may not
     contain the lost particles anymore, but may contain new particles at the end.
     '''
 
@@ -227,8 +227,8 @@ class AgentActiveMatter():
   def finish_trajectory(self, traj):
     '''
     Consumes a trajectory and converts it into experience that can be used to
-    train the models (i.e. calculate the Genaral Advantage Estimator and 
-    bootstrapped Return / Rewards-to-go). 
+    train the models (i.e. calculate the Genaral Advantage Estimator and
+    bootstrapped Return / Rewards-to-go).
     If the particle got lost, the last action is discarded.
 
     **FROM SPINNING UP's PPO CODE:**
@@ -251,7 +251,7 @@ class AgentActiveMatter():
       return
 
     if len(traj.act) == len(traj.obs):
-      # no reward for the last action, this happens when the particle got lost, 
+      # no reward for the last action, this happens when the particle got lost,
       # so the last action should be discarded
       traj.act.pop()
       traj.logp.pop()
@@ -302,7 +302,7 @@ class AgentActiveMatter():
     adv_std = np.std(self.adv)
     if (adv_std > 0.1e-1):
         self.adv = (self.adv - np.mean(self.adv)) / adv_std
-    
+
     # -- POLICY FITTING --
     for i in range(epochs):
       # TensorFlow GradientTape magic to do numeric derivatives
@@ -318,14 +318,14 @@ class AgentActiveMatter():
         probability_ratio = tf.exp(new_logp - self.logp)
         min_adv = np.where(self.adv > 0, (1+self.CL) * self.adv, (1-self.CL) * self.adv)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.adv, min_adv))
-        
+
         # additional loss function to keep finite entropy:
         # DKL(P_uniform || P_new) = -log(P_new) calculates the Kullback-Leibler divergence
         # between the current distribution and a uniform distribution. If en_coeff > 0 this
         # term biases the loss function towards more entropy, to keep a minimum amount of
         # explorative behavior in the policy
         loss = loss_ppo2 + self.en_coeff * tf.reduce_mean(-new_logp_dist)
-        
+
       # calculate numerical derivative of the loss function in respect to the policy parameters θ
       grads = tape.gradient(loss, self.policy.trainable_variables)
       # optimize the policy along these gradients
@@ -340,6 +340,6 @@ class AgentActiveMatter():
 
     # -- CRITIC FITTING --
     self.critic.fit(x=self.obs, y=self.target, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
-    
+
     # clean up
     self.reset_memory()

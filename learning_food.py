@@ -70,7 +70,7 @@ def do_array_task(task_id, job_dir):
 
     # construct folder name from relevant parameters
     data_dir = os.path.join(
-        job_dir, 
+        job_dir,
         '_'.join([key + str(val) for key, val in selected_parameters.items()])
     )
 
@@ -88,9 +88,9 @@ def do_task(selected_parameters, data_dir):
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
-    # instantiate agent with new neural networks 
+    # instantiate agent with new neural networks
     agent = AgentActiveMatter(
-        models_rootname = os.path.join(data_dir, 'model'), 
+        models_rootname = os.path.join(data_dir, 'model'),
         restart_models = False,
         **parameters
     )
@@ -121,7 +121,7 @@ def do_task(selected_parameters, data_dir):
             stop_time = 10*3600,
         )
         agent.save_weights(os.path.join(data_dir, 'model'), 'train_{:02d}'.format(episode))
-    
+
     # no training after this point
     agent.save_models(os.path.join(data_dir, 'model'))
 
@@ -150,7 +150,7 @@ def do_task(selected_parameters, data_dir):
 
 
 def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agent=False, seed=None, stop_time=np.inf, stop_food_counter=np.inf):
-    
+
     # argument checks
     assert np.isfinite(stop_time) or np.isfinite(stop_food_counter), "No stop condition set!"
 
@@ -174,7 +174,7 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
 
         # get environment response
         observables, rewards = environment.evolve(actions)
-        
+
         # add environment response
         values = agent.add_environment_response([], observables, rewards)
 
@@ -198,12 +198,12 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
         # stop episode
         if step*parameters['action_time'] >= stop_time or environment.food_counter >= stop_food_counter:
             break
-    
+
     # clean up unfinished trajectories
     agent.finish_episode()
     if not train_agent:
         agent.reset_memory()
-  
+
     if stats_file:
         stats_file.close()
     if traj_file:

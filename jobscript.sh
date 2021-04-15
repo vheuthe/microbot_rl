@@ -13,7 +13,7 @@
 #$ -m a
 #$ -M robert.loeffler@uni-konstanz.de
 
-## Queue 
+## Queue
 ## (don't use old, our libaries are compiled with modern math instructions)
 #$ -q scc,long
 
@@ -45,4 +45,3 @@ learning_food.do_array_task(task_id, job_dir)
 ENDOFPYTHON
 
 date --iso-8601=seconds
-

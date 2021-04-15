@@ -84,9 +84,9 @@ if __name__ == "__main__":
             traj_flag=False
             if (iMD == start_MD + n_MD - 1):
                 traj_flag=True
-            md = MD_ROD(index=iMD, N=N, size=100, skew=skew, 
-            steps=steps, vel_act=vel_act, vel_tor=vel_tor, 
-            Dr = Dr, dt=dt, torque=torque, 
+            md = MD_ROD(index=iMD, N=N, size=100, skew=skew,
+            steps=steps, vel_act=vel_act, vel_tor=vel_tor,
+            Dr = Dr, dt=dt, torque=torque,
             sizeRod=96, distRod=1.6, ext_rod=1., cen_rod=1.,
             obs_type='1overR', massRod=mR, cones=5, cone_angle=180., flag_side=False,
             flag_LOS=False, ss=0.01, ssrod=0.01, mu_K = mu_K,
@@ -97,7 +97,7 @@ if __name__ == "__main__":
             done = False
             # -----------------------------------------
             for step in range(n_max_steps):
-                
+
                 #if (iMD == n_MD-1):
                 #    np.savetxt(obs_file, obs)
                 actions, logp = Agent.get_actions(flag_logp=True) #return actions vector to give particles, and label
@@ -115,4 +115,3 @@ if __name__ == "__main__":
                 print('{} {} {}'.format(iMD, step, np.sum(rewards)))
 
     Agent.save_models(path=models_rootname, final_save = True)
-
