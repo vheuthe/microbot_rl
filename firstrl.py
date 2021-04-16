@@ -333,7 +333,7 @@ class AgentActiveMatter():
         # between the current distribution and a uniform distribution. If en_coeff > 0 this
         # term biases the loss function towards more entropy, to keep a minimum amount of
         # explorative behavior in the policy
-        loss = loss_ppo2 + self.en_coeff * tf.reduce_mean(-new_logp_dist)
+        loss = loss_ppo2 - self.en_coeff * tf.reduce_mean(new_logp_dist)
 
       # calculate numerical derivative of the loss function in respect to the policy parameters θ
       grads = tape.gradient(loss, self.policy.trainable_variables)

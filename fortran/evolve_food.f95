@@ -73,8 +73,8 @@ subroutine evolve_MD(X,Y,Theta, act, Rm, Rr, dt, nsteps, tor, &
                     ff = 12.*eps*ff/r2
                     ! ==== DEBUG ====
                     if (ff > 1) then
+                        print *, 'too much: ', ff
                         ff = 1
-                        print*, 'too much'
                     endif
                     ! ===============
                     velX(i) = velX(i) - ff*dx
@@ -245,8 +245,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
 
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
-                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty !* (1 - ratio_rew), penalty to touch - always active
-                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty !* (1 - ratio_rew), penalty to touch - always active
+                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew) !, penalty to touch - SCALED!
+                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew) !, penalty to touch - SCALED!
             endif
 
 
