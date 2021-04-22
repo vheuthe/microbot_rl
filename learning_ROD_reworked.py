@@ -1,3 +1,5 @@
+# Reworked analogous to Robert's learning_food.py, where
+# executing an episode, step, etc. are all functions.
 # TEST WITH MD
 import numpy as np
 import sys
@@ -30,7 +32,7 @@ def KL_symm(A,B):
 
 if __name__ == "__main__":
     # READS FOOD_REW AS INPUT
-    mu_K = 0.0 # np.float(sys.argv[1])
+    mu_K = np.float(sys.argv[1])
     # ------------
     mode = 3
     n_input = 10
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     # -- FILL FOR SIMULATION -------------------------
 
     skew = False
-    n_MD = 100
+    n_MD = 50
     total_time = 3600
     step_time = 5
     torque = 25
@@ -84,7 +86,7 @@ if __name__ == "__main__":
             sizeRod=96, distRod=1.6, ext_rod=1., cen_rod=1.,
             obs_type='1overR', cones=5, cone_angle=180., flag_side=False,
             flag_LOS=False, ss=0.01, ssrod=0.01, mu_K = mu_K,
-            traj=traj_flag, mode=mode)
+            traj=traj_flag, mode=mode, data_path=sys.argv[2])
             print('\n\n\n #NEW MD INITIALIZATION!')
             obs, rewards = md.get_obs_rewards() # gets first obs and advantages
             Agent.initialize(obs)

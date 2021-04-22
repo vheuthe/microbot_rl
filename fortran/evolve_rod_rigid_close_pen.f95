@@ -395,7 +395,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: dRodtheta, dRod, Rodtheta
     real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, near2(N), rod_L, min_dist
+    real, dimension(N,N) :: distances
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -730,6 +731,12 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     enddo
 
     do i = 1, N
+        do j = 1, N
+            distances(i,j) = sqrt((X(j)-X(i))**2 + (Y(j)-Y(i))**2)
+        enddo
+    enddo
+
+    do i = 1, N
         a = Theta(i)
         b = dRodtheta
         dx = cmRod(1) - X(i)
@@ -778,6 +785,14 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     Obs(i, (2+flag_side)+1) = cos(a-Rodtheta)
                 endif
         end select
+
+        min_dist = 1000
+
+        do j = 1, N
+            if (distances(i,j) < min_dist) min_dist = distances(i,j)
+        enddo
+
+        Rew(i) = Rew(i) - 10 * exp(-min_dist/3.6)
 
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
@@ -891,7 +906,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, near2(N), rod_L, min_dist
+    real, dimension(N,N) :: distances
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -1210,6 +1226,12 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     enddo
 
     do i = 1, N
+        do j = 1, N
+            distances(i,j) = sqrt((X(j)-X(i))**2 + (Y(j)-Y(i))**2)
+        enddo
+    enddo
+
+    do i = 1, N
         a = Theta(i)
         b = dRodtheta
         dx = cmRod(1) - X(i)
@@ -1255,6 +1277,14 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
         end select
+
+        min_dist = 1000
+
+        do j = 1, N
+            if (distances(i,j) < min_dist) min_dist = distances(i,j)
+        enddo
+
+        Rew(i) = Rew(i) - 10 * exp(-min_dist/3.6)
 
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
