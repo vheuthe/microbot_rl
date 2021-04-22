@@ -34,8 +34,10 @@ class MD_ROD():
                 Dt = 0.014, Dr = 1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
-                traj=False, mode=1, swirl=False):
+                traj=False, mode=1, swirl=False, data_path='/home/veit/Git/reinforcement-learning'):
 
+        # path for writing the trajectories
+        self.data_path = data_path
         # internal knowledge of system
         self.skew = skew
         self.N = N
@@ -102,7 +104,7 @@ class MD_ROD():
         # output trjectory
         self.traj = traj
         if (self.traj):
-            self.filexyz='traj'+str(index)+'.xyz'
+            self.filexyz=self.data_path+'/traj'+str(index)+'.xyz'
         self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl)
         self.old_rod = np.zeros(self.rod.shape)
         self.old_rod[:] = self.rod[:]
