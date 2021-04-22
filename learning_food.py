@@ -29,6 +29,7 @@ default_parameters = {
     'max_nn_rew': 999,
     'obs_type': '1overR2',
     'cones': 5,
+    'rew_cones': 2,
     'cone_angle': 180,
     'visual_particle_size': 6.2,
     'obs_noise': 0,

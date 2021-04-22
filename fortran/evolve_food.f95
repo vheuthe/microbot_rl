@@ -155,7 +155,7 @@ subroutine get_neigh(X, Y, NN, N)
 end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
-               ratio_rew, touch_penalty, XP, YP, Food, Food_width, max_payoff, ss, &
+               ratio_rew, touch_penalty, rew_cones, XP, YP, Food_width, max_payoff, ss, &
                NObs, N, NFood, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
@@ -166,8 +166,8 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     integer, intent(in) :: obs_type
     real, intent(in) :: cone_angle, dead_vision
     real, intent(in) :: ratio_rew, touch_penalty
-    real, intent(in) :: XP(NFood), YP(NFood)
-    real, intent(in) :: Food(NFood), Food_width(NFood)
+    integer, intent(in) :: rew_cones
+    real, intent(in) :: XP(NFood), YP(NFood), Food_width(NFood)
     real, intent(in) :: max_payoff, ss
     integer, intent(in) :: NObs
     ! implicit input (infered by f2py)
@@ -356,15 +356,27 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     enddo
 
 
-
-    do i = 1, N
-        max_rew = -1
-        do j = 1, cones-1
-            if (Obs(i,3*j-2) + Obs(i,3*(j+1)-2) > max_rew) max_rew = Obs(i,3*j-2) + Obs(i,3*(j+1)-2)
+    if (rew_cones == 2) then
+        do i = 1, N
+            max_rew = -1
+            do j = 1, cones-1
+                if (Obs(i,3*j-2) + Obs(i,3*(j+1)-2) > max_rew) max_rew = Obs(i,3*j-2) + Obs(i,3*(j+1)-2)
+            enddo
+            Rew(i) = Rew(i) + max_rew * (1-ratio_rew)
+            Rew(i) = min(max_payoff * (1-ratio_rew), Rew(i))
         enddo
-        Rew(i) = Rew(i) + max_rew * (1-ratio_rew)
-        Rew(i) = min(max_payoff, Rew(i))
-    enddo
+    else if (rew_cones == cones) then
+        do i = 1, N
+            do j = 1, cones
+                Rew(i) = Rew(i) + Obs(i,3*j-2) * (1-ratio_rew)
+            enddo
+            Rew(i) = min(max_payoff * (1-ratio_rew), Rew(i))
+        enddo
+    else
+        print*, 'ERROR: unimplemented number of rewarded cones'
+        stop
+    endif
+
 
     !food_width = sqrt(Food) ! Food is input
 
