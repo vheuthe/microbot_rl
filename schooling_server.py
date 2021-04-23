@@ -16,14 +16,17 @@ parameters = {
   'host_address': ('localhost', 22009),
   'training_frequency': 12,
   'training_epochs': 50,
-  'reward_ratio': 0.5,
-  'touch_penalty': 3,
+  'food_rew': 0.6,
+  'obs_type': '1overR',
+  'rew_cones': 2,
+  'touch_penalty': 1,
+  'tp_type': 'all',
   'food_max_x': 50,
   'food_max_y': 50,
   'food_amount': 666,
   'food_radius': 25,
   'food_delay': 15,
-  'input_dim': 15,
+  'input_dim': 20,
   'output_dim': 4,
   'lrPI': 0.003,
   'lrV': 0.003,
@@ -32,15 +35,14 @@ parameters = {
   'en_coeff': 0.0,
   'lam': 0.97,
   'target_kl': 0.02,
-  'save_models': True,
-  'models_savepath': './model',
+  'save_models': './model',
   'load_models': None,
   }
 
-def get_observables_rewards(x, y, theta, food_x=0.0, food_y=0.0, food_amount=0.0, food_radius=1.0, reward_ratio=0.5, touch_penalty=3.0, input_dim=15, **unused):
+def get_observables_rewards(x, y, theta, food_x, food_y, food_amount, food_radius, food_rew, obs_type, rew_cones, touch_penalty, tp_type, input_dim, **unused):
   '''Wrapper around the fortran calculation for observables and reward'''
-  return evolve_food.get_o_r_food_task(x, y, theta, 2, np.pi, 0, reward_ratio,
-    touch_penalty, [food_x], [food_y], [food_amount], [2*food_radius], 999, 6.15, input_dim)
+  return evolve_food.get_o_r_food_task(x, y, theta, {'1overR': 1, '1overR2': 2}[obs_type], np.pi, 0, food_rew,
+    touch_penalty, {'all': 1, 'closest': 2}[tp_type], rew_cones, [food_x], [food_y], [food_amount], [2*food_radius], 999, 6.15, input_dim)
 
 
 # SERVER
@@ -101,7 +103,7 @@ def serve(parameters):
         obs, rew, eaten = get_observables_rewards(
           x[~lost], y[~lost], theta[~lost],
           food_x, food_y, food_current, parameters['food_radius']*(food_current > 0),
-          parameters['reward_ratio'], parameters['touch_penalty'], parameters['input_dim'])
+          **parameters)
         food_current -= eaten
 
         if food_current <= 0:
@@ -157,8 +159,8 @@ def serve(parameters):
         print("System call interrupted, Stopping Server")
 
         if parameters['save_models'] :
-          print('Saving models to ' + parameters['models_savepath'])
-          agent.save_models(parameters['models_savepath'])
+          print('Saving models to ' + parameters['save_models'])
+          agent.save_models(parameters['save_models'])
 
         break
 
