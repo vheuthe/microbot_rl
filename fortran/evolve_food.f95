@@ -155,7 +155,7 @@ subroutine get_neigh(X, Y, NN, N)
 end subroutine
 
 subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
-               ratio_rew, touch_penalty, rew_cones, XP, YP, Food_width, max_payoff, ss, &
+               ratio_rew, touch_penalty, tp_type, rew_cones, XP, YP, Food_width, max_payoff, ss, &
                NObs, N, NFood, Obs, Rew, Eaten)
 ! ===========================================
 ! gets observables and rewards from positions
@@ -166,7 +166,7 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
     integer, intent(in) :: obs_type
     real, intent(in) :: cone_angle, dead_vision
     real, intent(in) :: ratio_rew, touch_penalty
-    integer, intent(in) :: rew_cones
+    integer, intent(in) :: tp_type, rew_cones
     real, intent(in) :: XP(NFood), YP(NFood), Food_width(NFood)
     real, intent(in) :: max_payoff, ss
     integer, intent(in) :: NObs
@@ -245,8 +245,14 @@ subroutine get_o_r_food_task(X, Y, Theta, obs_type, cone_angle, dead_vision, &
 
             ! penalty for touching
             if (r < 13.6) then ! 2 x diameter
-                Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew) !, penalty to touch - SCALED!
-                Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew) !, penalty to touch - SCALED!
+                if (tp_type == 1) then
+                    Rew(i) = Rew(i) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew) !, penalty to touch - SCALED!
+                    Rew(j) = Rew(j) + 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew) !, penalty to touch - SCALED!
+                elseif (tp_type == 2) then
+                    ! only penalize for the closest neighbor
+                    Rew(i) = min(Rew(i), 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew))
+                    Rew(j) = min(Rew(j), 0.5*(tanh((r-6.8)/2)-1)*touch_penalty * (1 - ratio_rew))
+                endif
             endif
 
 

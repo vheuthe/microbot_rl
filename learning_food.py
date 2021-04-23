@@ -26,6 +26,7 @@ default_parameters = {
     # Training
     'food_rew': 0.6,
     'touch_penalty': 0, # 3,
+    'tp_type': 'all',
     'max_nn_rew': 999,
     'obs_type': '1overR2',
     'cones': 5,
