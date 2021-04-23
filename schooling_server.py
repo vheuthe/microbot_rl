@@ -39,10 +39,10 @@ parameters = {
   'load_models': None,
   }
 
-def get_observables_rewards(x, y, theta, food_x, food_y, food_amount, food_radius, food_rew, obs_type, rew_cones, touch_penalty, tp_type, input_dim, **unused):
+def get_observables_rewards(x, y, theta, food_x, food_y, food_width, food_rew, obs_type, rew_cones, touch_penalty, tp_type, input_dim, **unused):
   '''Wrapper around the fortran calculation for observables and reward'''
   return evolve_food.get_o_r_food_task(x, y, theta, {'1overR': 1, '1overR2': 2}[obs_type], np.pi, 0, food_rew,
-    touch_penalty, {'all': 1, 'closest': 2}[tp_type], rew_cones, [food_x], [food_y], [food_amount], [2*food_radius], 999, 6.15, input_dim)
+    touch_penalty, {'all': 1, 'closest': 2}[tp_type], rew_cones, [food_x], [food_y], [food_width], 999, 6.15, input_dim)
 
 
 # SERVER
@@ -102,7 +102,7 @@ def serve(parameters):
         # TODO food is for now just a constant quantity at constant position
         obs, rew, eaten = get_observables_rewards(
           x[~lost], y[~lost], theta[~lost],
-          food_x, food_y, food_current, parameters['food_radius']*(food_current > 0),
+          food_x, food_y, 2*parameters['food_radius']*(food_current > 0),
           **parameters)
         food_current -= eaten
 
