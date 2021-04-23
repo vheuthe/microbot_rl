@@ -137,7 +137,7 @@ def serve(parameters):
         # get actions and probabilitoes
         actions, logp = agent.get_actions()
         # ensure that actions is column vector
-        actions = actions.reshape((-1,1))
+        actions = np.array(actions).reshape((-1,1))
         # check number of actions
         if agent.n_actions == 3:
           actions = actions + 1
@@ -147,7 +147,7 @@ def serve(parameters):
         # add food info as first row and flatten in 'Fortran' style
         data = np.append(
             [[food_x, food_y, parameters['food_radius']*(food_current > 0), parameters['food_amount'], food_current, 0, 0]],
-            np.concatenate((actions.reshape((-1,1)), logp, np.array(rew).reshape((-1,1)), np.array(vals).reshape((-1,1))), axis=1),
+            np.concatenate((actions, logp, np.array(rew).reshape((-1,1)), np.array(vals).reshape((-1,1))), axis=1),
             axis=0
           ).flatten('F')
         # and send them (as bytestream)
