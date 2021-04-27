@@ -32,7 +32,7 @@ def KL_symm(A,B):
 
 if __name__ == "__main__":
     # READS FOOD_REW AS INPUT
-    mu_K = np.float(sys.argv[1])
+    mu_K = 1.0 # np.float(sys.argv[1])
     # ------------
     mode = 3
     n_input = 10
@@ -50,10 +50,13 @@ if __name__ == "__main__":
     N = 30 #number of particles
     steps_update = 128
 
+    close_pen = sys.argv[1]
+    data_path=sys.argv[2]
+
     # -- FILL FOR SIMULATION -------------------------
 
     skew = False
-    n_MD = 50
+    n_MD = 100
     total_time = 3600
     step_time = 5
     torque = 25
@@ -63,7 +66,7 @@ if __name__ == "__main__":
     # ------------------------------------------------
 
     load_models = None
-    models_rootname = 'model_sim_NoSkew_T{}_muK{}_{}sAct'.format(torque, mu_K, step_time)
+    models_rootname = data_path + '/model_sim_close_pen_{}_{}sAct'.format(mu_K, step_time)
     if (start_MD > 0):
         load_models = models_rootname
 
@@ -86,7 +89,7 @@ if __name__ == "__main__":
             sizeRod=96, distRod=1.6, ext_rod=1., cen_rod=1.,
             obs_type='1overR', cones=5, cone_angle=180., flag_side=False,
             flag_LOS=False, ss=0.01, ssrod=0.01, mu_K = mu_K,
-            traj=traj_flag, mode=mode, data_path=sys.argv[2])
+            traj=traj_flag, mode=mode, data_path=data_path, close_pen=close_pen)
             print('\n\n\n #NEW MD INITIALIZATION!')
             obs, rewards = md.get_obs_rewards() # gets first obs and advantages
             Agent.initialize(obs)

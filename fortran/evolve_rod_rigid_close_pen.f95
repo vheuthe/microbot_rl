@@ -1,7 +1,7 @@
 subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
                         nsteps, tor, vel_act, vel_tor, &
-                        ext_rod, cen_rod, mu,&
+                        ext_rod, cen_rod, mu, &
                         N, Nrod, &
                         new_XYT, new_XY_rod)
 ! ===========================================
@@ -372,7 +372,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
                         ext_rod, cen_rod, &
-                        obs_type, cones, cone_angle, &
+                        obs_type, cones, cone_angle, close_pen, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
@@ -380,7 +380,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones
     logical, intent(in) :: flag_LOS
@@ -395,14 +395,15 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: dRodtheta, dRod, Rodtheta
     real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L, min_dist
-    real, dimension(N,N) :: distances
+    real :: a, b, torque, near2(N), rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
 
     adj = 0
+
+    min_dist = 1000
 
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
@@ -504,6 +505,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
+
+                ! find the distance to the closest particle
+                if (r < min_dist(i)) min_dist(i) = r
 
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
@@ -731,12 +735,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     enddo
 
     do i = 1, N
-        do j = 1, N
-            distances(i,j) = sqrt((X(j)-X(i))**2 + (Y(j)-Y(i))**2)
-        enddo
-    enddo
-
-    do i = 1, N
         a = Theta(i)
         b = dRodtheta
         dx = cmRod(1) - X(i)
@@ -786,13 +784,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 endif
         end select
 
-        min_dist = 1000
-
-        do j = 1, N
-            if (distances(i,j) < min_dist) min_dist = distances(i,j)
-        enddo
-
-        Rew(i) = Rew(i) - 10 * exp(-min_dist/3.6)
+        Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
 
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
@@ -884,7 +876,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                         mode, rotDir, old_rotDir, &
                         flag_diff, flag_LOS, &
                         ss, ssrod_ext, mR,&
-                        obs_type, cones, cone_angle, &
+                        obs_type, cones, cone_angle, close_pen, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
@@ -892,7 +884,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_diff, obs_type, cones
     logical, intent(in) :: flag_LOS
@@ -906,14 +898,15 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L, min_dist
-    real, dimension(N,N) :: distances
+    real :: a, b, torque, near2(N), rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
 
     adj = 0
+
+    min_dist = 1000
 
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
@@ -997,6 +990,9 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
+
+                ! find the distance to the closest particle
+                if (r < min_dist(i)) min_dist(i) = r
 
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
@@ -1226,12 +1222,6 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     enddo
 
     do i = 1, N
-        do j = 1, N
-            distances(i,j) = sqrt((X(j)-X(i))**2 + (Y(j)-Y(i))**2)
-        enddo
-    enddo
-
-    do i = 1, N
         a = Theta(i)
         b = dRodtheta
         dx = cmRod(1) - X(i)
@@ -1278,13 +1268,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                 Rew(i) = r/true_ss * touch(i)
         end select
 
-        min_dist = 1000
-
-        do j = 1, N
-            if (distances(i,j) < min_dist) min_dist = distances(i,j)
-        enddo
-
-        Rew(i) = Rew(i) - 10 * exp(-min_dist/3.6)
+        Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
 
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo

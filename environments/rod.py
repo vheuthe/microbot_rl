@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-from fortran import evolve_rod_rigid as evolve
+from fortran import evolve_rod_rigid_close_pen as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -34,7 +34,7 @@ class MD_ROD():
                 Dt = 0.014, Dr = 1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
-                traj=False, mode=1, swirl=False, data_path='/home/veit/Git/reinforcement-learning'):
+                traj=False, mode=1, swirl=False, data_path='/home/veit/Git/reinforcement-learning', close_pen = 0):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -75,6 +75,7 @@ class MD_ROD():
         self.ssrod = ssrod #if initialized to 0, it is automatically calculated in evolve_fortran_rod subroutine
         self.ss = ss
         self.mu_K = mu_K # kinetic friction - like along rod.
+        self.close_pen = close_pen # factor for penalizing closenes (nearest neighbor)
 
         # type of task.
         # determines reward function, and observation space.
@@ -210,7 +211,7 @@ class MD_ROD():
                                           self.ss, self.ssrod, self.massRod,
                                           self.ext_rod, self.cen_rod,
                                           obs_type,
-                                          self.cones, self.cone_angle,
+                                          self.cones, self.cone_angle, self.close_pen,
                                           self.Nobs, self.N, self.Nrod)
         self.rewards = rewards
         return obs, rewards

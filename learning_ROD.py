@@ -30,7 +30,7 @@ def KL_symm(A,B):
 
 if __name__ == "__main__":
     # READS FOOD_REW AS INPUT
-    mu_K = 0.0 # np.float(sys.argv[1])
+    mu_K = np.float(sys.argv[1])
     # ------------
     mode = 3
     n_input = 10
