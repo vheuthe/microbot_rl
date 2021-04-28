@@ -28,12 +28,11 @@ default_parameters = {
     'touch_penalty': 0, # 3,
     'tp_type': 'all',
     'max_nn_rew': 999,
-    'obs_type': '1overR2',
+    'obs_type': '1overR',
     'cones': 5,
     'rew_cones': 2,
-    'cone_angle': 180,
+    'vision_angle': 180,
     'visual_particle_size': 6.2,
-    'obs_noise': 0,
     'training_frequency': 240,
     'training_epochs': 50,
     'food_mode': 'randombox',
@@ -44,15 +43,15 @@ default_parameters = {
 
     # Episodes
     'N': 30,
+    'particle_size': 6.2,
     'training_mode': 'dynamic',
     'dt': 0.2,
     'action_time': 6,
     'Dt': 0, # 0.014,
     'Dr': 0, # 1.0 / 350.0,
     'vel_act': 0.5,
-    'sig_vel_act': 0, # 0.25,
     'vel_tor': 0.35,
-    'sig_vel_tor': 0, # 0.175,
+    'vel_noise': 0, # 0.5, relative!
     'torque': 25,
 }
 

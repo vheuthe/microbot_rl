@@ -41,8 +41,15 @@ parameters = {
 
 def get_observables_rewards(x, y, theta, food_x, food_y, food_width, food_rew, obs_type, rew_cones, touch_penalty, tp_type, input_dim, **unused):
   '''Wrapper around the fortran calculation for observables and reward'''
-  return evolve_food.get_o_r_food_task(x, y, theta, {'1overR': 1, '1overR2': 2}[obs_type], np.pi, 0, food_rew,
-    touch_penalty, {'all': 1, 'closest': 2}[tp_type], rew_cones, [food_x], [food_y], [food_width], 999, 6.15, input_dim)
+  # get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
+  #     vision_angle, cones, dead_vision, obs_type, phys_size, vis_size, &
+  #     food_rew, nn_rew_cones, max_nn_rew, tp_type, touch_penalty, &
+  #     N, NFood, Obs, Rew, Eaten)
+  return evolve_food.get_o_r_food_task(
+    x, y, theta, [food_x], [food_y], [food_width/2],
+    np.pi, 5, 0, {'1overR': 1, '1overR2': 2}[obs_type], 6.15, 6.15,
+    food_rew, rew_cones, 999, {'all': 1, 'closest': 2, '1overR3': 3}[tp_type], touch_penalty,
+  )
 
 
 # SERVER

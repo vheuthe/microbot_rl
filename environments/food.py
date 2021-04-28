@@ -5,8 +5,8 @@ from fortran import evolve_food
 class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
-    def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, sig_vel_act, vel_tor, sig_vel_tor, torque,
-                 input_dim, food_rew, touch_penalty, tp_type, max_nn_rew, cones, rew_cones, cone_angle, visual_particle_size, obs_type, obs_noise,
+    def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, vel_tor, vel_noise, torque,
+                 input_dim, food_rew, touch_penalty, tp_type, max_nn_rew, cones, rew_cones, vision_angle, particle_size, visual_particle_size, obs_type,
                  food_dist, food_amount, food_width, food_delay,
                  **parameters):
 
@@ -20,9 +20,8 @@ class FoodEnvironment():
         self.Rr = np.sqrt(2*self.Dr/self.dt)
         # Active Properties
         self.vel_act = vel_act
-        self.sig_vel_act = sig_vel_act
         self.vel_tor = vel_tor
-        self.sig_vel_tor = sig_vel_tor
+        self.vel_noise = vel_noise
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
         # Food configuration
         self.food_dist = food_dist
@@ -32,13 +31,13 @@ class FoodEnvironment():
         # Obervables and Rewards
         self.n_obs = input_dim
         self.cones = cones
-        self.cone_angle = cone_angle / 180 * np.pi
+        self.vision_angle = vision_angle / 180 * np.pi
+        self.particle_size = particle_size
         self.visual_particle_size = visual_particle_size
         self.obs_type = {'1overR': 1, '1overR2': 2}[obs_type]
-        self.obs_noise = obs_noise
         self.food_rew = food_rew
         self.touch_penalty = touch_penalty
-        self.tp_type = {'all': 1, 'closest': 2}[tp_type]
+        self.tp_type = {'all': 1, 'closest': 2, '1overR3': 3}[tp_type]
         self.max_nn_rew = max_nn_rew
         self.rew_cones = rew_cones
         # everything that was not catched by the arguments
@@ -74,7 +73,6 @@ class FoodEnvironment():
 
         # set up rng, this is important for reproducibility of evaluation runs
         self.foodrng = np.random.default_rng(seed)
-        self.obsrng = np.random.default_rng(seed)
 
         # generate grid position in a random order
         a = np.int(np.sqrt(n) / 2) + 1
@@ -93,7 +91,7 @@ class FoodEnvironment():
         self.reset_food()
 
         # compute observables for initial state s_0
-        observables, _reward, _eaten = self.get_state()
+        observables, _reward, _eaten = self.get_state(self.particles, self.food)
 
         return observables
 
@@ -107,30 +105,31 @@ class FoodEnvironment():
 
         # Evolve multiple steps of brownian dynamics for one action
         self.particles = evolve_food.evolve_md(
-            self.particles[:,0], self.particles[:,1], self.particles[:,2], actions,
-            self.Rm, self.Rr, self.dt, self.steps, self.torque,
-            self.vel_act, self.sig_vel_act, self.vel_tor, self.sig_vel_tor
+            self.particles, actions, self.Rm, self.Rr, self.dt, self.steps, self.torque,
+            self.vel_act, self.vel_act*self.vel_noise, self.vel_tor, self.vel_tor*self.vel_noise
         )
 
         # Compute Observables and reward r for new state s'
-        observables, reward, eaten = self.get_state()
+        observables, reward, eaten = self.get_state(self.particles, self.food)
 
     	# If food got depleeted, it might need to be relocated
         self.update_food(eaten)
 
         return observables, reward
 
-    def get_state(self):
+    def get_state(self, particles, food):
+
+        # get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
+        #     vision_angle, cones, dead_vision, obs_type, phys_size, vis_size, &
+        #     food_rew, nn_rew_cones, max_nn_rew, tp_type, touch_penalty, &
+        #     N, NFood, Obs, Rew, Eaten)
+
         observables, reward, eaten = evolve_food.get_o_r_food_task(
             self.particles[:,0], self.particles[:,1], self.particles[:,2],
-            self.obs_type, self.cone_angle, 0, self.food_rew, self.touch_penalty, self.tp_type, self.rew_cones,
-            self.food[:,0], self.food[:,1], self.food[:,3] * (self.food[:,2] > 0),
-            self.max_nn_rew, self.visual_particle_size, 4 * self.cones,
+            self.food[:,0], self.food[:,1], 0.5 * self.food[:,3] * (self.food[:,2] > 0),
+            self.vision_angle, self.cones, 0, self.obs_type, self.particle_size, self.visual_particle_size,
+            self.food_rew, self.rew_cones, self.max_nn_rew, self.tp_type, self.touch_penalty,
         )
-
-        # Add noise (clip those observables that are positive only)
-        observables += self.obsrng.normal(0, self.obs_noise, observables.shape)
-        observables[:,[0,3,6,9,12,15,16,17,18,19]] = observables[:,[0,3,6,9,12,15,16,17,18,19]].clip(0, None)
 
         # Reduce Information
         if self.n_obs == 5:

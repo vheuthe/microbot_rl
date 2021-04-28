@@ -23,8 +23,7 @@ for task in tasks:
         parameters = json.load(reader)
 
     agent = AgentActiveMatter(
-        models_rootname = os.path.join(root_dir, task, 'model'),
-        restart_models = True,
+        load_models = os.path.join(root_dir, task, 'model'),
         **parameters
     )
 
@@ -36,11 +35,11 @@ for task in tasks:
     # traj_file = open(os.path.join(root_dir, task, 'nofood_traj.xyz'), 'w')
 
     # initialize
-    observables = environment.reset(parameters['N'])
+    observables = environment.reset(parameters['N'], seed=0)
     agent.initialize(observables)
 
     # create "cell-arrays" for saving
-    max_step = int(parameters['total_time']/parameters['action_time'])
+    max_step = int(2*3600/parameters['action_time'])
     data = {
         'food': np.empty((1,max_step), dtype=object),
         'particles': np.empty((1,max_step), dtype=object),
@@ -55,6 +54,7 @@ for task in tasks:
 
         # get actions
         actions, logp = agent.get_actions()
+        actions = np.array(actions)
 
         # adjust actions if there is no passive one
         if agent.n_actions == 3:
@@ -64,7 +64,7 @@ for task in tasks:
         observables, rewards = environment.evolve(actions)
 
         # add environment response
-        values = agent.add_environment_response([], observables, rewards)
+        values = np.array(agent.add_environment_response([], observables, rewards))
 
         # Save stats
         entropies = scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1)
@@ -86,7 +86,7 @@ for task in tasks:
 
         # no training!
 
-    scipy.io.savemat(os.path.join(root_dir, task, 'nofood.mat'), data)
+    scipy.io.savemat(os.path.join(root_dir, task, 'nofood_short.mat'), data)
 
     # # clean up io
     # stats_file.close()
