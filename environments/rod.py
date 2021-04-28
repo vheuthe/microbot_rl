@@ -5,7 +5,7 @@ import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 import time
-from fortran import evolve_rod_rigid_close_pen as evolve
+from fortran import evolve_rod_rigid as evolve
 # ---------------------------------------
 
 # ---------------------------------------
