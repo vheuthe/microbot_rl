@@ -243,15 +243,15 @@ subroutine get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
             endif
             if (tp_type == 3) then
                 ! penalize all with 1/r^3
-                Rew(i) = Rew(i) - (phys_size/r)**3
-                Rew(j) = Rew(j) - (phys_size/r)**3
+                Rew(i) = Rew(i) - touch_penalty * (1 - food_rew) * (phys_size/r)**3
+                Rew(j) = Rew(j) - touch_penalty * (1 - food_rew) * (phys_size/r)**3
             endif
 
             ! handle observable independent reward here
             if (nn_rew_cones == 0) then
                 ! reward all with 1/r
-                Rew(i) = Rew(i) + (phys_size/r)
-                Rew(j) = Rew(j) + (phys_size/r)
+                Rew(i) = Rew(i) + (1 - food_rew) * (phys_size/r)
+                Rew(j) = Rew(j) + (1 - food_rew) * (phys_size/r)
             endif
 
             covered_l = 0
