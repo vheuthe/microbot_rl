@@ -185,7 +185,7 @@ subroutine get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
 
     ! vision of food
     integer :: bins = 200
-    real :: food_angle, max_rew
+    real :: food_angle, max_rew, nn_rew
     real, allocatable :: edge(:,:), food_sight(:)
     real, parameter :: PI = 3.14159265358979323846264
 
@@ -202,6 +202,12 @@ subroutine get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
     enddo
     cone_slice = edge(1,2) - edge(1,1)
 
+    ! calculate prefactor of 0 cones nn_rew and touch penalty
+    ! included factors are:
+    ! "(1-food_rew)" to have a ratio of 1:1 at 50% food_rew
+    ! "2 / sqrt(27 * touch_penalty)" the algebraic maximum of 1/r-TP/r³ at r > 1
+    ! "10 * sqrt(N)" an emperical factor to account for number of neighbors and relative food prescence per time
+    nn_rew = (1 - food_rew) / min(1.0, sqrt(4.0 / 27 / touch_penalty)) / (10 * sqrt(1.0 * N))
 
     do i = 1, N-1
 
@@ -243,15 +249,15 @@ subroutine get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
             endif
             if (tp_type == 3) then
                 ! penalize all with 1/r^3
-                Rew(i) = Rew(i) - touch_penalty * (1 - food_rew) * (phys_size/r)**3
-                Rew(j) = Rew(j) - touch_penalty * (1 - food_rew) * (phys_size/r)**3
+                Rew(i) = Rew(i) - nn_rew * touch_penalty * (phys_size/r)**3
+                Rew(j) = Rew(j) - nn_rew * touch_penalty * (phys_size/r)**3
             endif
 
             ! handle observable independent reward here
             if (nn_rew_cones == 0) then
                 ! reward all with 1/r
-                Rew(i) = Rew(i) + (1 - food_rew) * (phys_size/r)
-                Rew(j) = Rew(j) + (1 - food_rew) * (phys_size/r)
+                Rew(i) = Rew(i) + nn_rew * (phys_size/r)
+                Rew(j) = Rew(j) + nn_rew * (phys_size/r)
             endif
 
             covered_l = 0
