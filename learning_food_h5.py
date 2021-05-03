@@ -187,10 +187,10 @@ def do_episode(agent, environment, parameters, steps, *, record_traj=False, trai
     agent.initialize(observables)
 
     if record_traj:
-        food = np.full((*environment.food.shape, steps+1), np.nan)
-        particles = np.full((parameters['N'], 5, steps+1), np.nan)
-        food[:,:,0] = environment.food
-        particles[:,0:3,0] = environment.particles
+        food = np.full((steps+1, *environment.food.transpose().shape), np.nan)
+        particles = np.full(( steps+1, 5, parameters['N']), np.nan)
+        food[0,:,:] = environment.food.transpose()
+        particles[0,0:3,:] = environment.particles.transpose()
 
     # main loop
     for step in range(0, steps):
@@ -214,10 +214,10 @@ def do_episode(agent, environment, parameters, steps, *, record_traj=False, trai
         mean_value[step] = np.mean(values)
 
         if record_traj:
-            food[:,:,step+1] = environment.food
-            particles[:,4,step] = actions
-            particles[:,0:3,step+1] = environment.particles
-            particles[:,3,step+1] = rewards
+            food[step+1,:,:] = environment.food.transpose()
+            particles[step,4,:] = actions # store actions along the positions for which they have been choosen
+            particles[step+1,0:3,:] = environment.particles.transpose()
+            particles[step+1,3,:] = rewards # store reward along the positions for which it was calculated
 
         # train model
         if train_agent and (step + 1) % parameters['training_frequency'] == 0:
