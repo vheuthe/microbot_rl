@@ -90,11 +90,7 @@ def do_task(selected_parameters, data_dir):
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     # instantiate agent with new neural networks
-    agent = AgentActiveMatter(
-        models_rootname = os.path.join(data_dir, 'model'),
-        restart_models = False,
-        **parameters
-    )
+    agent = AgentActiveMatter(**parameters)
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # setup reusable environment

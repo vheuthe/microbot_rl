@@ -53,11 +53,12 @@ class FoodEnvironment():
 
         # register functions for choosen food scenario
         self.reset_food = {
-            'random': self.reset_food_random,
-            'alternating': self.reset_food_alternating,
+            'random': self.reset_food_one,
+            'alternating': self.reset_food_one,
             'none': self.reset_food_none,
-            '2sources': self.reset_food_2sources,
-            'randombox': self.reset_food_randombox,
+            '2sources': self.reset_food_two,
+            'randombox': self.reset_food_one,
+            '2inbox': self.reset_food_two,
         }[food_mode]
         self.update_food = {
             'random': self.update_food_random,
@@ -65,6 +66,7 @@ class FoodEnvironment():
             'none': self.update_food_none,
             '2sources': self.update_food_2sources,
             'randombox': self.update_food_randombox,
+            '2inbox': self.update_food_2inbox,
         }[food_mode]
 
 
@@ -142,11 +144,26 @@ class FoodEnvironment():
 
     # - - - different food scenarios - - -
 
-    # alternating between +/- food_dist/2
-    def reset_food_alternating(self):
+    def reset_food_none(self):
+        self.food = np.zeros((1,4))
+
+    def reset_food_one(self):
         self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
         self.food_counter = 1
 
+    def reset_food_two(self):
+        self.food = np.array([
+            [self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay],
+            [self.food_width/2-self.food_dist, 0, self.food_amount, self.food_width, self.food_delay]
+        ])
+        self.food_counter = 2
+
+
+    # no food, for steady state analysis (meant to be used without training)
+    def update_food_none(self, _eaten):
+        pass
+
+    # alternating between +/- food_dist/2
     def update_food_alternating(self, eaten):
         self.food[0,2] -= eaten[0]
         if self.food[0,2] < 1:
@@ -158,10 +175,6 @@ class FoodEnvironment():
                 self.food_counter += 1
 
     # random new position at food_dist (+/-food_dist/3) from old position
-    def reset_food_random(self):
-        self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
-        self.food_counter = 1
-
     def update_food_random(self, eaten):
         self.food[0,2] -= eaten[0]
         if self.food[0,2] < 1:
@@ -178,20 +191,6 @@ class FoodEnvironment():
                 self.food_counter += 1
 
     # no food, for steady state analysis (meant to be used without training)
-    def reset_food_none(self):
-        self.food = np.zeros((1,4))
-
-    def update_food_none(self, _eaten):
-        pass
-
-    # no food, for steady state analysis (meant to be used without training)
-    def reset_food_2sources(self):
-        self.food = np.array([
-            [self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay],
-            [self.food_width/2-self.food_dist, 0, self.food_amount, self.food_width, self.food_delay]
-        ])
-        self.food_counter = 2
-
     def update_food_2sources(self, eaten):
         for i in range(eaten.shape[0]):
             self.food[i,2] -= eaten[i]
@@ -214,10 +213,6 @@ class FoodEnvironment():
                     self.food_counter += 1
 
     # random within a box comparable to the experiment
-    def reset_food_randombox(self):
-        self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
-        self.food_counter = 1
-
     def update_food_randombox(self, eaten):
         self.food[0,2] -= eaten[0]
         if self.food[0,2] < 1:
@@ -230,3 +225,24 @@ class FoodEnvironment():
                 self.food[0,3] = self.food_width
                 self.food[0,4] = self.food_delay
                 self.food_counter += 1
+
+    # 2 sources random within a box comparable to the experiment
+    def update_food_2inbox(self, eaten):
+        for i in range(eaten.shape[0]):
+            self.food[i,2] -= eaten[i]
+            if self.food[i,2] < 1:
+                self.food[i,3] = 0
+                self.food[i,4] -= 1
+                if self.food[i,4] < 1:
+                    # draw new position
+                    self.food[i,0] = self.foodrng.uniform(-150, 150)
+                    self.food[i,1] = self.foodrng.uniform(-100, 100)
+                    # if necessary, redraw until distance is at least 'food_dist'
+                    while (self.food[0,0] - self.food[1,0])^2 + (self.food[0,1] - self.food[1,1])^2 < self.food_dist^2:
+                        self.food[i,0] = self.foodrng.uniform(-150, 150)
+                        self.food[i,1] = self.foodrng.uniform(-100, 100)
+                    # set the rest
+                    self.food[i,2] = self.food_amount
+                    self.food[i,3] = self.food_width
+                    self.food[i,4] = self.food_delay
+                    self.food_counter += 1
