@@ -34,7 +34,9 @@ class MD_ROD():
                 Dt = 0.014, Dr = 1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
-                traj=False, mode=1, swirl=False, data_path='/home/veit/Git/reinforcement-learning', close_pen = 0):
+                traj=False, mode=1, swirl=False,
+                data_path='/home/veit/Git/reinforcement-learning',
+                close_pen = 0, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -106,7 +108,7 @@ class MD_ROD():
         self.traj = traj
         if (self.traj):
             self.filexyz=self.data_path+'/traj'+str(index)+'.xyz'
-        self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl)
+        self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl) # reinitialize_test_friction(index, swirl)
         self.old_rod = np.zeros(self.rod.shape)
         self.old_rod[:] = self.rod[:]
 
@@ -139,12 +141,24 @@ class MD_ROD():
             particles[:self.N//2,1] = np.arange(-Lrod/2, Lrod/2, Lrod*2/(self.N-1))
             particles[self.N//2:,1] = np.arange(-Lrod/2, Lrod/2, Lrod*2/(self.N-1))
 
-        particles[particles[:,0] <= 0]  -= [10.0, 0, 0]
-        particles[particles[:,0] > 0]  += [10.0, 0, 0]
+        particles[particles[:,0] <= 0] -= [10.0, 0, 0]
+        particles[particles[:,0] > 0] += [10.0, 0, 0]
 
 
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
 
+
+        if (self.traj):
+            open(self.filexyz, "w")
+        return particles, rod
+
+  # Initialize with two particles close to the rod and at one end of it (for test_friction)
+
+    def reinitialize_test_friction(self, index, swirl=False):
+
+        particles = np.array([[-7, -40, np.pi/2-np.pi/4], [7, -40, np.pi/2+np.pi/4]])
+
+        rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
 
         if (self.traj):
             open(self.filexyz, "w")
@@ -218,6 +232,23 @@ class MD_ROD():
 
     def get_obs_rewards(self, rotDir=0, old_rotDir=0):
         return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
+
+    def get_obs_rewards_forces(self, rotDir=0, old_rotDir=0):
+        '''
+        This calculates a reward based on the contribution of each particle to the performance.
+        The contribution of each particle is estimated by simulating the last step without
+        the focal particle and without any noise and determining the difference in performance
+        to what happend in the real simulation. This gives a dP/di.
+        '''
+        # Determining the performance P
+        p = self.particles
+        r = self.rod
+        olr = self.old_rod
+        rotRod = np.arctan((r[self.Nrod,2] - r[1,2]) / (r[self.Nrod,1] - r[1,1])) - \
+            np.arctan((olr[self.Nrod,2] - olr[1,2]) / (olr[self.Nrod,1] - olr[1,1]))
+        P = rotRod / (2*np.pi) - np.floor(rotRod / (2*np.pi) + 0.5)
+
+
 
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
         t0 = time.time()

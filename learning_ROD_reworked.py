@@ -3,12 +3,65 @@
 # TEST WITH MD
 import numpy as np
 import sys
-from environments.rod import MD_ROD
-from firstrl import AgentActiveMatter
-from scipy.stats import entropy as entropy
 import scipy
 import time
+from scipy.stats import entropy as entropy
 
+from environments.rod import MD_ROD
+from firstrl import AgentActiveMatter
+
+
+default_parameters = {
+
+    # RL Agent
+    'input_dim': 10,
+    'output_dim': 4,
+    'en_coeff': 0.01,
+    'CL': 0.03,
+    'gamma': 0.95,
+    'lam': 0.97,
+    'lrPI': 0.0005,
+    'lrV': 0.001,
+    'target_kl': 0.02,
+    'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
+
+    # For Rewards
+    'close_pen': 0.6, # Prefactor for closeness penalty
+
+    # Particles
+    'vel_act': 0.35,
+    'vel_tor': 0.2,
+    'n': 30,
+    'torque': 25,
+    'ss': 0.01,
+    'obs_type': '1overR',
+    'conse': 5,
+    'cone_angle': 180,
+    'flag_side': False,
+    'flag_LOS': False,
+
+    # Rod
+    'ss_rod': 0.01,
+    'mu_K': 1,
+    'sizeRod': 96,
+    'distRod': 1.6,
+    'ext_rod': 1.,
+    'cen_rod': 1.,
+
+    # For MD part of simulation
+    'steps_update': 128,
+    'n_MD': 100,
+    'total_time': 3600,
+    'step_time': 5,
+    'dt': 0.1,
+    'start_MD': 0,
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushin, 6:push along long direction
+    'skew': False,
+    'size': 100,
+    'traj': True
+}
+
+parameters = default_parameters
 
 # FOR KL convergence
 def Pi(obs, policy):
@@ -31,65 +84,35 @@ def KL_symm(A,B):
 
 
 if __name__ == "__main__":
-    # READS FOOD_REW AS INPUT
-    mu_K = np.float(sys.argv[1])
-    # ------------
-    mode = 6
-    n_input = 10
-    # ------------
 
-    n_actions = 4
-    gam = 0.95
-    lam = 0.97
-    CL =0.03
-    en_coeff=0.01
-
-    vel_act = 0.35
-    vel_tor = 0.20
-
-    N = 30 #number of particles
-    steps_update = 128
-
-    # close_pen = sys.argv[1]
-    data_path=sys.argv[2]
-
-    # -- FILL FOR SIMULATION -------------------------
-
-    skew = False
-    n_MD = 300
-    total_time = 3600
-    step_time = 5
-    torque = 25
-    start_MD = 0
-
+    data_path='/home/veit/Git/reinforcement-learning'
 
     # ------------------------------------------------
 
     load_models = None
-    models_rootname = data_path + '/model_sim_long_push_{}_{}sAct'.format(mu_K, step_time)
-    if (start_MD > 0):
+    models_rootname = data_path + '/model_sim_long_push_{}_{}sAct'.format(parameters["mu_K"], parameters["step_time"])
+    if (parameters["start_MD"] > 0):
         load_models = models_rootname
 
-    Agent = AgentActiveMatter(input_dim=n_input, output_dim=n_actions, en_coeff=en_coeff, CL=CL, gamma=gam, lam=lam, lrPI=0.0005, lrV=0.001, target_kl=0.02, load_models=load_models)
+    Agent = AgentActiveMatter(
+        models_rootname = 'a',
+        restart_models = False,
+        **parameters)
 
     # ------------------------------------------------
 
-    dt = 0.1
-    steps = int(step_time/dt)
-    n_max_steps = int(total_time/step_time)
+    steps = int(parameters["step_time"]/parameters["dt"])
+    n_max_steps = int(parameters["total_time"]/parameters["step_time"])
 
 
-    for iMD in  range(start_MD, start_MD + n_MD): # Episodes -> each is one training run
+    for iMD in range(parameters["start_MD"], parameters["start_MD"] + parameters["n_MD"]): # Episodes -> each is one training run
             # reinitialize the class MD with the new index
             traj_flag=False
             if (iMD%1 == 0):
                 traj_flag=True
-            md = MD_ROD(index=iMD, N=N, size=100, skew=skew,
-            steps=steps, vel_act=vel_act, vel_tor=vel_tor, dt=dt, torque=torque,
-            sizeRod=96, distRod=1.6, ext_rod=1., cen_rod=1.,
-            obs_type='1overR', cones=5, cone_angle=180., flag_side=False,
-            flag_LOS=False, ss=0.01, ssrod=0.01, mu_K = mu_K,
-            traj=traj_flag, mode=mode, data_path=data_path)
+            md = MD_ROD(
+                index=iMD, **parameters,
+                data_path=data_path)
             print('\n\n\n #NEW MD INITIALIZATION!')
             obs, rewards = md.get_obs_rewards() # gets first obs and advantages
             Agent.initialize(obs)
@@ -103,7 +126,7 @@ if __name__ == "__main__":
                 #print(obs)
                 md.print_xyz_actions(actions, logp)
                 #print(obs[0,2],obs[0,7])
-                if ((step>0) and (step%steps_update == 0)):
+                if ((step>0) and (step%parameters['steps_update'] == 0)):
                     lost = [i for i in range(obs.shape[0])]
                     Agent.add_environment_response(lost, obs, rewards)
                     Agent.train_step(epochs=50)

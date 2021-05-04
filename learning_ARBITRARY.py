@@ -1,7 +1,7 @@
 # TEST WITH MD
 import numpy as np
 import sys
-from md_env_fortran_rod_arbitrary import MD_ROD
+from environments.rod_arbitrary import MD_ROD
 from firstrl import AgentActiveMatter
 from scipy.stats import entropy as entropy
 import scipy
@@ -56,7 +56,7 @@ step_time = 5
 torque = 25
 
 massRod=30
-file_Rod = 'rod.dat'
+file_Rod = sys.argv[1]
 
 # ------------------------------------------------
 

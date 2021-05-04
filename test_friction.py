@@ -53,7 +53,7 @@ default_parameters = {
 
     # For MD part of simulation
     'steps_update': 128,
-    'n_MD': 100,
+    'n_MD': 1,
     'total_time': 7200,
     'step_time': 5,
     'dt': 0.1,
@@ -75,7 +75,7 @@ def from_policy_to_actions(Pi):
     action=np.random.choice(4,p=Pi)
     return action
 
-mu_K_range = [1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2]
+mu_K_range = [1, 2]
 
 # --------------------------------------------------------
 # Running the simulations
