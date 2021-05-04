@@ -148,7 +148,7 @@ def do_task(selected_parameters, data_dir):
     entropies = storage.create_dataset('/entropies', (seeds,steps), dtype='f4', compression='gzip')
     values = storage.create_dataset('/values', (seeds,steps), dtype='f4', compression='gzip')
 
-    rewards[i,:], entropies[i,:], values[i,:], food, particles = do_episode(agent, environment, parameters, steps, seed=0, record_traj=True)
+    rewards[0,:], entropies[0,:], values[0,:], food, particles = do_episode(agent, environment, parameters, steps, seed=0, record_traj=True)
     storage.create_dataset('/traj_00/food', compression='gzip', data=food)
     storage.create_dataset('/traj_00/particles', compression='gzip', data=particles)
 
