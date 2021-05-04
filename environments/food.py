@@ -238,7 +238,7 @@ class FoodEnvironment():
                     self.food[i,0] = self.foodrng.uniform(-150, 150)
                     self.food[i,1] = self.foodrng.uniform(-100, 100)
                     # if necessary, redraw until distance is at least 'food_dist'
-                    while (self.food[0,0] - self.food[1,0])^2 + (self.food[0,1] - self.food[1,1])^2 < self.food_dist^2:
+                    while (self.food[0,0] - self.food[1,0])**2 + (self.food[0,1] - self.food[1,1])**2 < self.food_dist**2:
                         self.food[i,0] = self.foodrng.uniform(-150, 150)
                         self.food[i,1] = self.foodrng.uniform(-100, 100)
                     # set the rest
