@@ -1,7 +1,7 @@
 subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
                         nsteps, tor, vel_act, vel_tor, &
-                        ext_rod, cen_rod, mu,&
+                        ext_rod, cen_rod, mu, &
                         N, Nrod, &
                         new_XYT, new_XY_rod)
 ! ===========================================
@@ -233,7 +233,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                 ! ========================
                 ! Action includes rotation
                 ! ========================
-                v(i) = vel_act + gran()*sig_vel_act
+
+                v(i) = vel_act  + gran()*sig_vel_act
                 if (act(i)>1) then
                     v(i) = vel_tor + gran()*sig_vel_tor
                     FR(i) = FR(i) - 2*tor*(act(i)-2.5)
@@ -271,10 +272,10 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     velC_scf = (FX(i)*cos(rodtheta) + FY(i)*sin(rodtheta)) / etaCol
 
                     if (velC_scf .ge. velRod_scf) then
-                        Friction(i) = - min(F_perp(i)*mu_K_true, &
+                        Friction(i) = + min(F_perp(i)*mu_K_true, &
                             abs(etaCol*(velC_scf - velRod_scf)))
                     else
-                        Friction(i) = + min(F_perp(i)*mu_K_true, &
+                        Friction(i) = - min(F_perp(i)*mu_K_true, &
                             abs(etaCol*(velC_scf - velRod_scf)))
                     endif
 
@@ -372,7 +373,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
                         ext_rod, cen_rod, &
-                        obs_type, cones, cone_angle, &
+                        obs_type, cones, cone_angle, close_pen, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
@@ -380,7 +381,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones
     logical, intent(in) :: flag_LOS
@@ -395,13 +396,15 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: dRodtheta, dRod, Rodtheta
     real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, near2(N), rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
 
     adj = 0
+
+    min_dist = 1000
 
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
@@ -503,6 +506,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
+
+                ! find the distance to the closest particle
+                if (r < min_dist(i)) min_dist(i) = r
 
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
@@ -779,6 +785,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                 endif
         end select
 
+        Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
+
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
 
@@ -869,7 +877,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                         mode, rotDir, old_rotDir, &
                         flag_diff, flag_LOS, &
                         ss, ssrod_ext, mR,&
-                        obs_type, cones, cone_angle, &
+                        obs_type, cones, cone_angle, close_pen, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
@@ -877,7 +885,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_diff, obs_type, cones
     logical, intent(in) :: flag_LOS
@@ -891,13 +899,15 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, near2(N), rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
 
     adj = 0
+
+    min_dist = 1000
 
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
@@ -981,6 +991,9 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
+
+                ! find the distance to the closest particle
+                if (r < min_dist(i)) min_dist(i) = r
 
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
@@ -1255,6 +1268,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
         end select
+
+        Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
 
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
