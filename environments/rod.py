@@ -4,6 +4,7 @@ import math
 import sys
 from scipy.spatial.distance import cdist
 from scipy.stats import entropy
+from math import e
 import time
 from fortran import evolve_rod_rigid as evolve
 # ---------------------------------------
@@ -35,8 +36,8 @@ class MD_ROD():
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
                 traj=False, mode=1, swirl=False,
-                data_path='/home/veit/Git/reinforcement-learning',
-                close_pen = 0, **unused_parameters):
+                data_path='/home/veit/Git/reinforcement-learning', rewMode = 'classic',
+                close_pen = 0, rotRewFact = 2, pushRewFact = 3, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -93,6 +94,10 @@ class MD_ROD():
         if (self.mode == 6): #push along long direction
             self.Nobs += 1
 
+        self.rotRewFact = rotRewFact # These are factors for the implementation of rewards based on forces
+        self.pushRewFact = pushRewFact
+        self.rewMode = rewMode # 'forces' or 'classic'
+
         # parameters of dynamics
         self.n_MD_steps = steps
         self.dt = dt
@@ -111,6 +116,8 @@ class MD_ROD():
         self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl) # reinitialize_test_friction(index, swirl)
         self.old_rod = np.zeros(self.rod.shape)
         self.old_rod[:] = self.rod[:]
+        self.Particle_perf = np.zeros((self.particles.shape[0], 1))
+        self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi]
@@ -231,23 +238,43 @@ class MD_ROD():
         return obs, rewards
 
     def get_obs_rewards(self, rotDir=0, old_rotDir=0):
-        return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
 
-    def get_obs_rewards_forces(self, rotDir=0, old_rotDir=0):
+        if self.rewMode == 'classic':
+            return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
+
+        elif self.rewMode == 'forces':
+            return self.get_obs_rewards_forces(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
+
+    def get_obs_rewards_forces(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
         '''
         This calculates a reward based on the contribution of each particle to the performance.
-        The contribution of each particle is estimated by simulating the last step without
-        the focal particle and without any noise and determining the difference in performance
-        to what happend in the real simulation. This gives a dP/di.
+        The contribution of each particle is estimated by evaluating how well the forces the
+        particle exerted on the rod meet the desired rod.
         '''
-        # Determining the performance P
-        p = self.particles
+        # Determining the performance P of each particle (this is the important part)
         r = self.rod
         olr = self.old_rod
-        rotRod = np.arctan((r[self.Nrod,2] - r[1,2]) / (r[self.Nrod,1] - r[1,1])) - \
-            np.arctan((olr[self.Nrod,2] - olr[1,2]) / (olr[self.Nrod,1] - olr[1,1]))
-        P = rotRod / (2*np.pi) - np.floor(rotRod / (2*np.pi) + 0.5)
+        p = self.particles
+        if (self.mode == 4):
+            assert rotDir in [-1,1]
+            assert old_rotDir in [-1,1]
 
+        rewards = self.get_forces_rewards() # Determines the rewards according to the forces and te current mode
+
+        self.rewards = rewards
+
+        # Now the observables are determined
+        obs, _, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2],
+                                          r[:,0], r[:,1], olr[:,0],olr[:,1],
+                                          self.mode, rotDir, old_rotDir,
+                                          flag_side, self.flag_LOS,
+                                          self.ss, self.ssrod, self.massRod,
+                                          self.ext_rod, self.cen_rod,
+                                          obs_type,
+                                          self.cones, self.cone_angle, self.close_pen,
+                                          self.Nobs, self.N, self.Nrod)
+
+        return obs, rewards
 
 
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
@@ -261,7 +288,7 @@ class MD_ROD():
         mRod = self.massRod
         IRod = self.inertiaRod
         self.old_rod[:] = self.rod[:]
-        self.particles, self.rod = evolve.evolve_md_rod(mRod, IRod,
+        self.particles, self.rod, self.part_rod_forces = evolve.evolve_md_rod(mRod, IRod,
                                     X, Y, T,
                                     Xrod, Yrod, self.distRod, action,
                                     self.Rm, self.Rr, self.dt, self.n_MD_steps,
@@ -270,6 +297,39 @@ class MD_ROD():
                                     self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
         return obs, rewards, done, {}
+
+
+    def get_forces_rewards(self):
+        # Determining the performance P of each particle (this is the important part)
+        r = self.rod
+        olr = self.old_rod
+
+        if self.mode == 3: # Rotation
+            dTheta_uncorr = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1])) - \
+                np.angle(complex(olr[-1,0] - olr[0,0], olr[-1,1] - olr[0,1])) # Still can have jumps
+
+            dTheta = dTheta_uncorr - np.floor(dTheta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
+
+            self.Particle_perf = self.part_rod_forces[:,2] * np.sign(dTheta) # Performance is proportional torque fr rotation
+
+            rewards = self.rotRewFact * dTheta * self.Particle_perf
+
+        elif self.mode == 6: # Longitudinal pushing
+            dCM = complex(sum(r[:,0]) / self.Nrod - sum(olr[:,0]) / self.Nrod, \
+                sum(r[:,1]) / self.Nrod - sum(olr[:,1]) / self.Nrod) # Center of mass motion in complex numbers
+
+            rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
+
+            dCM_lon = (dCM * e ** (-1j*rodTheta)).real # Longitudinal CoM motion of the rod
+
+            part_rod_forces_complex = complex(self.part_rod_forces[:,0], self.part_rod_forces[:,1])
+
+            self.Particle_perf = (part_rod_forces_complex * e ** (-1j*rodTheta)).real # Particle forces in the longitud. direction of the rod
+
+            rewards = self.pushRewFact * dCM_lon * self.Particle_perf
+
+        return rewards
+
 #
 # ------------------------------------
 # End of class MD

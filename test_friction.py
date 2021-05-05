@@ -54,7 +54,7 @@ default_parameters = {
     # For MD part of simulation
     'steps_update': 128,
     'n_MD': 1,
-    'total_time': 7200,
+    'total_time': 3600,
     'step_time': 5,
     'dt': 0.1,
     'start_MD': 0,
@@ -66,16 +66,7 @@ default_parameters = {
 
 parameters = default_parameters
 
-def from_policy_to_actions(Pi):
-    '''
-    takes distribution of log probabilities over discrete set of actions
-    and gives out one randomly, after normalization
-    MUST RETURN only one value: index of action!
-    '''
-    action=np.random.choice(4,p=Pi)
-    return action
-
-mu_K_range = [1, 2]
+mu_K_range = [1, 1.2, 1.4, 1.6, 1.8, 2]
 
 # --------------------------------------------------------
 # Running the simulations

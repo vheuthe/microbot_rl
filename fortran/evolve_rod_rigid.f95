@@ -3,7 +3,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                         nsteps, tor, vel_act, vel_tor, &
                         ext_rod, cen_rod, mu, &
                         N, Nrod, &
-                        new_XYT, new_XY_rod)
+                        new_XYT, new_XY_rod, part_rod_forces)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -17,7 +17,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     real,    intent(in) :: ext_rod, cen_rod , mu
     ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
-    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
+    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2), part_rod_forces(N,3) ! F_perf are forces in x and y and torque every particle exerted on average
     ! =======================================
     real :: FX(N), FY(N), FR(N), v(N)
     real :: sig_vel_act, sig_vel_tor
@@ -30,6 +30,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
 
     real :: FXrod, FYrod
     real :: torquerod, rodXcm, rodYcm, rodtheta
+    real :: FXrod_eval(N), FYrod_eval(N)
     integer :: i, j, it
     real :: dx, dy, r2, drodx, drody
     real, parameter :: PI = 3.14159265358979323846264
@@ -54,6 +55,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
 
     new_XY_rod(:,1) = Xrod
     new_XY_rod(:,2) = Yrod
+
+    part_rod_forces = 0
 
     ! Nrod EVEN number!
 
@@ -195,10 +198,10 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
 
                     F_proj = (ff*dx)*cos(rodtheta) + (ff*dy)*sin(rodtheta)
 
-                    F_pRX = F_proj*cos(rodtheta)
+                    F_pRX = F_proj*cos(rodtheta) ! I guess these are the forces parallel to the rod ...
                     F_pRY = F_proj*sin(rodtheta)
 
-                    F_Perp_X = (ff*dx - F_pRX)
+                    F_Perp_X = (ff*dx - F_pRX) ! ... and that is why they are subtracted here ...
                     F_Perp_Y = (ff*dy - F_pRY)
 
                     F_Perp(i) = F_Perp(i) + sqrt(F_Perp_X**2 + F_Perp_Y**2)
@@ -207,11 +210,14 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     ! mu_K = 0       --> some corrugation.
                     ! mu_K_true > 0  --> friction
 
-                    FX(i) = FX(i) - (ff*dx - F_pRX*mu_K)
+                    FX(i) = FX(i) - (ff*dx - F_pRX*mu_K) ! ... and added again according to mu_K here.
                     FY(i) = FY(i) - (ff*dy - F_pRY*mu_K)
 
-                    FXrod = FXrod + (ff*dx - F_pRY*mu_K)
+                    FXrod = FXrod + (ff*dx - F_pRX*mu_K)
                     FYrod = FYrod + (ff*dy - F_pRY*mu_K)
+
+                    FXrod_eval(i) = 1/Nrod * (ff*dx - F_pRX*mu_K) ! The forces on the rod for each particle are saved, get Friction corrected later
+                    FYrod_eval(i) = 1/Nrod * (ff*dy - F_pRY*mu_K)
 
                     ! =======================
                     ! component of force in direction of rod
@@ -221,6 +227,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     torquerod = torquerod + (ff*dy - F_pRY*mu_K)*drodx -&
                                             (ff*dx - F_pRX*mu_K)*drody
 
+                    part_rod_forces(i,3) =  1/nsteps * 1/Nrod * (ff*dy - F_pRY*mu_K)*drodx -&
+                                                          (ff*dx - F_pRX*mu_K)*drody
                 endif
             enddo
 
@@ -291,6 +299,12 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         do i = 1, N
             FX(i) = FX(i) - Friction(i)*cos(rodtheta)
             FY(i) = FY(i) - Friction(i)*sin(rodtheta)
+
+            FXrod_eval(i) = FXrod_eval(i) + Friction(i)*cos(rodtheta) ! Friction-correction of the forces for particle performance evaluation
+            FYrod_eval(i) = FYrod_eval(i) + Friction(i)*sin(rodtheta)
+
+            part_rod_forces(i,1) = part_rod_forces(i,1) + 1/nsteps * FXrod_eval(i)
+            part_rod_forces(i,2) = part_rod_forces(i,2) + 1/nsteps * FYrod_eval(i)
         enddo
 
         FXrod = FXrod + SUM(Friction)*cos(rodtheta)

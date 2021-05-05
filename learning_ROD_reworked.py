@@ -27,11 +27,14 @@ default_parameters = {
 
     # For Rewards
     'close_pen': 0.6, # Prefactor for closeness penalty
+    'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
+    'pushRewFact': 3,
+    'rewMode': 'forces', # Mode of rewards ('forces' or 'classic')
 
     # Particles
     'vel_act': 0.35,
-    'vel_tor': 0.2,
-    'n': 30,
+    'vel_tor': 0.2, # Velocity during rotation (particles do not stand still)
+    'N': 30,
     'torque': 25,
     'ss': 0.01,
     'obs_type': '1overR',
@@ -50,12 +53,13 @@ default_parameters = {
 
     # For MD part of simulation
     'steps_update': 128,
+    'steps': 20,
     'n_MD': 100,
     'total_time': 3600,
     'step_time': 5,
     'dt': 0.1,
     'start_MD': 0,
-    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushin, 6:push along long direction
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
     'skew': False,
     'size': 100,
     'traj': True
@@ -85,7 +89,7 @@ def KL_symm(A,B):
 
 if __name__ == "__main__":
 
-    data_path='/home/veit/Git/reinforcement-learning'
+    data_path='/mnt/c/Users/veit/Documents/PhD/SimData/test_forces_reward'
 
     # ------------------------------------------------
 
