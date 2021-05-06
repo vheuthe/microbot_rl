@@ -1,5 +1,5 @@
-subroutine evolve_MD(XYT, act, Rm, Rr, dt, nsteps, tor, &
-                     vel_act, sig_vel_act, vel_tor, sig_vel_tor, &
+subroutine evolve_MD(XYT, act, nsteps, dt, torque, torque_noise, &
+                     vel_act, vel_tor, vel_noise, &
                      N, new_XYT)
 ! ===========================================
 ! gets observables and rewards from positions
@@ -8,8 +8,8 @@ subroutine evolve_MD(XYT, act, Rm, Rr, dt, nsteps, tor, &
     real , intent(in) :: XYT(N,3)
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, nsteps
-    real, intent(in) :: Rm, Rr, tor, vel_act, vel_tor, dt
-    real, intent(in) :: sig_vel_act, sig_vel_tor
+    real, intent(in) :: dt, torque, torque_noise
+    real, intent(in) :: vel_act, vel_tor, vel_noise
     ! =======================================
     real , intent(out) :: new_XYT(N,3)
     ! =======================================
@@ -33,34 +33,24 @@ subroutine evolve_MD(XYT, act, Rm, Rr, dt, nsteps, tor, &
         velY = 0
         velR = 0
 
-        ! =============================
-        ! thermal motion + activity
-        ! =============================
+        ! we neglect diffusion as its small compared to noise on propulsion
 
+        ! active propulsion
         do i = 1, N
-            velX(i) = gran()*Rm
-            velY(i) = gran()*Rm
-            velR(i) = gran()*Rr
-
-            if (act(i)>0) then
-                ! ========================
-                ! Action includes rotation
-                ! ========================
-                v = vel_act + gran()*sig_vel_act
-                if (act(i)>1) then
-                    v = vel_tor + gran()*sig_vel_tor
-                    velR(i) = velR(i) - 2*tor*(act(i)-2.5)
+            if (act(i)>0) then ! not passive
+                if (act(i)>1) then ! rotating
+                    v = vel_tor + gran() * vel_noise * vel_tor
+                    velR(i) = -2*(act(i)-2.5) * torque * (1 + gran()*torque_noise)
+                else
+                    v = vel_act + gran() * vel_noise * vel_act
                 endif
-                velX(i) = velX(i) + cos(new_XYT(i,3))*v
-                velY(i) = velY(i) + sin(new_XYT(i,3))*v
+                velX(i) = cos(new_XYT(i,3)) * v
+                velY(i) = sin(new_XYT(i,3)) * v
 
             endif
         enddo
 
-        ! =============================
-        ! repulsion
-        ! =============================
-
+        ! particle-particle repulsion
         do i = 1, N-1
             do j = i+1, N
                 dx = new_XYT(j,1) - new_XYT(i,1)
@@ -83,10 +73,7 @@ subroutine evolve_MD(XYT, act, Rm, Rr, dt, nsteps, tor, &
             enddo
         enddo
 
-        ! =============================
         ! move
-        ! =============================
-
         do i = 1, N
             new_XYT(i,1) = new_XYT(i,1) + velX(i)*dt
             new_XYT(i,2) = new_XYT(i,2) + velY(i)*dt

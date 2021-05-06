@@ -5,7 +5,7 @@ from fortran import evolve_food
 class FoodEnvironment():
     """Environment to simulate active swimmers in different food scenarios"""
 
-    def __init__(self, food_mode, dt, action_time, Dt, Dr, vel_act, vel_tor, vel_noise, torque,
+    def __init__(self, food_mode, dt, action_time, vel_act, vel_tor, vel_noise, torque, torque_noise,
                  input_dim, food_rew, touch_penalty, tp_type, max_nn_rew, cones, rew_cones, vision_angle, particle_size, visual_particle_size, obs_type,
                  food_dist, food_amount, food_width, food_delay,
                  **parameters):
@@ -13,16 +13,12 @@ class FoodEnvironment():
         # Time resolution
         self.dt = dt
         self.steps = int(action_time / dt)
-        # Brownian dynamics
-        self.Dt = Dt
-        self.Dr = Dr
-        self.Rm = np.sqrt(2*self.Dt/self.dt)
-        self.Rr = np.sqrt(2*self.Dr/self.dt)
         # Active Properties
         self.vel_act = vel_act
         self.vel_tor = vel_tor
         self.vel_noise = vel_noise
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+        self.torque_noise = torque_noise
         # Food configuration
         self.food_dist = food_dist
         self.food_amount = food_amount
@@ -40,8 +36,6 @@ class FoodEnvironment():
         self.tp_type = {'all': 1, 'closest': 2, '1overR3': 3}[tp_type]
         self.max_nn_rew = max_nn_rew
         self.rew_cones = rew_cones
-        # everything that was not catched by the arguments
-        self.parameters = parameters
 
         # Current State
         self.foodrng = None
@@ -107,8 +101,8 @@ class FoodEnvironment():
 
         # Evolve multiple steps of brownian dynamics for one action
         self.particles = evolve_food.evolve_md(
-            self.particles, actions, self.Rm, self.Rr, self.dt, self.steps, self.torque,
-            self.vel_act, self.vel_act*self.vel_noise, self.vel_tor, self.vel_tor*self.vel_noise
+            self.particles, actions, self.dt, self.steps,
+            self.torque, self.torque_noise, self.vel_act, self.vel_tor, self.vel_noise
         )
 
         # Compute Observables and reward r for new state s'
@@ -219,8 +213,12 @@ class FoodEnvironment():
             self.food[0,4] -= 1
             self.food[0,3] = 0
             if self.food[0,4] < 1:
-                self.food[0,0] = self.foodrng.uniform(-150, 150)
-                self.food[0,1] = self.foodrng.uniform(-100, 100)
+                old_x = self.food[0,0]
+                old_y = self.food[0,1]
+                # redraw until distance is at least 'food_dist'
+                while (self.food[0,0] - old_x)**2 + (self.food[0,1] - old_y)**2 < self.food_dist**2:
+                    self.food[0,0] = self.foodrng.uniform(-150, 150)
+                    self.food[0,1] = self.foodrng.uniform(-100, 100)
                 self.food[0,2] = self.food_amount
                 self.food[0,3] = self.food_width
                 self.food[0,4] = self.food_delay

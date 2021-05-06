@@ -25,7 +25,7 @@ default_parameters = {
 
     # Training
     'food_rew': 0.6,
-    'touch_penalty': 0, # 3,
+    'touch_penalty': 0,
     'tp_type': 'all',
     'max_nn_rew': 999,
     'obs_type': '1overR',
@@ -36,23 +36,21 @@ default_parameters = {
     'training_frequency': 240,
     'training_epochs': 50,
     'food_mode': 'randombox',
-    'food_dist': 200, # distance for new food
+    'food_dist': 150, # distance for new food
     'food_amount': 2000,
     'food_width': 100,
     'food_delay': 100,
 
     # Episodes
     'N': 30,
-    'particle_size': 6.2,
-    'training_mode': 'dynamic',
-    'dt': 0.2,
-    'action_time': 6,
-    'Dt': 0, # 0.014,
-    'Dr': 0, # 1.0 / 350.0,
-    'vel_act': 0.5,
-    'vel_tor': 0.35,
-    'vel_noise': 0, # 0.5, relative!
-    'torque': 25,
+    'particle_size': 6.2, # µm
+    'dt': 0.2, # seconds
+    'action_time': 6, # seconds
+    'vel_act': 0.5, # µm/s
+    'vel_tor': 0.35, # µm/s
+    'vel_noise': 0.2, # relative
+    'torque': 25, # kT
+    'torque_noise': 0.2, # relative
 }
 
 
@@ -99,36 +97,17 @@ def do_task(selected_parameters, data_dir):
     # - - - - - - - - - -
     # sequentially train the agent
 
-    steps = int(2*3600 / parameters['action_time'])
-    episodes = 100
+    do_batch(
+        agent, environment, parameters, data_dir,
+        'train_short', 50, int(2*3600 / parameters['action_time']), train_agent=True
+    )
 
-    storage = h5py.File(os.path.join(data_dir, 'train_short.hdf5'), 'w-')
-    rewards = storage.create_dataset('/rewards', (episodes,steps), dtype='f4', compression='gzip')
-    entropies = storage.create_dataset('/entropies', (episodes,steps), dtype='f4', compression='gzip')
-    values = storage.create_dataset('/values', (episodes,steps), dtype='f4', compression='gzip')
-
-    for i in range(episodes):
-        rewards[i,:], entropies[i,:], values[i,:] = do_episode(agent, environment, parameters, steps, train_agent=True)
-        agent.save_weights(os.path.join(data_dir, 'model'), 'train_short_{:02d}'.format(i))
-
-    storage.close()
-
-    # - - - - - - - - - -
     # increase episode length
 
-    steps = int(10*3600 / parameters['action_time'])
-    episodes = 50
-
-    storage = h5py.File(os.path.join(data_dir, 'train_long.hdf5'), 'w-')
-    rewards = storage.create_dataset('/rewards', (episodes,steps), dtype='f4', compression='gzip')
-    entropies = storage.create_dataset('/entropies', (episodes,steps), dtype='f4', compression='gzip')
-    values = storage.create_dataset('/values', (episodes,steps), dtype='f4', compression='gzip')
-
-    for i in range(episodes):
-        rewards[i,:], entropies[i,:], values[i,:] = do_episode(agent, environment, parameters, steps, train_agent=True)
-        agent.save_weights(os.path.join(data_dir, 'model'), 'train_long_{:02d}'.format(i))
-
-    storage.close()
+    do_batch(
+        agent, environment, parameters, data_dir,
+        'train_long', 20, int(10*3600 / parameters['action_time']), train_agent=True
+    )
 
     # no training after this point
     agent.save_models(os.path.join(data_dir, 'model'))
@@ -136,38 +115,48 @@ def do_task(selected_parameters, data_dir):
     # - - - - - - - - - -
     # do some episodes with fixed seeds for evaluation
 
-    steps = int(10*3600 / parameters['action_time'])
-    seeds = 5
+    do_batch(
+        agent, environment, parameters, data_dir,
+        'evaluate', 5, int(10*3600 / parameters['action_time']), fixed_seeds=True, record_traj=True
+    )
 
-    storage = h5py.File(os.path.join(data_dir, 'evaluate.hdf5'), 'w-')
-    rewards = storage.create_dataset('/rewards', (seeds,steps), dtype='f4', compression='gzip')
-    entropies = storage.create_dataset('/entropies', (seeds,steps), dtype='f4', compression='gzip')
-    values = storage.create_dataset('/values', (seeds,steps), dtype='f4', compression='gzip')
-
-    rewards[0,:], entropies[0,:], values[0,:], food, particles = do_episode(agent, environment, parameters, steps, seed=0, record_traj=True)
-    storage.create_dataset('/traj_00/food', compression='gzip', data=food)
-    storage.create_dataset('/traj_00/particles', compression='gzip', data=particles)
-
-    for i in range(1, seeds):
-        rewards[i,:], entropies[i,:], values[i,:] = do_episode(agent, environment, parameters, steps, seed=i)
-
-    storage.close()
-
-    # - - - - - - - - - -
     # do one episode without food to evaluate steady state behavior
 
     nofood_environment = FoodEnvironment(**{**parameters, 'food_mode': 'none'})
-    steps = int(10*3600 / parameters['action_time'])
-    storage = h5py.File(os.path.join(data_dir, 'nofood.hdf5'), 'w-')
 
-    rewards, entropies, values, food, particles = do_episode(agent, nofood_environment, parameters, steps, seed=0, record_traj=True)
+    do_batch(
+        agent, nofood_environment, parameters, data_dir,
+        'nofood', 1, int(10*3600 / parameters['action_time']), fixed_seeds=True, record_traj=True
+    )
 
-    storage.create_dataset('/rewards', compression='gzip', data=rewards.reshape((1,-1)))
-    storage.create_dataset('/entropies', compression='gzip', data=entropies.reshape((1,-1)))
-    storage.create_dataset('/values', compression='gzip', data=values.reshape((1,-1)))
-    storage.create_dataset('/traj_00/food', compression='gzip', data=food)
-    storage.create_dataset('/traj_00/particles', compression='gzip', data=particles)
 
+
+def do_batch(agent, environment, parameters, data_dir, name, episodes, steps, *, fixed_seeds=False, record_traj=False, train_agent=False):
+
+    storage = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
+    rewards = storage.create_dataset('/rewards', (episodes,steps), dtype='f4', compression='gzip')
+    entropies = storage.create_dataset('/entropies', (episodes,steps), dtype='f4', compression='gzip')
+    values = storage.create_dataset('/values', (episodes,steps), dtype='f4', compression='gzip')
+
+    for i in range(1, episodes):
+
+        if i == 0 and record_traj:
+            rewards[i,:], entropies[i,:], values[i,:], food, particles = do_episode(
+                agent, environment, parameters, steps,
+                seed=(i if fixed_seeds else None), record_traj=True, train_agent=train_agent
+            )
+            storage.create_dataset('/traj/food', compression='gzip', data=food)
+            storage.create_dataset('/traj/particles', compression='gzip', data=particles)
+        else:
+            rewards[i,:], entropies[i,:], values[i,:] = do_episode(
+                agent, environment, parameters, steps,
+                seed=(i if fixed_seeds else None), train_agent=train_agent
+            )
+
+        if train_agent:
+            agent.save_weights(os.path.join(data_dir, 'model'), name + '_{:02d}'.format(i))
+
+    storage.close()
 
 
 def do_episode(agent, environment, parameters, steps, *, record_traj=False, train_agent=False, seed=None):

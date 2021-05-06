@@ -184,7 +184,7 @@ class AgentActiveMatter():
     logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
-    actions = [np.random.choice(self.n_actions, p=p) for p in np.exp(logp)]
+    actions = np.array([np.random.choice(self.n_actions, p=p) for p in np.exp(logp)])
 
     # save for training
     for par, a, dist in zip(self.particles, actions, logp):
