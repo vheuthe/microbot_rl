@@ -7,7 +7,7 @@
 
 ## Logfile configuration
 #$ -j y
-#$ -o /data/scc/veit-lorenz.heuthe/Logs/close_pen_muK_sweep.$TASK_ID.log
+#$ -o /data/scc/veit-lorenz.heuthe/Logs/primitive_reward_test.$TASK_ID.log
 
 ## Send email on abort
 #$ -m a
@@ -36,12 +36,12 @@ import os
 
 task_id = int($SGE_TASK_ID) - 1
 
-mu_K_range = [1, 1.2, 1.4, 1.6, 1.8, 2]
-mu_K = mu_K_range[task_id]
+rewCutoff_range = [6, 8, 10, 12, 14, 16, 18, 20]
+rewCutoff = rewCutoff_range[task_id]
 
-job_dir = '/data/scc/veit-lorenz.heuthe/$JOB_NAME/mu_K_{}'.format(mu_K)
+job_dir = '/data/scc/veit-lorenz.heuthe/$JOB_NAME/rewCutoff_{}'.format(rewCutoff)
 os.system("mkdir -p {}".format(job_dir))
 
-os.system("python3 learning_ROD_reworked.py {} {}".format(mu_K, job_dir))
+os.system("python3 learning_ROD_reworked.py {} {}".format(rewCutoff, job_dir))
 
 ENDOFPYTHON

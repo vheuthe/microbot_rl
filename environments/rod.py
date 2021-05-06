@@ -29,15 +29,16 @@ from fortran import evolve_rod_rigid as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, size=10, skew = False,
+    def __init__(self, index=0, N=10, size=10, skew=False,
                 steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
-                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0, mu_K = 0.0,
-                Dt = 0.014, Dr = 1.0 / 350.0,
+                sizeRod=3, massRod=10., inertiaRod=1., distRod=2., ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
+                Dt=0.014, Dr=1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8,
                 traj=False, mode=1, swirl=False,
-                data_path='/home/veit/Git/reinforcement-learning', rewMode = 'classic',
-                close_pen = 0, rotRewFact = 2, pushRewFact = 3, **unused_parameters):
+                data_path='/home/veit/Git/reinforcement-learning', rewMode='classic',
+                close_pen=0, rotRewFact=2, pushRewFact=3,
+                rewCutoff=8, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -97,6 +98,7 @@ class MD_ROD():
         self.rotRewFact = rotRewFact # These are factors for the implementation of rewards based on forces
         self.pushRewFact = pushRewFact
         self.rewMode = rewMode # 'forces' or 'classic'
+        self.rewCutoff = rewCutoff # for primitive rewards: the max distance to the rod that still gets rewarded
 
         # parameters of dynamics
         self.n_MD_steps = steps
@@ -216,68 +218,11 @@ class MD_ROD():
                     sigma_rod = 3.6*(self.ext_rod + (self.cen_rod-self.ext_rod)*abs( ((self.Nrod-i)%(self.Nrod//2)) / (self.Nrod//2)))
                 xyz_file.write('2 {} {} 0.0 {} {} 0.0 {}\n'.format(rod[i,0], rod[i,1], deltarod[i,0], deltarod[i,1], sigma_rod))
 
-  # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_o_r_rod_fortran(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
-        t0 = time.time()
-        p = self.particles
-        r = self.rod
-        olr = self.old_rod
-        if (self.mode == 4):
-            assert rotDir in [-1,1]
-            assert old_rotDir in [-1,1]
-        obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2],
-                                          r[:,0], r[:,1], olr[:,0],olr[:,1],
-                                          self.mode, rotDir, old_rotDir,
-                                          flag_side, self.flag_LOS,
-                                          self.ss, self.ssrod, self.massRod,
-                                          self.ext_rod, self.cen_rod,
-                                          obs_type,
-                                          self.cones, self.cone_angle, self.close_pen,
-                                          self.Nobs, self.N, self.Nrod)
-        self.rewards = rewards
-        return obs, rewards
-
-    def get_obs_rewards(self, rotDir=0, old_rotDir=0):
-
-        if self.rewMode == 'classic':
-            return self.get_o_r_rod_fortran(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
-
-        elif self.rewMode == 'forces':
-            return self.get_obs_rewards_forces(rotDir, old_rotDir, self.flag_side, obs_type=self.obs_type)
-
-    def get_obs_rewards_forces(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
-        '''
-        This calculates a reward based on the contribution of each particle to the performance.
-        The contribution of each particle is estimated by evaluating how well the forces the
-        particle exerted on the rod meet the desired rod.
-        '''
-        # Determining the performance P of each particle (this is the important part)
-        r = self.rod
-        olr = self.old_rod
-        p = self.particles
-        if (self.mode == 4):
-            assert rotDir in [-1,1]
-            assert old_rotDir in [-1,1]
-
-        rewards = self.get_forces_rewards() # Determines the rewards according to the forces and te current mode
-
-        self.rewards = rewards
-
-        # Now the observables are determined
-        obs, _, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2],
-                                          r[:,0], r[:,1], olr[:,0],olr[:,1],
-                                          self.mode, rotDir, old_rotDir,
-                                          flag_side, self.flag_LOS,
-                                          self.ss, self.ssrod, self.massRod,
-                                          self.ext_rod, self.cen_rod,
-                                          obs_type,
-                                          self.cones, self.cone_angle, self.close_pen,
-                                          self.Nobs, self.N, self.Nrod)
-
-        return obs, rewards
-
 
     def evolve_MD(self, action, rotDir=0, old_rotDir=0):
+        '''
+        Evolves the particle and rod situation one simulation step (=Nstep times one dt time-step)
+        '''
         t0 = time.time()
         done = False
         X = self.particles[:,0]
@@ -299,8 +244,57 @@ class MD_ROD():
         return obs, rewards, done, {}
 
 
-    def get_forces_rewards(self):
+
+  # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
+    def get_obs_rewards(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
+        '''
+        This calculates a reward based on the contribution of each particle to the performance.
+        The contribution of each particle is estimated by evaluating how well the forces the
+        particle exerted on the rod meet the desired rod.
+        '''
         # Determining the performance P of each particle (this is the important part)
+        r = self.rod
+        olr = self.old_rod
+        p = self.particles
+        if (self.mode == 4):
+            assert rotDir in [-1,1]
+            assert old_rotDir in [-1,1]
+
+        # Now the observables are determined, if rewMode=='classic' the rewards determined here are used, too
+        obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2],
+                                          r[:,0], r[:,1], olr[:,0],olr[:,1],
+                                          self.mode, rotDir, old_rotDir,
+                                          flag_side, self.flag_LOS,
+                                          self.ss, self.ssrod, self.massRod,
+                                          self.ext_rod, self.cen_rod,
+                                          obs_type,
+                                          self.cones, self.cone_angle, self.close_pen,
+                                          self.Nobs, self.N, self.Nrod)
+
+        if self.rewMode == 'classic':
+
+            self.rewards = rewards
+
+        elif self.rewMode == 'forces':
+
+            rewards = self.get_forces_rewards() # Determines the rewards according to the forces and te current mode
+
+            self.rewards = rewards
+
+        elif self.rewMode == 'primitive':
+
+            rewards = self.get_primitive_rewards() # Determines rewards in primitive way (close? rotated?) So far only for rot.
+
+            self.rewards = rewards
+
+        return obs, rewards
+
+
+    def get_forces_rewards(self):
+        '''
+        This rewards on the basis of how well the forces the particles exerted on the rod
+        comply to the objective (move the rod or rotate it, etc.)
+        '''
         r = self.rod
         olr = self.old_rod
 
@@ -312,7 +306,7 @@ class MD_ROD():
 
             self.Particle_perf = self.part_rod_forces[:,2] * np.sign(dTheta) # Performance is proportional torque fr rotation
 
-            rewards = self.rotRewFact * dTheta * self.Particle_perf
+            rewards = self.rotRewFact * dTheta * self.Particle_perf # Performance is only rewarded, if the rod has rotated
 
         elif self.mode == 6: # Longitudinal pushing
             dCM = complex(sum(r[:,0]) / self.Nrod - sum(olr[:,0]) / self.Nrod, \
@@ -326,10 +320,37 @@ class MD_ROD():
 
             self.Particle_perf = (part_rod_forces_complex * e ** (-1j*rodTheta)).real # Particle forces in the longitud. direction of the rod
 
-            rewards = self.pushRewFact * dCM_lon * self.Particle_perf
+            rewards = self.pushRewFact * dCM_lon * self.Particle_perf # Performance is only rewarded, if the rod has moved
 
         return rewards
 
+
+    def get_primitive_rewards(self):
+        '''
+        This simply rewards every particle that is present within a certain
+        area around the rod if the rod has moved or rotated, etc.
+        '''
+        r = self.rod
+        olr = self.old_rod
+        p = self.particles
+
+        # Determining the distances to the rod (for every mode)
+        pCompl = np.array(p[:,0] + 1j * p[:,1], ndmin=2)
+        rCompl = np.array(r[:,0] + 1j * r[:,1], ndmin=2)
+        rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
+
+        dist = np.transpose(abs(pCompl - np.transpose(rCompl))) # Particles are in columns with their distances to the rod in rows
+        minDist = np.transpose(np.amin(dist, axis=1))
+        closeEnough = minDist <= self.rewCutoff # Only the particles within the cutoff distance to the rod get rewarded
+
+        if self.mode == 3: # Rotation
+            dTheta_uncorr = rodTheta - np.angle(complex(olr[-1,0] - olr[0,0], olr[-1,1] - olr[0,1])) # Still can have jumps
+
+            dTheta = dTheta_uncorr - np.floor(dTheta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
+
+            rewards = closeEnough * dTheta * self.rotRewFact
+
+        return rewards
 #
 # ------------------------------------
 # End of class MD

@@ -29,7 +29,8 @@ default_parameters = {
     'close_pen': 0.6, # Prefactor for closeness penalty
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
-    'rewMode': 'forces', # Mode of rewards ('forces' or 'classic')
+    'rewMode': 'primitive', # Mode of rewards ('forces', 'primitive' or 'classic')
+    'rewCutoff': sys.argv[1], # 8, # Cutoff for the primitive rewards
 
     # Particles
     'vel_act': 0.35,
@@ -89,12 +90,12 @@ def KL_symm(A,B):
 
 if __name__ == "__main__":
 
-    data_path='/mnt/c/Users/veit/Documents/PhD/SimData/test_forces_reward'
+    data_path = sys.argv[2] # '/mnt/c/Users/veit/Documents/PhD/SimData/test_primitive_reward'
 
     # ------------------------------------------------
 
     load_models = None
-    models_rootname = data_path + '/model_sim_long_push_{}_{}sAct'.format(parameters["mu_K"], parameters["step_time"])
+    models_rootname = data_path + '/model_sim_rot_{}_{}sAct'.format(parameters["mu_K"], parameters["step_time"])
     if (parameters["start_MD"] > 0):
         load_models = models_rootname
 
