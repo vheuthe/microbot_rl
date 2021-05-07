@@ -101,7 +101,7 @@ class FoodEnvironment():
 
         # Evolve multiple steps of brownian dynamics for one action
         self.particles = evolve_food.evolve_md(
-            self.particles, actions, self.dt, self.steps,
+            self.particles, actions, self.steps, self.dt,
             self.torque, self.torque_noise, self.vel_act, self.vel_tor, self.vel_noise
         )
 

@@ -138,7 +138,7 @@ def do_batch(agent, environment, parameters, data_dir, name, episodes, steps, *,
     entropies = storage.create_dataset('/entropies', (episodes,steps), dtype='f4', compression='gzip')
     values = storage.create_dataset('/values', (episodes,steps), dtype='f4', compression='gzip')
 
-    for i in range(1, episodes):
+    for i in range(0, episodes):
 
         if i == 0 and record_traj:
             rewards[i,:], entropies[i,:], values[i,:], food, particles = do_episode(
