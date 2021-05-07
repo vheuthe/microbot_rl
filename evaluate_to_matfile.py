@@ -6,7 +6,7 @@ import os
 import json
 
 from firstrl import AgentActiveMatter
-from environments.food import FoodEnvironment
+from environments.food import FoodSimulation
 
 
 assert len(sys.argv) > 1
@@ -28,7 +28,7 @@ for task in tasks:
     )
 
     parameters['food_mode'] = 'none'
-    environment = FoodEnvironment(**parameters)
+    environment = FoodSimulation(**parameters)
 
     # # data saving
     # stats_file = open(os.path.join(root_dir, task, 'nofood_stats.xyz'), 'w')

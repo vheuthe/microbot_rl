@@ -1,10 +1,10 @@
 
 import learning_food
-from environments.food import FoodEnvironment
+from environments.food import FoodSimulation
 import numpy as np
 from scipy.io import savemat
 
-env = FoodEnvironment(**{**learning_food.default_parameters, 'food_rew': 0, 'touch_penalty': 0, 'food_mode': 'none'})
+env = FoodSimulation(**{**learning_food.default_parameters, 'food_rew': 0, 'touch_penalty': 0, 'food_mode': 'none'})
 env.reset(1)
 
 def get_reward(others):

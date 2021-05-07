@@ -6,7 +6,7 @@ import sys
 import os
 
 from firstrl import AgentActiveMatter
-from environments.food import FoodEnvironment
+from environments.food import FoodSimulation
 
 
 default_parameters = {
@@ -22,8 +22,10 @@ default_parameters = {
     'lrV': 0.003,
     'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
+    'training_frequency': 240,
+    'training_epochs': 50,
 
-    # Training
+    # Reward
     'food_rew': 0.6,
     'touch_penalty': 0,
     'tp_type': 'all',
@@ -33,15 +35,15 @@ default_parameters = {
     'rew_cones': 2,
     'vision_angle': 180,
     'visual_particle_size': 6.2,
-    'training_frequency': 240,
-    'training_epochs': 50,
-    'food_mode': 'randombox',
-    'food_dist': 150, # distance for new food
-    'food_amount': 2000,
-    'food_width': 100,
-    'food_delay': 100,
 
-    # Episodes
+    # Food
+    'food_mode': 'experiment',
+    'food_dist': 120, # distance for new food
+    'food_amount': 2000,
+    'food_width': 80,
+    'food_delay': 200,
+
+    # Simulation
     'N': 30,
     'particle_size': 6.2, # µm
     'dt': 0.2, # seconds
@@ -92,7 +94,7 @@ def do_task(selected_parameters, data_dir):
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # setup reusable environment
-    environment = FoodEnvironment(**parameters)
+    environment = FoodSimulation(**parameters)
 
     # - - - - - - - - - -
     # sequentially train the agent
@@ -122,7 +124,7 @@ def do_task(selected_parameters, data_dir):
 
     # do one episode without food to evaluate steady state behavior
 
-    nofood_environment = FoodEnvironment(**{**parameters, 'food_mode': 'none'})
+    nofood_environment = FoodSimulation(**{**parameters, 'food_mode': 'none'})
 
     do_batch(
         agent, nofood_environment, parameters, data_dir,
