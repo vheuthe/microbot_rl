@@ -339,7 +339,7 @@ class MD_ROD():
         rCompl = np.array(r[:,0] + 1j * r[:,1], ndmin=2)
         rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
 
-        dist = np.transpose(abs(pCompl - np.transpose(rCompl))) # Particles are in columns with their distances to the rod in rows
+        dist = np.transpose(abs(pCompl - np.transpose(rCompl))) # Particles are in rows with their distances to the rod in columns
         minDist = np.transpose(np.amin(dist, axis=1))
         closeEnough = minDist <= self.rewCutoff # Only the particles within the cutoff distance to the rod get rewarded
 
@@ -348,7 +348,7 @@ class MD_ROD():
 
             dTheta = dTheta_uncorr - np.floor(dTheta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
 
-            rewards = closeEnough * dTheta * self.rotRewFact
+            rewards = closeEnough * abs(dTheta) * self.rotRewFact # The direction of rotation does not matter.
 
         return rewards
 #
