@@ -27,12 +27,12 @@ default_parameters = {
 
     # Reward
     'food_rew': 0.6,
-    'touch_penalty': 0,
-    'tp_type': 'all',
+    'touch_penalty': 2,
+    'tp_type': '1overR3',
     'max_nn_rew': 999,
     'obs_type': '1overR',
     'cones': 5,
-    'rew_cones': 2,
+    'rew_cones': 0,
     'vision_angle': 180,
     'visual_particle_size': 6.2,
 

@@ -117,7 +117,7 @@ def serve_experiment():
 
             else:
                 print("System call interrupted, stopping server, saving models")
-                agent.save_models('./models')
+                agent.save_models('./model')
                 break
 
     finally:
