@@ -59,16 +59,15 @@ def serve_experiment():
             if data:
                 # cast bytestream to double array and reshape to [x y theta state]
                 data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 4))
-                particles = data[:,0:3]
-
-                # remove NaN angles
-                particles[np.isnan(particles[:,2]), 2] = 0
 
                 # where x is NaN
-                lost = np.isnan(particles[:,0])
+                lost = np.isnan(data[:,0])
 
                 # where state is negative
                 inboundary = (data[:,3] < 0)
+
+                # "observable calculation save" xyθ
+                particles = np.nan_to_num(data[:,0:3])
 
                 # debug
                 print("Received data for action {:>4}: {:>3} particles, {:>3} lost, {:>3} in boundary condition, {:>3} valid."
