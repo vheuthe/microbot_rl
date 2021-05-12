@@ -47,11 +47,12 @@ default_parameters = {
 
     # Rod
     'ss_rod': 0.01,
-    'mu_K': int(sys.argv[1]), # 1.8,
+    'mu_K': 1,
     'sizeRod': 96,
     'distRod': 1.6,
     'ext_rod': 1.,
     'cen_rod': 1.,
+    'massRod': float(sys.argv[1]), # "Mass" of the rod determining, how easily the particles can move it
 
     # For MD part of simulation
     'steps_update': 128,
