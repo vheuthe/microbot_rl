@@ -54,7 +54,7 @@ class AbstractFood():
         }[food_mode]
 
         # reset for convenience
-        self.reset()
+        AbstractFood.reset(self)
 
     def reset(self, seed=None):
         # set up rng, this is important for reproducibility of evaluation runs
