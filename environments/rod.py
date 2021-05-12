@@ -38,7 +38,7 @@ class MD_ROD():
                 traj=False, mode=1, swirl=False,
                 data_path='/home/veit/Git/reinforcement-learning', rewMode='classic',
                 close_pen=0, rotRewFact=2, pushRewFact=3,
-                rewCutoff=8, **unused_parameters):
+                rewCutoff=8, startConfig='standard', **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -99,6 +99,7 @@ class MD_ROD():
         self.pushRewFact = pushRewFact
         self.rewMode = rewMode # 'forces' or 'classic'
         self.rewCutoff = rewCutoff # for primitive rewards: the max distance to the rod that still gets rewarded
+        self.startConfig = startConfig # which configuration to start with
 
         # parameters of dynamics
         self.n_MD_steps = steps
@@ -115,7 +116,15 @@ class MD_ROD():
         self.traj = traj
         if (self.traj):
             self.filexyz=self.data_path+'/traj'+str(index)+'.xyz'
-        self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl) # reinitialize_test_friction(index, swirl)
+
+        if self.startConfig == 'standard':
+            self.particles, self.rod = self.reinitialize_random_for_MD(index, swirl)
+        elif self.startConfig == 'test_friction':
+            self.particles, self.rod = self.reinitialize_test_friction(index, swirl)
+        elif self.startConfig == 'biased':
+            self.particles, self.rod = self.reinitialize_biased(index, swirl)
+
+
         self.old_rod = np.zeros(self.rod.shape)
         self.old_rod[:] = self.rod[:]
         self.Particle_perf = np.zeros((self.particles.shape[0], 1))
@@ -164,7 +173,7 @@ class MD_ROD():
   # Initialize with two particles close to the rod and at one end of it (for test_friction)
 
     def reinitialize_test_friction(self, index, swirl=False):
-
+        # Initializes with two particles close to the rod at one of its ends
         particles = np.array([[-7, -40, np.pi/2-np.pi/4], [7, -40, np.pi/2+np.pi/4]])
 
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
@@ -172,6 +181,35 @@ class MD_ROD():
         if (self.traj):
             open(self.filexyz, "w")
         return particles, rod
+
+
+    def reinitialize_biased(self, index, swirl=False):
+        # Initializes with the partielces on opposite sides at the ends of the rod and pointing towards it
+        gridSz = np.int(np.sqrt(self.N/2)) + 1
+        gridVals = [10 * (element + 0.5 - gridSz/2) for element in list(range(gridSz))]
+
+        grid0 = np.array(gridVals, ndmin=2) + 1j * np.transpose(np.array(gridVals, ndmin=2)) # Prototype of the grid
+        grid1 = grid0 + (10 * (1  + gridSz/2) + 1j * (self.sizeRod/2 - 10 * gridSz/2)) # Grid shifted to the upper right end of the rod
+        grid2 = grid0 + (-10 * (1  + gridSz/2) - 1j * (self.sizeRod/2 - 10 * gridSz/2)) # Grid shifted to the lower left end of the rod
+
+        particles = np.zeros((self.N,3))
+
+        for i in range(self.N):
+            if i<grid1.size:
+                particles[i,:] = [np.real(grid1[np.unravel_index(i, grid1.shape)]), \
+                                  np.imag(grid1[np.unravel_index(i, grid1.shape)]), \
+                                  -np.pi]
+            else:
+                particles[i,:] = [np.real(grid2[np.unravel_index(i - grid1.size, grid2.shape)]), \
+                                  np.imag(grid2[np.unravel_index(i - grid1.size, grid2.shape)]), \
+                                  0]
+
+        rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
+
+        if (self.traj):
+            open(self.filexyz, "w")
+        return particles, rod
+
 
   # PRINT TRAJECTORY
     def print_xyz(self):

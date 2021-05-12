@@ -43,10 +43,11 @@ default_parameters = {
     'cone_angle': 180,
     'flag_side': False,
     'flag_LOS': False,
+    'startConfig': 'biased', # 'standard' or 'biased' or 'test_friction'
 
     # Rod
     'ss_rod': 0.01,
-    'mu_K': 1,
+    'mu_K': int(sys.argv[1]), # 1.8,
     'sizeRod': 96,
     'distRod': 1.6,
     'ext_rod': 1.,
@@ -55,7 +56,7 @@ default_parameters = {
     # For MD part of simulation
     'steps_update': 128,
     'steps': 20,
-    'n_MD': 300, # 100,
+    'n_MD': 300,
     'total_time': 3600,
     'step_time': 5,
     'dt': 0.1,
@@ -90,7 +91,7 @@ def KL_symm(A,B):
 
 if __name__ == "__main__":
 
-    data_path = '/data/scc/veit-lorenz.heuthe/primitive_reward_test' # '/mnt/c/Users/veit/Documents/PhD/SimData/test_primitive_reward/check'
+    data_path = sys.argv[2] # '/mnt/c/users/Veit/Documents/PhD/SimData/test_primitive_reward/biased_start_friction' # '/mnt/c/Users/veit/Documents/PhD/SimData/test_primitive_reward/check'
 
     # ------------------------------------------------
 
