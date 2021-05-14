@@ -68,9 +68,9 @@ class AgentActiveMatter():
   '''
 
 
-  def __init__(self, input_dim, output_dim, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
-               load_models = None, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')],
-               nActions=4, **unused_parameters):
+  def __init__(self, input_dim, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
+               nActions=4, load_models = None, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')],
+               **unused_parameters):
     '''
     Constructs a new RL Agent.
 
@@ -98,7 +98,7 @@ class AgentActiveMatter():
       self.policy = tf.keras.models.load_model(load_models + '_policy/')
 
       self.input_dim = self.critic.layers[0].input_shape[1]
-      self.n_actions = nActions
+      self.nActions = self.policy.layers[-1].output_shape[1]
       self.reset_memory()
 
     else:
@@ -106,7 +106,7 @@ class AgentActiveMatter():
       assert model_structure, 'model structure is not defined!'
 
       self.input_dim = input_dim
-      self.n_actions = output_dim
+      self.nActions = nActions
       self.reset_memory()
 
       # Actor Neural Network
@@ -117,7 +117,7 @@ class AgentActiveMatter():
           # Hidden Layers
           *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
           # Output Layer defining actions
-          tf.keras.layers.Dense(self.n_actions, activation='linear')
+          tf.keras.layers.Dense(self.nActions, activation='linear')
         ]
       )
 
@@ -184,7 +184,7 @@ class AgentActiveMatter():
     logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
-    actions = [np.random.choice(self.n_actions, p=p) for p in np.exp(logp)]
+    actions = [np.random.choice(self.nActions, p=p) for p in np.exp(logp)]
 
     # save for training
     for par, a, dist in zip(self.particles, actions, logp):
@@ -323,7 +323,7 @@ class AgentActiveMatter():
         # A^{π_θ_k}(s,a) == self.adv
         # ε == self.CL
         new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
-        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * new_logp_dist, axis=1)
+        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.nActions) * new_logp_dist, axis=1)
         probability_ratio = tf.exp(new_logp - self.logp)
         max_adv = np.where(self.advantage > 0, (1+self.CL) * self.advantage, (1-self.CL) * self.advantage)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))

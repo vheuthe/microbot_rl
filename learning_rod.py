@@ -59,10 +59,10 @@ default_parameters = {
     'distRod': 1.6,
     'ext_rod': 1.,
     'cen_rod': 1.,
-    'massRod': float(sys.argv[1]), # "mass" of the rod determining, how easily the particles can move it
+    'massRod': 10, # "mass" of the rod determining, how easily the particles can move it
 
     # For the MD part of the simulation
-    'nTrainEp': 100, # number of episodes during the whole training (replaces n_MD)
+    'nTrainEp': 5, # number of episodes during the whole training (replaces n_MD)
     'nEvalEp': 4, # number of evaluation episodes doen in the end without further training
 
     'nStepEpTrain': 720, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
@@ -134,7 +134,7 @@ def do_task(selectedParameters, dataDir):
     agent.save_models(os.path.join(dataDir, 'model'))
 
     # And then evaluation for nEvalEp episodes (evaluation batch)
-    do_episode_batch(agent, parameters, dataDir, 'evaluation', parameters['nEvalEp'], parameters['nStepEpEval'], recordTraj=False, trainAgent=True)
+    do_episode_batch(agent, parameters, dataDir, 'evaluation', parameters['nEvalEp'], parameters['nStepEpEval'], recordTraj=True, trainAgent=False)
 
 
 
@@ -144,7 +144,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
     # nEpisodes is the number of episodes to be conducted in this batch
 
     # Set up the data storage file in h5 format
-    storFile = h5py.File(os.path.join(dataDir, name, '.h5'), 'w')
+    storFile = h5py.File(os.path.join(dataDir, name + '.h5'), 'w')
 
     rewards = storFile.create_dataset('/rewards', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
     rodOr = storFile.create_dataset('/rodOr', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
@@ -214,7 +214,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         if recordTraj:
             # Save the particle positions, actions and rewards and the rod-particle poositions
             particles[step, 3, :] = actions
-            particles[step, 0:2, :] = environment.particles.transpose()
+            particles[step, 0:3, :] = environment.particles.transpose()
             particles[step, 4, :] = rewards
             rod[step, :, :] = environment.rod.transpose()
 
