@@ -7,7 +7,7 @@
 
 ## Logfile configuration
 #$ -j y
-#$ -o /data/scc/veit-lorenz.heuthe/Logs/primitive_reward_rod_friction.$TASK_ID.log
+#$ -o /data/scc/veit-lorenz.heuthe/Logs/$JOB_NAME.$JOB_ID-$TASK_ID.log
 
 ## Send email on abort
 #$ -m a
@@ -33,15 +33,12 @@ tensorflow.config.threading.set_intra_op_parallelism_threads(2)
 # --- Parse parameters and start simulation ---
 
 import os
+import learning_ROD
 
-task_id = int($SGE_TASK_ID) - 1
+task_id = int($SGE_TASK_ID)
 
-massRod_range = [10, 9, 8, 7, 6, 5, 4, 3]
-massRod = massRod_range[task_id]
+job_dir = os.path.abspath('$JOB_DIR')
 
-job_dir = '/data/scc/veit-lorenz.heuthe/$JOB_NAME/massRod_{}'.format(massRod)
-os.system("mkdir -p {}".format(job_dir))
-
-os.system("python3 learning_ROD.py {} {}".format(massRod, job_dir))
+learning_rod.do_array_task(task_id, job_dir)
 
 ENDOFPYTHON

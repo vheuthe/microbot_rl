@@ -70,7 +70,7 @@ class AgentActiveMatter():
 
   def __init__(self, input_dim, output_dim, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
                load_models = None, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')],
-               **unused_parameters):
+               nActions=4, **unused_parameters):
     '''
     Constructs a new RL Agent.
 
@@ -98,7 +98,7 @@ class AgentActiveMatter():
       self.policy = tf.keras.models.load_model(load_models + '_policy/')
 
       self.input_dim = self.critic.layers[0].input_shape[1]
-      self.n_actions = self.policy.layers[-1].output_shape[1]
+      self.n_actions = nActions
       self.reset_memory()
 
     else:
