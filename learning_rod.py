@@ -62,7 +62,7 @@ default_parameters = {
     'massRod': 10, # "mass" of the rod determining, how easily the particles can move it
 
     # For the MD part of the simulation
-    'nTrainEp': 5, # number of episodes during the whole training (replaces n_MD)
+    'nTrainEp': 5, # number of episodes conducted during the whole training (replaces n_MD)
     'nEvalEp': 4, # number of evaluation episodes doen in the end without further training
 
     'nStepEpTrain': 720, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
@@ -157,8 +157,11 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
             rewards[iEp,:], rodOr[iEp,:], entropies[iEp,:], values[iEp,:] , particles, rod = \
                 do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
-            storFile.create_dataset('/traj/particles', compression='gzip', data=particles)
-            storFile.create_dataset('/traj/rod', compression='gzip', data=rod)
+            rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
+            partName = 'traj{}/particles'.format(iEp)
+
+            storFile.create_dataset(partName, compression='gzip', data=particles)
+            storFile.create_dataset(rodName, compression='gzip', data=rod)
 
         else:
             rewards[iEp,:], rodOr[iEp,:], entropies[iEp,:], values[iEp,:] = \
