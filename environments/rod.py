@@ -264,9 +264,15 @@ class MD_ROD():
 
             self.rewards = rewards
 
-        elif self.rewMode == 'primitive':
+        elif self.rewMode == 'primitive': # the primRewMode spwcifies if touching or closeness are decisive
 
-            rewards = self.get_primitive_rewards() # Determines rewards in primitive way (close? rotated?) So far only for rot.
+            rewards = self.get_primitive_rewards(primRewMode='close') # Determines rewards in primitive way (close? rotated?) So far only for rot.
+
+            self.rewards = rewards
+
+        elif self.rewMode == 'primitiveTouch':
+
+            rewards = self.get_primitive_rewards(primRewMode='touch') # Determines rewards in primitive way (close? rotated?) So far only for rot.
 
             self.rewards = rewards
 
@@ -308,7 +314,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_primitive_rewards(self):
+    def get_primitive_rewards(self, primRewMode='touch'): # the primRewMode spwcifies if touching or closeness are decisive
         '''
         This simply rewards every particle that is present within a certain
         area around the rod if the rod has moved or rotated, etc.
@@ -331,7 +337,10 @@ class MD_ROD():
 
             dTheta = dTheta_uncorr - np.floor(dTheta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
 
-            rewards = closeEnough * abs(dTheta) * self.rotRewFact # The direction of rotation does not matter.
+            if primRewMode == 'close':
+                rewards = closeEnough * abs(dTheta) * self.rotRewFact # The direction of rotation does not matter.
+            elif primRewMode == 'touch':
+                rewards = self.touch * abs(dTheta) * self.rotRewFact # The direction of rotation does not matter.
 
         return rewards
 #

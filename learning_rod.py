@@ -35,7 +35,7 @@ default_parameters = {
     'close_pen': 0.6, # Prefactor for closeness penalty
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
-    'rewMode': 'primitive', # Mode of rewards ('forces', 'primitive' or 'classic')
+    'rewMode': 'primitiveTouch', # Mode of rewards ('forces', 'primitive', 'primitiveTouch' or 'classic')
     'rewCutoff': 30, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
 
     # Particles

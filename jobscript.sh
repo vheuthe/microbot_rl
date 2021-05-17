@@ -33,7 +33,7 @@ tensorflow.config.threading.set_intra_op_parallelism_threads(2)
 # --- Parse parameters and start simulation ---
 
 import os
-import learning_ROD
+import learning_rod
 
 task_id = int($SGE_TASK_ID)
 
