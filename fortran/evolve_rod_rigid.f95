@@ -459,39 +459,39 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
         case (1)
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(Nobs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
         case (2)
-            if (.not.(NObs == (2+flag_side)*cones+2)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+2
+            if (.not.(Nobs == (2+flag_side)*cones+2)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones+2
                 STOP
             endif
         case (3)
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency  NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(Nobs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency  Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
         case (4)
-            if (.not.(NObs == (2+flag_side)*cones+1)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+1
+            if (.not.(Nobs == (2+flag_side)*cones+1)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones+1
                 STOP
             endif
         case (5)
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(Nobs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
         case (6)
-            if (.not.(NObs == (2+flag_side)*cones+1)) then
-                print*, 'ERROR consistency  NObs. Need direction of Rod.'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+1
+            if (.not.(Nobs == (2+flag_side)*cones+1)) then
+                print*, 'ERROR consistency  Nobs. Need direction of Rod.'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones+1
                 STOP
             endif
     end select
@@ -956,28 +956,28 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
         case (1)
-            if (.not.(NObs == (2+flag_diff)*cones)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
         case (2)
-            if (.not.(NObs == (2+flag_diff)*cones+2)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones+2)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
         case (3)
-            if (.not.(NObs == (2+flag_diff)*cones)) then
-                print*, 'ERROR consistency  NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones)) then
+                print*, 'ERROR consistency  Nobs'
                 STOP
             endif
         case (4)
-            if (.not.(NObs == (2+flag_diff)*cones+1)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones+1)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
         case (5)
-            if (.not.(NObs == (2+flag_diff)*cones)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
     end select
