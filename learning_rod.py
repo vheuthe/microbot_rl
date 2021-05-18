@@ -32,11 +32,12 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
-    'close_pen': 0.6, # Prefactor for closeness penalty
+    'close_pen': 0, # Prefactor for closeness penalty
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
-    'rewMode': 'primitiveTouch', # Mode of rewards ('forces', 'primitive', 'primitiveTouch' or 'classic')
-    'rewCutoff': 30, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
+    'rewMode': 'primitive', # Mode of rewards ('forces', 'primitive', 'primitiveTouch' or 'classic')
+    'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
 
     # Particles
     'vel_act': 0.35,
@@ -45,11 +46,11 @@ default_parameters = {
     'torque': 25,
     'ss': 0.01,
     'obs_type': '1overR',
-    'conse': 5,
+    'cones': 5,
     'cone_angle': 180,
     'flag_side': False,
     'flag_LOS': False,
-    'startConfig': 'biased', # 'standard' or 'biased' or 'test_friction'
+    'startConfig': 'standard', # 'standard' or 'biased' or 'test_friction'
 
     # Rod
     'Nrod': 60, # must be even!
@@ -62,8 +63,8 @@ default_parameters = {
     'massRod': 10, # "mass" of the rod determining, how easily the particles can move it
 
     # For the MD part of the simulation
-    'nTrainEp': 5, # number of episodes conducted during the whole training (replaces n_MD)
-    'nEvalEp': 4, # number of evaluation episodes doen in the end without further training
+    'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
+    'nEvalEp': 3, # number of evaluation episodes doen in the end without further training
 
     'nStepEpTrain': 720, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
     'nStepEpEval': 1000, #number of simulation steps done in one evaluation episode
@@ -71,9 +72,8 @@ default_parameters = {
 
     'nStepSim': 20, # number of times, the integration is performed in each simulation step
     'dt': 0.1, # time step of integration in simulations
-    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
     'skew': False,
-    'size': 100,
+    'size': 100
 }
 
 
