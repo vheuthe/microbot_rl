@@ -260,7 +260,13 @@ class MD_ROD():
 
         elif self.rewMode == 'forces':
 
-            rewards = self.get_forces_rewards() # Determines the rewards according to the forces and te current mode
+            rewards = self.get_forces_rewards(absFlag=False) # Determines the rewards according to the forces and te current mode
+
+            self.rewards = rewards
+
+        elif self.rewMode == 'absForces':
+
+            rewards = self.get_forces_rewards(absFlag=True) # Determines the rewards according to the forces and te current mode
 
             self.rewards = rewards
 
@@ -279,7 +285,7 @@ class MD_ROD():
         return obs, rewards
 
 
-    def get_forces_rewards(self):
+    def get_forces_rewards(self, absFlag=False):
         '''
         This rewards on the basis of how well the forces the particles exerted on the rod
         comply to the objective (move the rod or rotate it, etc.)
@@ -305,9 +311,20 @@ class MD_ROD():
 
             dCM_lon = (dCM * e ** (-1j*rodTheta)).real # Longitudinal CoM motion of the rod
 
-            part_rod_forces_complex = complex(self.part_rod_forces[:,0], self.part_rod_forces[:,1])
+            # When rewMode is 'forces' (not 'absForces'), the particle performance are
+            # the forces exerted on the rod in the right direction
+            if not absFlag:
 
-            self.Particle_perf = (part_rod_forces_complex * e ** (-1j*rodTheta)).real # Particle forces in the longitud. direction of the rod
+                part_rod_forces_complex = self.part_rod_forces[:,0] + 1j * self.part_rod_forces[:,1]
+
+                self.Particle_perf = (part_rod_forces_complex * e ** (-1j*rodTheta)).real # Particle forces in the longitud. direction of the rod
+
+            # When rewMode is 'absForces' (meaning absFlag=True), the particle
+            # performance is just the sum of the absolute forces a particle exerts on
+            # the rod, meaning it is rewarded more, if it is interacting more.
+            elif absFlag:
+
+                self.Particle_perf = np.sum(abs(self.part_rod_forces), axis=1)
 
             rewards = self.pushRewFact * dCM_lon * self.Particle_perf # Performance is only rewarded, if the rod has moved
 
