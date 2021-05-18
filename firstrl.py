@@ -181,11 +181,11 @@ class AgentActiveMatter():
 
     # action preference `h` is defined on interval (-Inf, Inf)
     preferences = self.policy(observables)
+    logp = tf.nn.log_softmax(preferences).numpy()
 
     # Some NaNs appeared here...
-    preferences[np.isnan(preferences)] = 0
-
-    logp = tf.nn.log_softmax(preferences).numpy()
+    logp[np.isnan(logp)] = 0
+    logp = logp/sum(logp)
 
     # draw random actions from the provided distributions
     actions = [np.random.choice(self.nActions, p=p) for p in np.exp(logp)]
