@@ -95,7 +95,7 @@ class AbstractFood():
     # - - - different food scenarios - - -
 
     def reset_food_none(self):
-        self.food = np.zeros((1,4))
+        self.food = np.zeros((1,5))
 
     def reset_food_one(self):
         self.food = np.array([[self.food_width/2, 0, self.food_amount, self.food_width, self.food_delay]])
