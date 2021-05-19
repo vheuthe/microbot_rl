@@ -60,7 +60,7 @@ default_parameters = {
     'distRod': 1.6,
     'ext_rod': 1.,
     'cen_rod': 1.,
-    'massRod': 10, # "mass" of the rod determining, how easily the particles can move it
+    'massRod': 5, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD part of the simulation
     'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
@@ -148,13 +148,14 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
 
     rewards = storFile.create_dataset('/rewards', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
     rodOr = storFile.create_dataset('/rodOr', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
+    rodCM = storFile.create_dataset('/rodCM', (nEpisodes,nStepEp,2), dtype='f4', compression='gzip') # rodCoM[:,:,0] is x-component and rodCoM[:,:,1] is y-component
     entropies = storFile.create_dataset('/entropies', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
     values = storFile.create_dataset('/values', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
 
     for iEp in range(0, nEpisodes):
 
         if recordTraj:
-            rewards[iEp,:], rodOr[iEp,:], entropies[iEp,:], values[iEp,:] , particles, rod = \
+            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:] , particles, rod = \
                 do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
             rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
@@ -176,6 +177,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
     # Initializing the data arrays
     meanRew = np.zeros((nStepEp), dtype='f4')
     rodOr = np.zeros((nStepEp), dtype='f4')
+    rodCM = np.zeros((nStepEp,1,2), dtype='f4')
     meanEntr = np.zeros((nStepEp), dtype='f4')
     meanVal = np.zeros((nStepEp), dtype='f4')
 
@@ -198,7 +200,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         actions, logp = agent.get_actions()
 
         # The environment is updated according to the selected actions
-        obs, rewards, rodTheta = environment.evolve_MD(actions)
+        obs, rewards, rodTheta, rodCoM = environment.evolve_MD(actions)
 
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response([], obs, rewards)
@@ -211,6 +213,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         # Save the important information in the h5 file
         meanRew[step] = np.mean(rewards)
         rodOr[step] = rodTheta
+        rodCM[step,1,:] = rodCoM
         meanEntr[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.nActions, axis=1))
         meanVal[step] = np.mean(values)
 

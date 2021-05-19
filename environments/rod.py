@@ -221,10 +221,14 @@ class MD_ROD():
                                     self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
 
-        # Calculating the rod orientation for saving it to the stats file
+        # Calculating the rod orientation and CoM for saving it to the stats file
         rodTheta = np.angle(complex(self.rod[-1,0] - self.rod[0,0], self.rod[-1,1] - self.rod[0,1]))
 
-        return obs, rewards, rodTheta
+        rodCoM = np.zeros((1,1,2)) # rodCoM[0,0,0] is x-component and rodCoM[0,0,1] is y-component
+        rodCoM[0,0,0] = np.mean(self.rod[:,0])
+        rodCoM[0,0,1] = np.mean(self.rod[:,1])
+
+        return obs, rewards, rodTheta, rodCoM
 
 
 
