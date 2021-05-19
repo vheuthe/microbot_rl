@@ -244,8 +244,8 @@ class MD_ROD():
             assert old_rotDir in [-1,1]
 
         # Now the observables are determined, if rewMode=='classic' the rewards determined here are used, too
-        obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0],p[:,1],p[:,2],
-                                          r[:,0], r[:,1], olr[:,0],olr[:,1],
+        obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
+                                          r[:,0], r[:,1], olr[:,0], olr[:,1],
                                           self.mode, rotDir, old_rotDir,
                                           flag_side, self.flag_LOS,
                                           self.ss, self.ssrod, self.massRod,
@@ -281,6 +281,9 @@ class MD_ROD():
             rewards = self.get_primitive_rewards(primRewMode='touch') # Determines rewards in primitive way (close? rotated?) So far only for rot.
 
             self.rewards = rewards
+
+        # Check if there are any NaNs in the rewards
+        assert not np.isnan(rewards).any(), 'NaNs in rewards'
 
         return obs, rewards
 
@@ -327,6 +330,9 @@ class MD_ROD():
                 self.Particle_perf = np.sum(abs(self.part_rod_forces), axis=1)
 
             rewards = self.pushRewFact * dCM_lon * self.Particle_perf # Performance is only rewarded, if the rod has moved
+
+            if np.isnan(rewards).any():
+                z=1
 
         return rewards
 

@@ -57,6 +57,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
     new_XY_rod(:,2) = Yrod
 
     part_rod_forces = 0
+    FXrod_eval = 0
+    FYrod_eval = 0
 
     ! Nrod EVEN number!
 
@@ -216,8 +218,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     FXrod = FXrod + (ff*dx - F_pRX*mu_K)
                     FYrod = FYrod + (ff*dy - F_pRY*mu_K)
 
-                    FXrod_eval(i) = 1/Nrod * (ff*dx - F_pRX*mu_K) ! The forces on the rod for each particle are saved, get Friction corrected later
-                    FYrod_eval(i) = 1/Nrod * (ff*dy - F_pRY*mu_K)
+                    FXrod_eval(i) = 1.0/Nrod * (ff*dx - F_pRX*mu_K) ! The forces on the rod for each particle are saved, get Friction corrected later
+                    FYrod_eval(i) = 1.0/Nrod * (ff*dy - F_pRY*mu_K)
 
                     ! =======================
                     ! component of force in direction of rod
@@ -227,7 +229,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     torquerod = torquerod + (ff*dy - F_pRY*mu_K)*drodx -&
                                             (ff*dx - F_pRX*mu_K)*drody
 
-                    part_rod_forces(i,3) =  1/nsteps * 1/Nrod * (ff*dy - F_pRY*mu_K)*drodx -&
+                    part_rod_forces(i,3) =  1.0/nsteps * 1.0/Nrod * (ff*dy - F_pRY*mu_K)*drodx -&
                                                           (ff*dx - F_pRX*mu_K)*drody
                 endif
             enddo
@@ -303,8 +305,11 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
             FXrod_eval(i) = FXrod_eval(i) + Friction(i)*cos(rodtheta) ! Friction-correction of the forces for particle performance evaluation
             FYrod_eval(i) = FYrod_eval(i) + Friction(i)*sin(rodtheta)
 
-            part_rod_forces(i,1) = part_rod_forces(i,1) + 1/nsteps * FXrod_eval(i)
-            part_rod_forces(i,2) = part_rod_forces(i,2) + 1/nsteps * FYrod_eval(i)
+            ! print*, FXrod_eval(i), Friction(i)*cos(rodtheta)
+
+            part_rod_forces(i,1) = part_rod_forces(i,1) + 1.0/nsteps * FXrod_eval(i)
+            part_rod_forces(i,2) = part_rod_forces(i,2) + 1.0/nsteps * FYrod_eval(i)
+
         enddo
 
         FXrod = FXrod + SUM(Friction)*cos(rodtheta)
@@ -892,7 +897,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                         flag_diff, flag_LOS, &
                         ss, ssrod_ext, mR,&
                         obs_type, cones, cone_angle, close_pen, &
-                        Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
+                        Nobs, N, Nrod, r_Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -903,6 +908,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_diff, obs_type, cones
     logical, intent(in) :: flag_LOS
+    real, intent(in)    :: r_Nrod
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
     integer :: iter_touch, adj(N,N)
@@ -923,8 +929,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
     min_dist = 1000
 
-    cmRod(1) = SUM(Xrod)/Nrod
-    cmRod(2) = SUM(Yrod)/Nrod
+    cmRod(1) = SUM(Xrod)/r_Nrod
+    cmRod(2) = SUM(Yrod)/r_Nrod
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
@@ -933,8 +939,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     ssrod = ssrod_ext
     if (ssrod==0) ssrod = true_ssrod
 
-    oldcmRod(1) = SUM(oldXrod)/Nrod
-    oldcmRod(2) = SUM(oldYrod)/Nrod
+    oldcmRod(1) = SUM(oldXrod)/r_Nrod
+    oldcmRod(2) = SUM(oldYrod)/r_Nrod
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
 

@@ -2,6 +2,7 @@
 import numpy as np
 import tensorflow as tf
 import scipy.signal
+import copy
 
 tf.keras.backend.set_floatx('float32')
 
@@ -179,13 +180,14 @@ class AgentActiveMatter():
     # current observables of all particles
     observables = np.array([par.obs[-1] for par in self.particles])
 
+    # print(observables)
+
     # action preference `h` is defined on interval (-Inf, Inf)
     preferences = self.policy(observables)
-    logp = tf.nn.log_softmax(preferences).numpy()
 
-    # Some NaNs appeared here...
-    logp[np.isnan(logp)] = 0
-    logp = logp/sum(logp)
+    # print(preferences)
+
+    logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
     actions = [np.random.choice(self.nActions, p=p) for p in np.exp(logp)]
@@ -277,7 +279,9 @@ class AgentActiveMatter():
 
     # compute Generalized Advantage Estimate to train policy
     # (for details, see https://arxiv.org/abs/1506.02438v6)
+
     deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
+
     self.advantage = np.append(self.advantage, discount_cumsum(deltas, self.gamma * self.lam))
 
     # compute estimated return as target for the value function
@@ -306,8 +310,10 @@ class AgentActiveMatter():
 
     # normalize advantage for better convergence
     adv_std = np.std(self.advantage)
+
     if (adv_std > 0.1e-1):
         self.advantage = (self.advantage - np.mean(self.advantage)) / adv_std
+
 
     # -- POLICY FITTING --
     for i in range(epochs):
@@ -327,7 +333,7 @@ class AgentActiveMatter():
         # A^{π_θ_k}(s,a) == self.adv
         # ε == self.CL
         new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
-        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.nActions) * new_logp_dist, axis=1)
+        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.nActions) * (new_logp_dist), axis=1)
         probability_ratio = tf.exp(new_logp - self.logp)
         max_adv = np.where(self.advantage > 0, (1+self.CL) * self.advantage, (1-self.CL) * self.advantage)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
@@ -341,6 +347,7 @@ class AgentActiveMatter():
 
       # calculate numerical derivative of the loss function in respect to the policy parameters θ
       grads = tape.gradient(loss, self.policy.trainable_variables)
+
       # optimize the policy along these gradients
       self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 
