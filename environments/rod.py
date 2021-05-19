@@ -365,6 +365,20 @@ class MD_ROD():
             elif primRewMode == 'touch':
                 rewards = self.touch * abs(dTheta) * self.rotRewFact # The direction of rotation does not matter.
 
+
+        if self.mode == 6: # Longitudinal transport
+            dCM = complex(sum(r[:,0]) / self.Nrod - sum(olr[:,0]) / self.Nrod, \
+                sum(r[:,1]) / self.Nrod - sum(olr[:,1]) / self.Nrod) # Center of mass motion in complex numbers
+
+            rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
+
+            dCM_lon = (dCM * e ** (-1j*rodTheta)).real # Longitudinal CoM motion of the rod
+
+            if primRewMode == 'close':
+                rewards = closeEnough * abs(dCM_lon) * self.pushRewFact # The direction of rotation does not matter.
+            elif primRewMode == 'touch':
+                rewards = self.touch * abs(dCM_lon) * self.pushRewFact # The direction of rotation does not matter.
+
         return rewards
 #
 # ------------------------------------
