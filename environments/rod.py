@@ -329,10 +329,8 @@ class MD_ROD():
 
                 self.Particle_perf = np.sum(abs(self.part_rod_forces), axis=1)
 
-            rewards = self.pushRewFact * dCM_lon * self.Particle_perf # Performance is only rewarded, if the rod has moved
+            rewards = self.pushRewFact * abs(dCM_lon) * abs(self.Particle_perf) # Performance is only rewarded, if the rod has moved
 
-            if np.isnan(rewards).any():
-                z=1
 
         return rewards
 
