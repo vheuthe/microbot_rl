@@ -215,9 +215,9 @@ subroutine get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
             th_orient = (th_orient - floor(th_orient + 0.5))*2*PI
 
             if (obs_type == 1) then
-                val = (phys_size/r)
+                val = max((phys_size/r), 1.0)
             else if (obs_type == 2) then
-                val = (phys_size/r)**2
+                val = max((phys_size/r)**2, 1.0)
             else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
@@ -236,15 +236,15 @@ subroutine get_o_r_food_task(X, Y, Theta, XFood, YFood, RFood, &
             endif
             if (tp_type == 3) then
                 ! penalize all with 1/r^3
-                Rew(i) = Rew(i) - nn_rew * touch_penalty * (phys_size/r)**3
-                Rew(j) = Rew(j) - nn_rew * touch_penalty * (phys_size/r)**3
+                Rew(i) = Rew(i) - nn_rew * touch_penalty * max((phys_size/r), 1.0)**3
+                Rew(j) = Rew(j) - nn_rew * touch_penalty * max((phys_size/r), 1.0)**3
             endif
 
             ! handle observable independent reward here
             if (nn_rew_cones == 0) then
                 ! reward all with 1/r
-                Rew(i) = Rew(i) + nn_rew * (phys_size/r)
-                Rew(j) = Rew(j) + nn_rew * (phys_size/r)
+                Rew(i) = Rew(i) + nn_rew * max((phys_size/r), 1.0)
+                Rew(j) = Rew(j) + nn_rew * max((phys_size/r), 1.0)
             endif
 
             covered_l = 0
