@@ -30,7 +30,8 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
-    'close_pen': 0, # Prefactor for closeness penalty
+    'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
+    'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
     'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
@@ -175,7 +176,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
     # Initializing the data arrays
     meanRew = np.zeros((nStepEp), dtype='f4')
     rodOr = np.zeros((nStepEp), dtype='f4')
-    rodCM = np.zeros((nStepEp,1,2), dtype='f4')
+    rodCM = np.zeros((1,nStepEp,2), dtype='f4')
     meanEntr = np.zeros((nStepEp), dtype='f4')
     meanVal = np.zeros((nStepEp), dtype='f4')
 
@@ -211,7 +212,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         # Save the important information in the h5 file
         meanRew[step] = np.mean(rewards)
         rodOr[step] = rodTheta
-        rodCM[step,0,:] = rodCoM
+        rodCM[0,step,:] = rodCoM
         meanEntr[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.nActions, axis=1))
         meanVal[step] = np.mean(values)
 

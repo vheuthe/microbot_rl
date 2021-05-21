@@ -392,7 +392,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
                         ext_rod, cen_rod, &
-                        obs_type, cones, cone_angle, close_pen, &
+                        obs_type, cones, cone_angle, close_pen, prox_rew, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
@@ -400,7 +400,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen, prox_rew
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones
     logical, intent(in) :: flag_LOS
@@ -806,7 +806,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
 
         Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
 
-        Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
+        Rew(i) = Rew(i) - prox_rew * (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
 
     return
@@ -873,17 +873,17 @@ contains
     integer :: near
 
 
-    diffT = (Rodtheta - dRodtheta)/2./PI
-    diffT = (diffT - floor(diffT + 0.5))*2*PI
-    reward_push_along = near * cos( sqrt(abs(diffT))*sqrt(PI) ) * dRod
+    ! diffT = (Rodtheta - dRodtheta)/2./PI
+    ! diffT = (diffT - floor(diffT + 0.5))*2*PI
+    ! reward_push_along = near * cos( sqrt(abs(diffT))*sqrt(PI) ) * dRod
 
-    !if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
-    !    reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
-    !else if (cos(Rodtheta - orient)>=0) then
-    !    reward_push_along = 0
-    !else
-    !    reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
-    !endif
+    if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
+        reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
+    else if (cos(Rodtheta - orient)>=0) then
+        reward_push_along = 0
+    else
+        reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
+    endif
 
     end function reward_push_along
 
