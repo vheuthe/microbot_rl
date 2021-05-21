@@ -2,9 +2,7 @@
 # executing an episode, step, etc. are all functions.
 # TEST WITH MD
 import numpy as np
-import sys
 import scipy
-import time
 import h5py
 import os
 import json
@@ -35,12 +33,12 @@ default_parameters = {
     'close_pen': 0, # Prefactor for closeness penalty
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
-    'rewMode': 'absForces', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch' or 'classic')
+    'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
-    'mode': 6, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
 
     # Particles
-    'vel_act': 0.35,
+    'vel_act': 0.45, # 0.35,
     'vel_tor': 0.2, # Velocity during rotation (particles do not stand still)
     'N': 30,
     'torque': 25,
@@ -55,7 +53,7 @@ default_parameters = {
     # Rod
     'Nrod': 60, # must be even!
     'ss_rod': 0.01,
-    'mu_K': 1,
+    'mu_K': 1.8,
     'sizeRod': 96,
     'distRod': 1.6,
     'ext_rod': 1.,
@@ -213,7 +211,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         # Save the important information in the h5 file
         meanRew[step] = np.mean(rewards)
         rodOr[step] = rodTheta
-        rodCM[step,1,:] = rodCoM
+        rodCM[step,0,:] = rodCoM
         meanEntr[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.nActions, axis=1))
         meanVal[step] = np.mean(values)
 
