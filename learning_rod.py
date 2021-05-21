@@ -61,7 +61,7 @@ default_parameters = {
     'massRod': 5, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD part of the simulation
-    'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
+    'nTrainEp': 0, # number of episodes conducted during the whole training (replaces n_MD)
     'nEvalEp': 3, # number of evaluation episodes doen in the end without further training
 
     'nStepEpTrain': 720, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
@@ -163,7 +163,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
             storFile.create_dataset(rodName, compression='gzip', data=rod)
 
         else:
-            rewards[iEp,:], rodOr[iEp,:], entropies[iEp,:], values[iEp,:] = \
+            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:] = \
                 do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
     storFile.close()
@@ -227,9 +227,9 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         agent.reset_memory()
 
     if not recordTraj:
-        return meanRew, rodOr, meanEntr, meanVal
+        return meanRew, rodOr, rodCM, meanEntr, meanVal
     else:
-        return meanRew, rodOr, meanEntr, meanVal, particles, rod
+        return meanRew, rodOr, rodCM, meanEntr, meanVal, particles, rod
 
 
 
