@@ -36,7 +36,7 @@ class MD_ROD():
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
                 data_path=None, rewMode='classic',
-                close_pen=0, rotRewFact=2, pushRewFact=3,
+                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3,
                 rewCutoff=8, startConfig='standard', **unused_parameters):
 
         # path for writing the trajectories
@@ -79,6 +79,7 @@ class MD_ROD():
         self.ss = ss
         self.mu_K = mu_K # kinetic friction - like along rod.
         self.close_pen = close_pen # factor for penalizing closenes (nearest neighbor)
+        self.prox_rew = prox_rew # factor for reward for being close to the rod
 
         # type of task.
         # determines reward function, and observation space.
@@ -260,7 +261,7 @@ class MD_ROD():
                                           self.ss, self.ssrod, self.massRod,
                                           self.ext_rod, self.cen_rod,
                                           obs_type,
-                                          self.cones, self.cone_angle, self.close_pen,
+                                          self.cones, self.cone_angle, self.close_pen, self.prox_rew,
                                           self.Nobs, self.N, self.Nrod)
 
         if self.rewMode == 'classic':
