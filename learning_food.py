@@ -48,6 +48,9 @@ default_parameters = {
     'particle_size': 6.2, # µm
     'dt': 0.2, # seconds
     'action_time': 6, # seconds
+    'episode_length': 5*3600, # seconds
+    'training_episodes': 60,
+    'evaluation_episodes': 5,
     'vel_act': 0.5, # µm/s
     'vel_tor': 0.35, # µm/s
     'vel_noise': 0.2, # relative
@@ -62,20 +65,31 @@ def do_array_task(task_id, job_dir):
     with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
         job_parameters = json.load(reader)
 
+
+    # split loaded parameters
+    flat_parameters = dict([
+        (key, value) for key, value in job_parameters.items()
+        if type(value) is not list
+    ])
+    ranged_parameters = dict([
+        (key, value) for key, value in job_parameters.items()
+        if type(value) is list
+    ])
+
     # choose one set out of all possible parameter combinations
     # (task_id's start at 1 !!)
     selected_parameters = dict(zip(
-        job_parameters.keys(),
-        [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
+        ranged_parameters.keys(),
+        [values.flat[task_id - 1] for values in np.meshgrid(*ranged_parameters.values())]
     ))
 
-    # construct folder name from relevant parameters
+    # construct folder name from ranged parameters
     data_dir = os.path.join(
         job_dir,
         '_'.join([key + str(val) for key, val in selected_parameters.items()])
     )
 
-    do_task(selected_parameters, data_dir)
+    do_task({**flat_parameters, **selected_parameters}, data_dir)
 
 
 def do_task(selected_parameters, data_dir):
@@ -83,11 +97,29 @@ def do_task(selected_parameters, data_dir):
     # initialize data folder
     os.makedirs(data_dir, exist_ok=True)
 
-    # create and save full parameter set
+    # create full parameter set
     parameters = default_parameters.copy()
+
+    # update with parameters from loaded model
+    if selected_parameters.get('load_models'):
+        with open(os.path.join(
+            data_dir, # is ignored if the next is absolute
+            selected_parameters['load_models'][:-5],
+            'parameters.json'
+        )) as paramfile:
+            parameters.update(json.load(paramfile))
+
+    # update with selected
     parameters.update(selected_parameters)
+
+    # save alongside the current data
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
+
+    # convert model path to absolute to be able to load it
+    # (only do this after saving for better readability in the parameters file)
+    if parameters.get('load_models'):
+        parameters['load_models'] = os.path.join(data_dir, parameters['load_models'])
 
     # instantiate agent with new neural networks
     agent = AgentActiveMatter(**parameters)
@@ -101,14 +133,7 @@ def do_task(selected_parameters, data_dir):
 
     do_batch(
         agent, environment, parameters, data_dir,
-        'train_short', 50, int(2*3600 / parameters['action_time']), train_agent=True
-    )
-
-    # increase episode length
-
-    do_batch(
-        agent, environment, parameters, data_dir,
-        'train_long', 20, int(10*3600 / parameters['action_time']), train_agent=True
+        'train', parameters['training_episodes'], int(parameters['episode_length'] / parameters['action_time']), train_agent=True
     )
 
     # no training after this point
@@ -119,7 +144,7 @@ def do_task(selected_parameters, data_dir):
 
     do_batch(
         agent, environment, parameters, data_dir,
-        'evaluate', 5, int(10*3600 / parameters['action_time']), fixed_seeds=True, record_traj=True
+        'evaluate', parameters['evaluation_episodes'], int(parameters['episode_length'] / parameters['action_time']), fixed_seeds=True, record_traj=True
     )
 
     # do one episode without food to evaluate steady state behavior
