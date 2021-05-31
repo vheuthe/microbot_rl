@@ -30,13 +30,15 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
+    'mode': 6, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
     'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
+    'diffRewFact': 10, # Prefactor for differential rewards
     'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
-    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
+    'flagFixOr' : False, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
 
     # Particles
     'vel_act': 0.45, # 0.35,
@@ -81,6 +83,10 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
     '''
+
+    # Make sure, the input dimension is ok
+    if default_parameters['mode'] == 6:
+        default_parameters['input_dim'] = 11
 
     # parameter ranges are stored in the job_dir
     with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:

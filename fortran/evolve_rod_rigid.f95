@@ -392,7 +392,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
                         ext_rod, cen_rod, &
-                        obs_type, cones, cone_angle, close_pen, prox_rew, &
+                        obs_type, cones, cone_angle, close_pen, prox_rew, flagFixOr, &
                         Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
@@ -510,7 +510,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         do j = i+1, N
 
             !side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
-            !                Yrod(1),Xrod(Nrod),Yrod(Nrod))
+            !               Yrod(1),Xrod(Nrod),Yrod(Nrod))
 
             side = 0
             ! side = 0 means on the same side of rod.
@@ -794,12 +794,17 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     ! Normalization: Reward is proportional to rod mass
                     Obs(i, (2+flag_side)+1) = rotDir
                 endif
+
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
+
             case (6) ! reward for pushing along long direction
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_push_along( a, dRod, dRodtheta, Rodtheta, touch(i))
+
+                    Rew(i) = reward_push_along(a, dRod, dRodtheta, Rodtheta, touch(i), cmRod, flagFixOr)
+
+                    ! This additional observable gives the relative orientation of the particle to the rod
                     Obs(i, (2+flag_side)+1) = cos(a-Rodtheta)
                 endif
         end select
@@ -865,24 +870,45 @@ contains
       return
     end function reward_move
 
-    real FUNCTION reward_push_along(orient, dRod, dRodtheta, Rodtheta, near)
+    real FUNCTION reward_push_along(orient, dRod, dRodtheta, Rodtheta, near, cmRod, flagFixOr)
     ! Reward function for linear translation only along long axis
     implicit none
-    real :: orient, dRod, dRodtheta, Rodtheta
-    real :: diffT
-    integer :: near
+    real :: orient, dRod, dRodtheta, Rodtheta, cmRod(2)
+    real :: diffT, cmRodTheta
+    integer :: near, flagFixOr
 
 
     ! diffT = (Rodtheta - dRodtheta)/2./PI
     ! diffT = (diffT - floor(diffT + 0.5))*2*PI
     ! reward_push_along = near * cos( sqrt(abs(diffT))*sqrt(PI) ) * dRod
 
+    ! MAy help to ADD PENALTY TO ROTATION:
+    !1 Aaccept rotation at RRrot
+    ! dRrod -> angle of rotation -> Mminimum translation = dRrod/2/pi/RRot
+    ! reward_push_alogn = *max(dRrod-dRod/2/pi/RRot, 0)
+
+    ! cos(rodtheta - dRrodtheta) >= 0 means: rod has moved at least a bit in the direction of it's orientation
+    ! cos(rodtheta   -   orient) >= 0 means: particle is oriented less than perpendicular to the rod
+
+    ! Orientation of the rod's position with respect to the origin:
+    cmRodTheta = atan(cmRod(1)/cmRod(2)) - 1.571 ! (subtract the initial 90°)
+
     if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
-        reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
+
+        ! Reward for particle is oriented parallelish to the rod and rod has moved in the direction of it's orientation.
+        ! The last term is one if flagFixOr = 0 and cos(cmRodTheta)**3 otherwise,
+        ! in order to only reward movements in the direction, the rod was originally oriented in.
+
+        reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod * (1 - (1-cos(cmRodTheta)**3)*flagFixOr)
+
     else if (cos(Rodtheta - orient)>=0) then
+
+        ! No punishment, if particle is oriented parallelish to the rod
         reward_push_along = 0
     else
-        reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
+
+        ! Penalty for pushing inn the wrong direction
+        reward_push_along = -near * cos(Rodtheta   -  orient)**2 * dRod
     endif
 
     end function reward_push_along

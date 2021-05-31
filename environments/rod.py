@@ -36,7 +36,7 @@ class MD_ROD():
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
                 data_path=None, rewMode='classic',
-                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3,
+                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10,
                 rewCutoff=8, startConfig='standard', **unused_parameters):
 
         # path for writing the trajectories
@@ -80,6 +80,7 @@ class MD_ROD():
         self.mu_K = mu_K # kinetic friction - like along rod.
         self.close_pen = close_pen # factor for penalizing closenes (nearest neighbor)
         self.prox_rew = prox_rew # factor for reward for being close to the rod
+        self.flagFixOr = flagFixOr # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
 
         # type of task.
         # determines reward function, and observation space.
@@ -100,6 +101,7 @@ class MD_ROD():
         self.rewMode = rewMode # 'forces' or 'classic'
         self.rewCutoff = rewCutoff # for primitive rewards: the max distance to the rod that still gets rewarded
         self.startConfig = startConfig # which configuration to start with
+        self.diffRewFact = diffRewFact
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
@@ -261,7 +263,7 @@ class MD_ROD():
                                           self.ss, self.ssrod, self.massRod,
                                           self.ext_rod, self.cen_rod,
                                           obs_type,
-                                          self.cones, self.cone_angle, self.close_pen, self.prox_rew,
+                                          self.cones, self.cone_angle, self.close_pen, self.prox_rew, self.flagFixOr,
                                           self.Nobs, self.N, self.Nrod)
 
         if self.rewMode == 'classic':
@@ -395,13 +397,12 @@ class MD_ROD():
         # First up, the performance is determined according to the mode (translation, rotation, etc.)
         performance = self.det_performance(self.rod)
 
-        # The hypPerformances are the hypothetical performances tha would have been achieved in the absence of particle i
+        # The hypPerformances are the hypothetical performances that would have been achieved in the absence of particle i
         hypPerformances = self.det_hypPerformances()
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
-        contrib = performance - hypPerformances
-
+        contrib = self.diffRewFact * (performance - hypPerformances)
 
         rewards = contrib * performance # Really with performance here?
 
