@@ -37,7 +37,8 @@ class MD_ROD():
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
                 data_path=None, rewMode='classic',
                 close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10,
-                rewCutoff=8, startConfig='standard', **unused_parameters):
+                rewCutoff=8, startConfig='standard',
+                flagFixOr = 0, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path

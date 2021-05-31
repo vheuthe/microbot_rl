@@ -36,7 +36,7 @@ default_parameters = {
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
     'diffRewFact': 10, # Prefactor for differential rewards
-    'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
+    'rewMode': 'classic', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
     'flagFixOr' : 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
 
@@ -64,10 +64,10 @@ default_parameters = {
     'massRod': 5, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD part of the simulation
-    'nTrainEp': 0, # number of episodes conducted during the whole training (replaces n_MD)
+    'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
     'nEvalEp': 3, # number of evaluation episodes doen in the end without further training
 
-    'nStepEpTrain': 720, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
+    'nStepEpTrain': 1000, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
     'nStepEpEval': 1000, #number of simulation steps done in one evaluation episode
     'stepsTrain': 128, # number of simulation steps, after which there is a training update
 
