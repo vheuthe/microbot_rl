@@ -38,7 +38,7 @@ default_parameters = {
     'diffRewFact': 10, # Prefactor for differential rewards
     'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
-    'flagFixOr' : False, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
+    'flagFixOr' : 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
 
     # Particles
     'vel_act': 0.45, # 0.35,

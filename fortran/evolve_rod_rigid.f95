@@ -403,7 +403,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen, prox_rew
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones
-    logical, intent(in) :: flag_LOS
+    logical, intent(in) :: flag_LOS, flagFixOr
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
     integer :: iter_touch, adj(N,N)
