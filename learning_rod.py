@@ -30,12 +30,12 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
-    'mode': 6, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
     'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 3,
-    'diffRewFact': 10, # Prefactor for differential rewards
+    'diffRewFact': 10000, # Prefactor for differential rewards
     'rewMode': 'classic', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
     'flagFixOr' : 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
@@ -61,7 +61,7 @@ default_parameters = {
     'distRod': 1.6,
     'ext_rod': 1.,
     'cen_rod': 1.,
-    'massRod': 5, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
+    'massRod': 1, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD part of the simulation
     'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
@@ -203,6 +203,10 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
 
         # Agent decides actions from the observables
         actions, logp = agent.get_actions()
+
+        # Just for debugging
+        if step == 500:
+            zz = 2
 
         # The environment is updated according to the selected actions
         obs, rewards, rodTheta, rodCoM = environment.evolve_MD(actions)

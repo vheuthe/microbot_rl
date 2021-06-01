@@ -403,9 +403,9 @@ class MD_ROD():
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
-        contrib = self.diffRewFact * (performance - hypPerformances)
+        contrib = (performance - hypPerformances)
 
-        rewards = contrib * performance # Really with performance here?
+        rewards = self.diffRewFact * contrib * performance # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
 
         return rewards
 
@@ -456,7 +456,7 @@ class MD_ROD():
         mRod = self.massRod
         IRod = self.inertiaRod
 
-        # Iterate over every particlle, leave out that particle and simulate one step.
+        # Iterate over every particle, leave out that particle and simulate one step.
         for i in range(self.particles.shape[0]):
 
             # Leave out particle i
@@ -470,10 +470,11 @@ class MD_ROD():
 
             N = self.N - 1 # Don't forget the particle number
 
+            # The simulation step is done without diffusion (Rm = Rr = 0)
             _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
                                         X, Y, T,
                                         Xrod, Yrod, self.distRod, action,
-                                        self.Rm, self.Rr, self.dt, self.nStepSim,
+                                        0, 0, self.dt, self.nStepSim,
                                         self.torque, self.vel_act, self.vel_tor,
                                         self.ext_rod, self.cen_rod, self.mu_K,
                                         N, self.Nrod)
