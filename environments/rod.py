@@ -130,7 +130,7 @@ class MD_ROD():
         self.old_actions = np.zeros(self.particles.shape[0])
         self.Particle_perf = np.zeros((self.particles.shape[0], 1))
         self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
-        self.rodDist = np.zeros((self.particles.size[0]))
+        self.rodDist = np.zeros((self.particles.size))
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi]
@@ -463,7 +463,7 @@ class MD_ROD():
         # Iterate over every particle, leave out that particle and simulate one step.
         for i in range(self.particles.shape[0]):
 
-            if (distances(i) <= self.rewCutoff) or touch(i) :
+            if (distances[i] <= self.rewCutoff) or touch[i] :
 
                 # Leave out particle i
                 mask = np.ones(self.old_part.shape[0],dtype=bool)
