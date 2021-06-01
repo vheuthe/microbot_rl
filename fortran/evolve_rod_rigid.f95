@@ -393,7 +393,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                         ss, ssrod_ext, mR,&
                         ext_rod, cen_rod, &
                         obs_type, cones, cone_angle, close_pen, prox_rew, flagFixOr, &
-                        Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
+                        Nobs, N, Nrod, Obs, Rew, touch, near2) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
@@ -404,7 +404,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones, flagFixOr
     logical, intent(in) :: flag_LOS
-    real, intent(out)   :: Obs(N, Nobs), Rew(N)
+    real, intent(out)   :: Obs(N, Nobs), Rew(N), near2(N)
     integer :: i, j, k, n_cone, side
     integer :: iter_touch, adj(N,N)
     integer, intent(out) :: touch(N)
@@ -415,7 +415,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: dRodtheta, dRod, Rodtheta
     real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L, min_dist(N)
+    real :: a, b, torque, rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0

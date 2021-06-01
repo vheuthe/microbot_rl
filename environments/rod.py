@@ -130,6 +130,7 @@ class MD_ROD():
         self.old_actions = np.zeros(self.particles.shape[0])
         self.Particle_perf = np.zeros((self.particles.shape[0], 1))
         self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
+        self.rodDist = np.zeros((self.particles.size[0]))
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi]
@@ -257,7 +258,7 @@ class MD_ROD():
             assert old_rotDir in [-1,1]
 
         # Now the observables are determined, if rewMode=='classic' the rewards determined here are used, too
-        obs, rewards, self.touch = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
+        obs, rewards, self.touch, self.rodDist = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
                                           r[:,0], r[:,1], olr[:,0], olr[:,1],
                                           self.mode, rotDir, old_rotDir,
                                           flag_side, self.flag_LOS,
@@ -456,31 +457,39 @@ class MD_ROD():
         mRod = self.massRod
         IRod = self.inertiaRod
 
+        distances = self.rodDist
+        touch = self.touch
+
         # Iterate over every particle, leave out that particle and simulate one step.
         for i in range(self.particles.shape[0]):
 
-            # Leave out particle i
-            mask = np.ones(self.old_part.shape[0],dtype=bool)
-            mask[i] = 0
+            if (distances(i) <= self.rewCutoff) or touch(i) :
 
-            X = self.old_part[mask,0]
-            Y = self.old_part[mask,1]
-            T = self.old_part[mask,2]
-            action = self.old_actions[mask]
+                # Leave out particle i
+                mask = np.ones(self.old_part.shape[0],dtype=bool)
+                mask[i] = 0
 
-            N = self.N - 1 # Don't forget the particle number
+                X = self.old_part[mask,0]
+                Y = self.old_part[mask,1]
+                T = self.old_part[mask,2]
+                action = self.old_actions[mask]
 
-            # The simulation step is done without diffusion (Rm = Rr = 0)
-            _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
-                                        X, Y, T,
-                                        Xrod, Yrod, self.distRod, action,
-                                        0, 0, self.dt, self.nStepSim,
-                                        self.torque, self.vel_act, self.vel_tor,
-                                        self.ext_rod, self.cen_rod, self.mu_K,
-                                        N, self.Nrod)
+                N = self.N - 1 # Don't forget the particle number
 
-            # Now the hypPerformance for the absence of particle i is determined
-            hypPerformances[i] = self.det_performance(hyp_rod)
+                # The simulation step is done without diffusion (Rm = Rr = 0)
+                _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
+                                            X, Y, T,
+                                            Xrod, Yrod, self.distRod, action,
+                                            0, 0, self.dt, self.nStepSim,
+                                            self.torque, self.vel_act, self.vel_tor,
+                                            self.ext_rod, self.cen_rod, self.mu_K,
+                                            N, self.Nrod)
+
+                # Now the hypPerformance for the absence of particle i is determined
+                hypPerformances[i] = self.det_performance(hyp_rod)
+
+            else:
+                hypPerformances[i] = 0
 
         return hypPerformances
 
