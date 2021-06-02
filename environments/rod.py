@@ -400,7 +400,7 @@ class MD_ROD():
         performance = self.det_performance(self.rod)
 
         # The hypPerformances are the hypothetical performances that would have been achieved in the absence of particle i
-        hypPerformances = self.det_hypPerformances()
+        hypPerformances = self.det_hypPerformances(performance)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
@@ -441,7 +441,7 @@ class MD_ROD():
         return performance
 
 
-    def det_hypPerformances(self):
+    def det_hypPerformances(self, performance):
         '''
         This determines for every particle, how the performance would have been in
         the absence of this particle. It needs the old particle and rod positions
@@ -489,7 +489,7 @@ class MD_ROD():
                 hypPerformances[i] = self.det_performance(hyp_rod)
 
             else:
-                hypPerformances[i] = 0
+                hypPerformances[i] = performance
 
         return hypPerformances
 
