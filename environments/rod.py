@@ -37,7 +37,7 @@ class MD_ROD():
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
                 data_path=None, rewMode='classic',
                 close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10,
-                rewCutoff=8, startConfig='standard',
+                rewCutoff=8, startConfig='standard', transpDist=100,
                 flagFixOr = 0, **unused_parameters):
 
         # path for writing the trajectories
@@ -96,13 +96,16 @@ class MD_ROD():
             self.Nobs += 1
         if (self.mode == 6): #push along long direction
             self.Nobs += 1
+        if (self.mode == 7): #transport rod to target
+            self.Nobs += 5
 
         self.rotRewFact = rotRewFact # These are factors for the implementation of rewards based on forces
         self.pushRewFact = pushRewFact
         self.rewMode = rewMode # 'forces' or 'classic'
         self.rewCutoff = rewCutoff # for primitive rewards: the max distance to the rod that still gets rewarded
         self.startConfig = startConfig # which configuration to start with
-        self.diffRewFact = diffRewFact
+        self.diffRewFact = diffRewFact # prefactor for the differential reward
+        self.transpDist = transpDist # distance over which to transpport the rod in mode 7 (transportation)
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
@@ -121,6 +124,9 @@ class MD_ROD():
             self.particles, self.rod = self.reinitialize_test_friction(swirl)
         elif self.startConfig == 'biased':
             self.particles, self.rod = self.reinitialize_biased(swirl)
+        elif self.startConfig == 'transportation':
+            # If self.mode == 7, reinitialize_random_for_MD also gives a target position
+            self.particles, self.rod, self.target = self.reinitialize_random_for_MD(swirl)
 
         # Old rod and particles are needed for evaluating the rod movement and the partice performance
         self.old_rod = np.zeros(self.rod.shape)
@@ -131,6 +137,7 @@ class MD_ROD():
         self.Particle_perf = np.zeros((self.particles.shape[0], 1))
         self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
         self.rodDist = np.zeros((self.particles.size))
+        self.target = np.zeros(self.rod.shape) # target is always initialized to have something for the arguments in get_o_r
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi]
@@ -166,6 +173,14 @@ class MD_ROD():
 
 
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
+
+        if self.mode == 7:
+            # Adds a target position in the form of another rod at a
+            # random angle and a distance self.transpDist from the origin
+
+            target = self.make_target()
+
+            return particles, rod, target
 
         return particles, rod
 
@@ -204,6 +219,28 @@ class MD_ROD():
         rod = np.array([[0.0, (i-(self.Nrod-1)/2)*self.distRod] for i in np.arange(self.Nrod)])
 
         return particles, rod
+
+
+    def make_target(self):
+        '''
+        This adds a target rod random angle and distance self.transpDist to the origin
+        '''
+        # Two random angles in the intervall [-2pi; pi] for the position and the orientation of the rod
+        posAngle = 2 * np.pi * np.random.rand(1) - np.pi
+        orAngle = 2 * np.pi * np.random.rand(1) - np.pi
+
+        # making the position of the target complex
+        cmComplex = self.transpDist * e ** (1j * posAngle)
+        Lrod = self.Nrod*self.distRod
+        targetEnds = np.array([cmComplex + Lrod/2 * e ** (1j*orAngle), cmComplex - Lrod/2 * e ** (1j*orAngle)])
+        targetComplex = np.linspace(targetEnds[0], targetEnds[1], self.Nrod)
+
+        # making the position of the target real
+        target = np.zeros(self.Nrod, 2)
+        target[:,0] = np.real(targetComplex)
+        target[:,1] = np.imag(targetComplex)
+
+        return target
 
 
 
@@ -253,13 +290,14 @@ class MD_ROD():
         r = self.rod
         olr = self.old_rod
         p = self.particles
+        tar = self.target
         if (self.mode == 4):
             assert rotDir in [-1,1]
             assert old_rotDir in [-1,1]
 
         # Now the observables are determined, if rewMode=='classic' the rewards determined here are used, too
         obs, rewards, self.touch, self.rodDist = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
-                                          r[:,0], r[:,1], olr[:,0], olr[:,1],
+                                          r[:,0], r[:,1], olr[:,0], olr[:,1], tar[:,0], tar[:,1],
                                           self.mode, rotDir, old_rotDir,
                                           flag_side, self.flag_LOS,
                                           self.ss, self.ssrod, self.massRod,
@@ -428,7 +466,7 @@ class MD_ROD():
 
             performance = dTheta
 
-        if self.mode == 6: # Longitudinal transport
+        elif self.mode == 6: # Longitudinal transport
             dCM = complex(sum(r[:,0]) / self.Nrod - sum(olr[:,0]) / self.Nrod, \
                 sum(r[:,1]) / self.Nrod - sum(olr[:,1]) / self.Nrod) # Center of mass motion in complex numbers
 
@@ -437,6 +475,10 @@ class MD_ROD():
             dCM_lon = (dCM * e ** (-1j*rodTheta)).real # Longitudinal CoM motion of the rod
 
             performance = dCM_lon
+
+        elif self.mode == 7: # Transportation problem
+
+            performance = 0 # zzz dummy
 
         return performance
 

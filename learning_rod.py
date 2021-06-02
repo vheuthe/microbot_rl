@@ -30,7 +30,7 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
-    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
     'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
@@ -51,7 +51,7 @@ default_parameters = {
     'cone_angle': 180,
     'flag_side': False,
     'flag_LOS': False,
-    'startConfig': 'standard', # 'standard' or 'biased' or 'test_friction'
+    'startConfig': 'standard', # 'standard' or 'biased' or 'test_friction' or 'transportation'
 
     # Rod
     'Nrod': 60, # must be even!
@@ -84,9 +84,12 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
     '''
 
-    # Make sure, the input dimension is ok
+    # Make sure, that the input dimension and the startConfig is ok
     if default_parameters['mode'] == 6:
         default_parameters['input_dim'] = 11
+    elif default_parameters['mode'] == 7:
+        default_parameters['input_dim'] = 15
+        default_parameters['startConfig'] = 'transportation'
 
     # parameter ranges are stored in the job_dir
     with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
@@ -160,7 +163,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
     for iEp in range(0, nEpisodes):
 
         if recordTraj:
-            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:] , particles, rod = \
+            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target, particles, rod = \
                 do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
             rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
@@ -170,8 +173,13 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
             storFile.create_dataset(rodName, compression='gzip', data=rod)
 
         else:
-            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:] = \
+            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target = \
                 do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
+
+        # In the case of the transportation problem, the target is saved
+        if parameters['mode'] == 7:
+                targetName = 'traj{}/target'.format(iEp)
+                storFile.create_dataset(targetName, compression='gzip', data=target)
 
     storFile.close()
 
@@ -206,7 +214,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
 
         # Just for debugging
         if step == 500:
-            zz = 2
+            zzz = 2
 
         # The environment is updated according to the selected actions
         obs, rewards, rodTheta, rodCoM = environment.evolve_MD(actions)
@@ -238,9 +246,9 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
         agent.reset_memory()
 
     if not recordTraj:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal
+        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target
     else:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal, particles, rod
+        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target, particles, rod
 
 
 

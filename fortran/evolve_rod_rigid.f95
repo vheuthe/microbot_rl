@@ -387,7 +387,7 @@ contains
 end subroutine
 
 
-subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
+subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y, &
                         mode, rotDir, old_rotDir, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
@@ -400,7 +400,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen, prox_rew
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), tar_X(Nrod), tar_Y(Nrod), cone_angle, close_pen, prox_rew
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_side, obs_type, cones, flagFixOr
     logical, intent(in) :: flag_LOS
@@ -657,13 +657,13 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     touch = 0
     near2 = 1000
 
-    ! seeing the rod particles + rewards
+    ! seeing the rod particles and the target particles + rewards
     do i = 1, N
 
-        a = Theta(i)  ! orientation of particle respect to x-axis.
-        b = dRodtheta ! direction of motion of rod.
-
         do j = 1, Nrod
+
+            ! Vision of the rod ---------------------------------------------------------------
+
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
@@ -732,9 +732,91 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     Obs(i,n_cone+(1+flag_side)*cones) = Obs(i,n_cone+(1+flag_side)*cones)+val*in_sight
                 enddo
 
-
             endif
             if (near2(i) <= ss_touch*1.25) touch(i) = 1
+
+            ! End of Vision of the rod --------------------------------------------------------
+            ! Vision of the target: basically the same as vision of the rod, just with different rod particles
+            ! (Without near2 and touch)
+            ! This does of course only apply in mode 7 (transportation problem)
+
+            if (mode == 7) then
+
+                dx = tar_X(j)-X(i)
+                dy = tar_Y(j)-Y(i)
+                r = sqrt(dx*dx + dy*dy)
+
+                dtheta = atan2(dy,dx)
+                ! particle sees rod
+                th = (dtheta - Theta(i))/2./PI
+                th = (th - floor(th + 0.5))*2*PI
+                sp_th = atan(ssrod, r)/2.
+                ! -----------------------------
+                n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
+                ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
+
+                if (obs_type == 1) then
+                    val = (true_ssrod)/r*fact(i)
+                else if (obs_type == 2) then
+                    val = (true_ssrod/r**2)*fact(i)
+                else
+                    print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                    STOP
+                endif
+
+                covered_l = 0
+                covered_r = 0
+                if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
+                    ! terribly expensive way
+                    ! to account for line of sight
+
+                    if (flag_LOS) then
+                        do k = 1, N
+
+                            dx2 = X(k)-X(i)
+                            dy2 = Y(k)-Y(i)
+                            r2 = sqrt(dx2*dx2 + dy2*dy2)
+
+                            if (r2 > r) cycle !only closer particles can obscure
+
+                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = (dtheta2 - Theta(i))/2./PI
+                            dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
+                            dark = atan(ss, r2)/2 ! cone of shadow
+
+
+                            if (abs(th-dtheta2) < dark + sp_th) then
+                                if (th .lt. dtheta2) then
+                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
+                                else if (th .ge. dtheta2) then
+                                    covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
+                                endif
+
+                                if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
+                            endif
+
+                        enddo
+                    endif
+
+                    vision_l = th+sp_th-covered_l
+                    vision_r = th-sp_th+covered_r
+
+                    do n_cone= 1, cones
+                        ! fraction of particle in sight
+                        ! if particle in cone
+                        in_sight = 0.
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
+
+                        ! mode 7 requires 15 observables
+                        Obs(i,n_cone+(2+flag_side)*cones) = Obs(i,n_cone+(2+flag_side)*cones)+val*in_sight
+                    enddo
+
+                endif
+
+            endif ! end of the if mode == 7 condition for target vision
+
+            ! End of Vision of the target -----------------------------------------------------
+
         enddo
 
     enddo
