@@ -474,7 +474,7 @@ class MD_ROD():
 
             dCM_lon = (dCM * e ** (-1j*rodTheta)).real # Longitudinal CoM motion of the rod
 
-            performance = dCM_lon
+            performance = abs(dCM_lon)
 
         elif self.mode == 7: # Transportation problem
 
