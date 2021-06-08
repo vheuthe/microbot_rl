@@ -118,6 +118,9 @@ class MD_ROD():
         self.vel_tor = vel_tor
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
 
+        # target is always initialized to have something for the arguments in get_o_r
+        self.target = np.zeros(self.rod.shape)
+
         if self.startConfig == 'standard':
             self.particles, self.rod = self.reinitialize_random_for_MD(swirl)
         elif self.startConfig == 'test_friction':
@@ -137,7 +140,6 @@ class MD_ROD():
         self.Particle_perf = np.zeros((self.particles.shape[0], 1))
         self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
         self.rodDist = np.zeros((self.particles.size))
-        self.target = np.zeros(self.rod.shape) # target is always initialized to have something for the arguments in get_o_r
 
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi]
@@ -421,11 +423,11 @@ class MD_ROD():
 
     def get_diff_rewards(self):
         '''
-        Determines the rewards according to how the performance would have
-        changed if particle i would not have been present.
+        Determines the reward for particle i according to how the performance would have
+        changed if particle i would not have been present (hypPerformance).
         This is as general as possible, while it is very simple,
         since all forces are considered automaticaly.
-        Yes, this is computationally expensive.
+        Yes, this is computationally very expensive.
         '''
 
         # In the initialization, determining this type of reward is not possible
@@ -444,7 +446,8 @@ class MD_ROD():
         # and the hypothetical performance if it would not have been there.
         contrib = (performance - hypPerformances)
 
-        rewards = self.diffRewFact * contrib * performance # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
+        # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
+        rewards = self.diffRewFact * contrib * performance
 
         return rewards
 
@@ -459,7 +462,9 @@ class MD_ROD():
 
         rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
 
+
         if self.mode == 3: # Rotation
+
             dTheta_uncorr = rodTheta - np.angle(complex(olr[-1,0] - olr[0,0], olr[-1,1] - olr[0,1])) # Still can have jumps
 
             dTheta = dTheta_uncorr - np.floor(dTheta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
@@ -467,14 +472,20 @@ class MD_ROD():
             performance = dTheta
 
         elif self.mode == 6: # Longitudinal transport
+            # The performance is determined by the product of the CoM motion of the rod (dCM)
+            # projected on both the new and old rod's long axis. This is done to ensure, that
+            # if the rod's orientation has changed, the reward is smaller. (see Labbook 08.06.21)
+
             dCM = complex(sum(r[:,0]) / self.Nrod - sum(olr[:,0]) / self.Nrod, \
                 sum(r[:,1]) / self.Nrod - sum(olr[:,1]) / self.Nrod) # Center of mass motion in complex numbers
 
-            rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
+            oldRodTheta = np.angle(complex(olr[-1,0] - olr[0,0], olr[-1,1] - olr[0,1]))
 
-            dCM_lon = (dCM * e ** (-1j*rodTheta)).real # Longitudinal CoM motion of the rod
+            dCM_lon_new = abs((dCM * e ** (-1j*rodTheta)).real) # Motion projected on the new rod axis
 
-            performance = abs(dCM_lon)
+            dCM_lon_old = abs((dCM * e ** (-1j*oldRodTheta)).real) # Motion projected on the old rod axis
+
+            performance = dCM_lon_new * dCM_lon_old
 
         elif self.mode == 7: # Transportation problem
 
