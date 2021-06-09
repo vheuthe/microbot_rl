@@ -119,7 +119,7 @@ class MD_ROD():
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
 
         # target is always initialized to have something for the arguments in get_o_r
-        self.target = np.zeros(self.rod.shape)
+        self.target = np.zeros(self.Nrod)
 
         if self.startConfig == 'standard':
             self.particles, self.rod = self.reinitialize_random_for_MD(swirl)
@@ -235,12 +235,13 @@ class MD_ROD():
         cmComplex = self.transpDist * e ** (1j * posAngle)
         Lrod = self.Nrod*self.distRod
         targetEnds = np.array([cmComplex + Lrod/2 * e ** (1j*orAngle), cmComplex - Lrod/2 * e ** (1j*orAngle)])
+        targetComplex = np.zeros((self.Nrod, 1))
         targetComplex = np.linspace(targetEnds[0], targetEnds[1], self.Nrod)
 
         # making the position of the target real
-        target = np.zeros(self.Nrod, 2)
-        target[:,0] = np.real(targetComplex)
-        target[:,1] = np.imag(targetComplex)
+        target = np.zeros((self.Nrod, 2))
+        target[:,0] = np.real(targetComplex).transpose()
+        target[:,1] = np.imag(targetComplex).transpose()
 
         return target
 
@@ -459,6 +460,7 @@ class MD_ROD():
 
         r = rod
         olr = self.old_rod
+        t = self.target
 
         rodTheta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
 
@@ -488,8 +490,16 @@ class MD_ROD():
             performance = dCM_lon_new * dCM_lon_old
 
         elif self.mode == 7: # Transportation problem
+            # The performance is determined by the change in the sum of the distances between all pairs
+            # of rod - target particles.
 
-            performance = 0 # zzz dummy
+            t_c = t[:,0] + 1j *  t[:,1] # complex representations of everything
+            r_c = r[:,0] + 1j *  r[:,1]
+            olr_c = olr[:,0] + 1j *  olr[:,1]
+
+            dists_new = abs(t_c - r_c)
+            dists_old = abs(t_c - olr_c)
+            performance = sum(dists_old) - sum(dists_new)
 
         return performance
 

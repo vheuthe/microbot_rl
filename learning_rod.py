@@ -30,15 +30,16 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
-    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
+    'mode': 7, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
     'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
-    'pushRewFact': 3,
-    'diffRewFact': 10000, # Prefactor for differential rewards
-    'rewMode': 'classic', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
+    'pushRewFact': 5,
+    'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
+    'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
-    'flagFixOr' : 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
+    'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
+    'transpDist': 100, # distance, over which the rod should be transportet in mode 7
 
     # Particles
     'vel_act': 0.45, # 0.35,
@@ -52,6 +53,8 @@ default_parameters = {
     'flag_side': False,
     'flag_LOS': False,
     'startConfig': 'standard', # 'standard' or 'biased' or 'test_friction' or 'transportation'
+    'Dt': 0.014, # translational diffusion coefficient
+    'Dr': 1.0 / 350.0, # rotational diffusion coefficient
 
     # Rod
     'Nrod': 60, # must be even!
@@ -67,8 +70,8 @@ default_parameters = {
     'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
     'nEvalEp': 3, # number of evaluation episodes doen in the end without further training
 
-    'nStepEpTrain': 1000, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
-    'nStepEpEval': 1000, #number of simulation steps done in one evaluation episode
+    'nStepEpTrain': 1500, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
+    'nStepEpEval': 1500, #number of simulation steps done in one evaluation episode
     'stepsTrain': 128, # number of simulation steps, after which there is a training update
 
     'nStepSim': 20, # number of times, the integration is performed in each simulation step
