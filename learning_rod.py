@@ -70,8 +70,8 @@ default_parameters = {
     'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
     'nEvalEp': 3, # number of evaluation episodes doen in the end without further training
 
-    'nStepEpTrain': 1500, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
-    'nStepEpEval': 1500, #number of simulation steps done in one evaluation episode
+    'nStepEpTrain': 1000, # number of simulation steps done in one training episode; each step covers nStepSim * dt in time.
+    'nStepEpEval': 1000, #number of simulation steps done in one evaluation episode
     'stepsTrain': 128, # number of simulation steps, after which there is a training update
 
     'nStepSim': 20, # number of times, the integration is performed in each simulation step
@@ -87,11 +87,12 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
     '''
 
-    # Make sure, that the input dimension and the startConfig is ok
+    # Make sure, that the input dimension and the startConfig is ok (self-consistency)
     if default_parameters['mode'] == 6:
-        default_parameters['input_dim'] = 11
+        default_parameters['input_dim'] = 2 * default_parameters['cones'] + 1
+        default_parameters['startConfig'] = 'standard'
     elif default_parameters['mode'] == 7:
-        default_parameters['input_dim'] = 15
+        default_parameters['input_dim'] = 3 * default_parameters['cones']
         default_parameters['startConfig'] = 'transportation'
 
     # parameter ranges are stored in the job_dir

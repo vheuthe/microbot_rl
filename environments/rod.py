@@ -119,7 +119,7 @@ class MD_ROD():
         self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
 
         # target is always initialized to have something for the arguments in get_o_r
-        self.target = np.zeros(self.Nrod)
+        self.target = np.zeros((self.Nrod, 2))
 
         if self.startConfig == 'standard':
             self.particles, self.rod = self.reinitialize_random_for_MD(swirl)
