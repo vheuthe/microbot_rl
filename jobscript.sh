@@ -33,12 +33,12 @@ tensorflow.config.threading.set_intra_op_parallelism_threads(2)
 # --- Parse parameters and start simulation ---
 
 import os
-import learning_rod_temp
+import learning_rod
 
 task_id = int($SGE_TASK_ID)
 
 job_dir = os.path.abspath('$JOB_DIR')
 
-learning_rod_temp.do_array_task(task_id, job_dir)
+learning_rod.do_array_task(task_id, job_dir)
 
 ENDOFPYTHON
