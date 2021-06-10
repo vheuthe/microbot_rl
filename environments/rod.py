@@ -563,6 +563,7 @@ class MD_ROD():
                     Y = self.old_part[:,1]
                     T = self.old_part[:,2]
                     action = self.old_actions[:]
+                    N = self.N
 
                     action[i] = 0
 
