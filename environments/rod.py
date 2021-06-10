@@ -559,6 +559,11 @@ class MD_ROD():
                 if self.diffRewMode == 'passive':
                     # Make particle i passive
 
+                    X = self.old_part[:,0]
+                    Y = self.old_part[:,1]
+                    T = self.old_part[:,2]
+                    action = self.old_actions[:]
+
                     action[i] = 0
 
                     # The simulation step is done without diffusion (Rm = Rr = 0)
