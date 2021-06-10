@@ -30,13 +30,13 @@ default_parameters = {
     'training_epochs': 50,
 
     # For Rewards
-    'mode': 7, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
+    'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
     'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 5,
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
-    'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
+    'rewMode': 'classic', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
@@ -85,15 +85,8 @@ default_parameters = {
 def do_array_task(task_id, job_dir): # Copied from Robert
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
+    This is than fed into do_task
     '''
-
-    # Make sure, that the input dimension and the startConfig is ok (self-consistency)
-    if default_parameters['mode'] == 6:
-        default_parameters['input_dim'] = 2 * default_parameters['cones'] + 1
-        default_parameters['startConfig'] = 'standard'
-    elif default_parameters['mode'] == 7:
-        default_parameters['input_dim'] = 3 * default_parameters['cones']
-        default_parameters['startConfig'] = 'transportation'
 
     # parameter ranges are stored in the job_dir
     with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
@@ -130,6 +123,19 @@ def do_task(selectedParameters, dataDir):
     # Use the default parameters but update the specified ones
     parameters = default_parameters.copy()
     parameters.update(selectedParameters)
+
+    # Make sure, that the input dimension and the startConfig is ok (self-consistency),
+    # so one does not have to specify the parameters dependant on the mode.
+    if parameters['mode'] == 3:
+        parameters['input_dim'] = 2 * parameters['cones']
+        parameters['startConfig'] = 'standard'
+    elif parameters['mode'] == 6:
+        parameters['input_dim'] = 2 * parameters['cones'] + 1
+        parameters['startConfig'] = 'standard'
+    elif parameters['mode'] == 7:
+        parameters['input_dim'] = 3 * parameters['cones']
+        parameters['startConfig'] = 'transportation'
+        parameters['rewMode'] = 'diff'
 
     # Initializing the agent. It's the same agent throughout all the batches in one task.
     agent = AgentActiveMatter(**parameters)
