@@ -491,16 +491,26 @@ class MD_ROD():
             performance = dCM_lon_new * dCM_lon_old
 
         elif self.mode == 7: # Transportation problem
-            # The performance is determined by the change in the sum of the distances between all pairs
-            # of rod - target particles.
+            # The "values" of a certain rod position is determined by
+            # sum_i (1/(d_i + 1))
+            # with all particles i and the distance to the corresponding target particle d_i.
+            # The perfrmance is then determined by the change in the "value od the rod.
 
-            t_c = t[:,0] + 1j *  t[:,1] # complex representations of everything
+            # complex representations of everything (old and new rod and target)
+            t_c = t[:,0] + 1j *  t[:,1]
             r_c = r[:,0] + 1j *  r[:,1]
             olr_c = olr[:,0] + 1j *  olr[:,1]
 
+            # determining the distances
             dists_new = abs(t_c - r_c)
             dists_old = abs(t_c - olr_c)
-            performance = sum(dists_old) - sum(dists_new)
+
+            # determining the values
+            value_new = sum(1/dists_new)
+            value_old = sum(1/dists_old)
+
+            # determining the performance from the change in the value
+            performance = value_new - value_old
 
         return performance
 
