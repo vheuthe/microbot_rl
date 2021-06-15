@@ -452,6 +452,9 @@ class MD_ROD():
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         rewards = self.diffRewFact * contrib * performance
 
+        if self.diffRewMode == 'switch' & iEp > self.nEpisodes / 3 :
+            rewards = 3 * rewards # quick solution for the problem, that passive and nonExist produce different rewards
+
         return rewards
 
 
@@ -531,10 +534,10 @@ class MD_ROD():
 
         if self.diffRewMode == 'switch':
 
-            if iEp <= self.nEpisodes / 2:
+            if iEp <= self.nEpisodes / 3:
                 diffRewMode = 'passive'
 
-            if iEp > self.nEpisodes / 2:
+            if iEp > self.nEpisodes / 3:
                 diffRewMode = 'nonExist'
 
         else:
@@ -580,7 +583,7 @@ class MD_ROD():
                                                 self.ext_rod, self.cen_rod, self.mu_K,
                                                 N, self.Nrod)
 
-                    # Now the hypPerformance for the absence of particle i is determined
+                    # Now the hypPerformance in the absence of particle i is determined
                     hypPerformances[i] = self.det_performance(hyp_rod)
 
                 if self.diffRewMode == 'passive':
@@ -603,7 +606,7 @@ class MD_ROD():
                                                 self.ext_rod, self.cen_rod, self.mu_K,
                                                 N, self.Nrod)
 
-                    # Now the hypPerformance for the absence of particle i is determined
+                    # Now the hypPerformance for the passivity of particle i is determined
                     hypPerformances[i] = self.det_performance(hyp_rod)
 
             else:
