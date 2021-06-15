@@ -38,7 +38,7 @@ class MD_ROD():
                 data_path=None, rewMode='classic', diffRewMode = 'nonExist',
                 close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10,
                 rewCutoff=8, startConfig='standard', transpDist=100,
-                flagFixOr = 0, **unused_parameters):
+                flagFixOr = 0, nEpisodes = 100, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -107,6 +107,7 @@ class MD_ROD():
         self.diffRewFact = diffRewFact # prefactor for the differential reward
         self.transpDist = transpDist # distance over which to transpport the rod in mode 7 (transportation)
         self.diffRewMode = diffRewMode # non-existing ('nonExist') or 'passive' particles in det_hypPerformance
+        self.nEpisodes = nEpisodes # is needed in diffRewMode == 'switch'
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
@@ -248,7 +249,7 @@ class MD_ROD():
 
 
 
-    def evolve_MD(self, action, rotDir=0, old_rotDir=0):
+    def evolve_MD(self, iEp, action, rotDir=0, old_rotDir=0):
         '''
         Evolves the particle and rod situation one simulation step (=nStepSim times one dt time-step)
         '''
@@ -270,7 +271,7 @@ class MD_ROD():
                                     self.torque, self.vel_act, self.vel_tor,
                                     self.ext_rod, self.cen_rod, self.mu_K,
                                     self.N, self.Nrod)
-        obs, rewards = self.get_obs_rewards(rotDir, old_rotDir)
+        obs, rewards = self.get_obs_rewards(iEp, rotDir, old_rotDir)
 
         # Calculating the rod orientation and CoM for saving it to the stats file
         rodTheta = np.angle(complex(self.rod[-1,0] - self.rod[0,0], self.rod[-1,1] - self.rod[0,1]))
@@ -284,7 +285,7 @@ class MD_ROD():
 
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_obs_rewards(self, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
+    def get_obs_rewards(self, iEp, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
         '''
         This calculates a reward based on the contribution of each particle to the performance.
         The contribution of each particle is estimated by evaluating how well the forces the
@@ -340,7 +341,7 @@ class MD_ROD():
 
         elif self.rewMode == 'diff':
 
-            rewards = self.get_diff_rewards() # Determines the reward according to what would have happened if particle i would not have been there.
+            rewards = self.get_diff_rewards(iEp) # Determines the reward according to what would have happened if particle i would not have been there.
 
         # Check if there are any NaNs in the rewards
         assert not np.isnan(rewards).any(), 'NaNs in rewards'
@@ -423,7 +424,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_diff_rewards(self):
+    def get_diff_rewards(self, iEp):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).
@@ -442,7 +443,7 @@ class MD_ROD():
         performance = self.det_performance(self.rod)
 
         # The hypPerformances are the hypothetical performances that would have been achieved in the absence of particle i
-        hypPerformances = self.det_hypPerformances(performance)
+        hypPerformances = self.det_hypPerformances(performance, iEp)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
@@ -515,13 +516,29 @@ class MD_ROD():
         return performance
 
 
-    def det_hypPerformances(self, performance):
+    def det_hypPerformances(self, performance, iEp):
         '''
         This determines for every particle, how the performance would have been in
         the absence of this particle. It needs the old particle and rod positions
         as well as the old action selections.
         For every particle, it evolves the environment one step without this particle.
         '''
+
+        # In the case of diffRewMode == 'switch', the diffRewMode is switched from 'passive'
+        # to 'nonExist' after half the episodes in order to utilize the robust learning of
+        # the 'passive' mode in the beginning and the higher performance of the 'nonExist'
+        # in the end.
+
+        if self.diffRewMode == 'switch':
+
+            if iEp <= self.nEpisodes / 2:
+                diffRewMode = 'passive'
+
+            if iEp > self.nEpisodes / 2:
+                diffRewMode = 'nonExist'
+
+        else:
+            diffRewMode = self.diffRewMode
 
         hypPerformances = np.zeros(self.particles.shape[0])
 
@@ -540,7 +557,7 @@ class MD_ROD():
 
             if (distances[i] <= self.rewCutoff) or touch[i] :
 
-                if self.diffRewMode == 'nonExist':
+                if diffRewMode == 'nonExist':
                     # Make particle i non-existing
 
                     # Leave out particle i

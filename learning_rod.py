@@ -37,7 +37,7 @@ default_parameters = {
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 5,
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
-    'diffRewMode': 'nonExist', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance
+    'diffRewMode': 'switch', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
     'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
@@ -62,7 +62,7 @@ default_parameters = {
     'ss_rod': 0.01,
     'mu_K': 1.8,
     'sizeRod': 96,
-    'distRod': 1.6,
+    # 'distRod': 1.6, # is calculated in environments/rod.py from the size and the number of rod particles
     'ext_rod': 1.,
     'cen_rod': 1.,
     'massRod': 1, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
@@ -175,7 +175,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
 
         if recordTraj:
             rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target, particles, rod = \
-                do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
+                do_episode(iEp, agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
             rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
             partName = 'traj{}/particles'.format(iEp)
@@ -185,7 +185,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
 
         else:
             rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target = \
-                do_episode(agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
+                do_episode(iEp, agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
@@ -196,7 +196,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
 
 
 
-def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False):
+def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False):
 
     # Initializing the data arrays
     meanRew = np.zeros((nStepEp), dtype='f4')
@@ -212,7 +212,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
 
     # Initialize the environment
     environment = MD_ROD(**parameters)
-    obs, rewards = environment.get_obs_rewards() # gets first obs and rewards
+    obs, rewards = environment.get_obs_rewards(iEp) # gets first obs and rewards
 
     # Initialize the agent
     agent.initialize(obs)
@@ -228,7 +228,7 @@ def do_episode(agent, parameters, nStepEp, *, recordTraj=False, trainAgent=False
             zzz = 2
 
         # The environment is updated according to the selected actions
-        obs, rewards, rodTheta, rodCoM = environment.evolve_MD(actions)
+        obs, rewards, rodTheta, rodCoM = environment.evolve_MD(iEp, actions)
 
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response([], obs, rewards)
