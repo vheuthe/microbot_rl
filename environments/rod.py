@@ -38,7 +38,7 @@ class MD_ROD():
                 data_path=None, rewMode='classic', diffRewMode = 'nonExist',
                 close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10,
                 rewCutoff=8, startConfig='standard', transpDist=100,
-                flagFixOr = 0, nEpisodes = 100, **unused_parameters):
+                flagFixOr = 0, nTrainEp = 100, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -107,7 +107,7 @@ class MD_ROD():
         self.diffRewFact = diffRewFact # prefactor for the differential reward
         self.transpDist = transpDist # distance over which to transpport the rod in mode 7 (transportation)
         self.diffRewMode = diffRewMode # non-existing ('nonExist') or 'passive' particles in det_hypPerformance
-        self.nEpisodes = nEpisodes # is needed in diffRewMode == 'switch'
+        self.nEpisodes = nTrainEp # is needed in diffRewMode == 'switch'
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
