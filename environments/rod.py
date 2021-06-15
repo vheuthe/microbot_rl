@@ -452,7 +452,7 @@ class MD_ROD():
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         rewards = self.diffRewFact * contrib * performance
 
-        if self.diffRewMode == 'switch' & iEp > self.nEpisodes / 3 :
+        if self.diffRewMode == 'switch' and (iEp > self.nEpisodes / 3) :
             rewards = 3 * rewards # quick solution for the problem, that passive and nonExist produce different rewards
 
         return rewards
