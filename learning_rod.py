@@ -36,11 +36,14 @@ default_parameters = {
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 5,
-    'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
-    'diffRewMode': 'switch', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
-    'rewCutoff': 20, # float(sys.argv[1]), # 8, # Cutoff for the primitive rewards
+    'rewCutoff': 50, # Cutoff for the primitive rewards
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
+
+    # for diff Reward
+    'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
+    'diffRewMode': 'switch', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
+    'diffRewNoise' : 'off', # noise in determination of performance and hypPerformance for differential Reward
 
     # Particles
     'vel_act': 0.45, # 0.35,
@@ -225,7 +228,7 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
 
         # Just for debugging
         if step == 500:
-            zzz = 2
+                zzz = 2
 
         # The environment is updated according to the selected actions
         obs, rewards, rodTheta, rodCoM = environment.evolve_MD(iEp, actions)

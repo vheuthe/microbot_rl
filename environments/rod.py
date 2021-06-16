@@ -36,7 +36,7 @@ class MD_ROD():
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
                 data_path=None, rewMode='classic', diffRewMode = 'nonExist',
-                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10,
+                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10, diffRewNoise='off',
                 rewCutoff=8, startConfig='standard', transpDist=100,
                 flagFixOr = 0, nTrainEp = 100, **unused_parameters):
 
@@ -108,6 +108,7 @@ class MD_ROD():
         self.transpDist = transpDist # distance over which to transpport the rod in mode 7 (transportation)
         self.diffRewMode = diffRewMode # non-existing ('nonExist') or 'passive' particles in det_hypPerformance
         self.nEpisodes = nTrainEp # is needed in diffRewMode == 'switch'
+        self.diffRewNoise = diffRewNoise # noise in determination of performance and hypPerformance for diff Rews
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
@@ -440,7 +441,35 @@ class MD_ROD():
             return rewards
 
         # First up, the performance is determined according to the mode (translation, rotation, etc.)
-        performance = self.det_performance(self.rod)
+        # for the case without noise (diffRewNoise = 'off') this is done from a noislessRod determined
+        # from the last simulation step without noise
+        if self.diffRewNoise == 'on':
+
+            performance = self.det_performance(self.rod)
+
+        elif self.diffRewNoise == 'off':
+            # redo the last simulation step without noise to have a performance
+            # that can be compared to the hypPerformances without noise
+
+            X = self.old_part[:,0]
+            Y = self.old_part[:,1]
+            T = self.old_part[:,2]
+            action = self.old_actions[:]
+            N = self.N
+            Xrod = self.old_rod[:,0]
+            Yrod = self.old_rod[:,1]
+            mRod = self.massRod
+            IRod = self.inertiaRod
+
+            _, noislessRod, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T,
+                                                Xrod, Yrod, self.distRod, action,
+                                                0, 0, self.dt, self.nStepSim,
+                                                self.torque, self.vel_act, self.vel_tor,
+                                                self.ext_rod, self.cen_rod, self.mu_K,
+                                                N, self.Nrod)
+
+            performance = self.det_performance(noislessRod)
 
         # The hypPerformances are the hypothetical performances that would have been achieved in the absence of particle i
         hypPerformances = self.det_hypPerformances(performance, iEp)
@@ -451,9 +480,6 @@ class MD_ROD():
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         rewards = self.diffRewFact * contrib * performance
-
-        if self.diffRewMode == 'switch' and (iEp > self.nEpisodes / 3) :
-            rewards = 3 * rewards # quick solution for the problem, that passive and nonExist produce different rewards
 
         return rewards
 
@@ -531,7 +557,6 @@ class MD_ROD():
         # to 'nonExist' after half the episodes in order to utilize the robust learning of
         # the 'passive' mode in the beginning and the higher performance of the 'nonExist'
         # in the end.
-
         if self.diffRewMode == 'switch':
 
             if iEp <= self.nEpisodes / 3:
@@ -542,6 +567,14 @@ class MD_ROD():
 
         else:
             diffRewMode = self.diffRewMode
+
+        # Set the noise for determining the performance and hypothetical performances
+        if self.diffRewNoise == 'on':
+            Rm = self.Rm
+            Rr = self.Rr
+        if self.diffRewNoise == 'off':
+            Rm = 0
+            Rr = 0
 
         hypPerformances = np.zeros(self.particles.shape[0])
 
@@ -574,11 +607,10 @@ class MD_ROD():
 
                     N = self.N - 1 # Don't forget the particle number
 
-                    # The simulation step is done without diffusion (Rm = Rr = 0)
                     _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
                                                 X, Y, T,
                                                 Xrod, Yrod, self.distRod, action,
-                                                0, 0, self.dt, self.nStepSim,
+                                                Rm, Rr, self.dt, self.nStepSim,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K,
                                                 N, self.Nrod)
@@ -586,7 +618,7 @@ class MD_ROD():
                     # Now the hypPerformance in the absence of particle i is determined
                     hypPerformances[i] = self.det_performance(hyp_rod)
 
-                if self.diffRewMode == 'passive':
+                if diffRewMode == 'passive':
                     # Make particle i passive
 
                     X = self.old_part[:,0]
@@ -597,11 +629,10 @@ class MD_ROD():
 
                     action[i] = 0
 
-                    # The simulation step is done without diffusion (Rm = Rr = 0)
                     _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
                                                 X, Y, T,
                                                 Xrod, Yrod, self.distRod, action,
-                                                0, 0, self.dt, self.nStepSim,
+                                                Rm, Rr, self.dt, self.nStepSim,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K,
                                                 N, self.Nrod)
