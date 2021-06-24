@@ -36,7 +36,7 @@ default_parameters = {
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 5,
-    'rewCutoff': 50, # Cutoff for the primitive rewards
+    'rewCutoff': 50, # Cutoff for the primitive/differential rewards
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
 
@@ -71,6 +71,7 @@ default_parameters = {
     'massRod': 1, # "mass" of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD part of the simulation
+    'nRep': 1, # number of repititions that are done of every episonde (for statistics)
     'nTrainEp': 100, # number of episodes conducted during the whole training (replaces n_MD)
     'nEvalEp': 3, # number of evaluation episodes doen in the end without further training
 
@@ -103,13 +104,16 @@ def do_array_task(task_id, job_dir): # Copied from Robert
         [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
     ))
 
-    # Constructs the folder name for the task from the relevant parameters
-    dataDir = os.path.join(
-        job_dir,
-        '_'.join([key + str(val) for key, val in selectedParameters.items()])
-    )
+    for rep in range(1, selectedParameters['nRep']):
 
-    do_task(selectedParameters, dataDir)
+        # Constructs the folder name for the task from the relevant parameters
+        dataDir = os.path.join(
+            job_dir,
+            '_'.join([key + str(val) for key, val in selectedParameters.items()]),
+            'rep_{}'.format(rep)
+        )
+
+        do_task(selectedParameters, dataDir)
 
 
 
