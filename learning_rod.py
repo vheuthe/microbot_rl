@@ -104,7 +104,7 @@ def do_array_task(task_id, job_dir): # Copied from Robert
         [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
     ))
 
-    for rep in range(1, selectedParameters['nRep']):
+    for rep in range(1, selectedParameters['nRep'] + 1):
 
         # Constructs the folder name for the task from the relevant parameters
         dataDir = os.path.join(
