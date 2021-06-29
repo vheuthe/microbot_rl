@@ -502,7 +502,7 @@ class MD_ROD():
 
             dTheta = dTheta_uncorr - np.floor(dTheta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
 
-            performance = dTheta
+            performance = abs(dTheta)
 
         elif self.mode == 6: # Longitudinal transport
             # The performance is determined by the product of the CoM motion of the rod (dCM)
