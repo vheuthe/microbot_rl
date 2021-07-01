@@ -445,7 +445,8 @@ class MD_ROD():
         # from the last simulation step without noise
         if self.diffRewNoise == 'on':
 
-            performance = self.det_performance(self.rod)
+            # manely for having the same name for the rod in both cases, even if it is not noiseless sometimes
+            noislessRod = self.rod
 
         elif self.diffRewNoise == 'off':
             # redo the last simulation step without noise to have a performance
@@ -469,10 +470,10 @@ class MD_ROD():
                                                 self.ext_rod, self.cen_rod, self.mu_K,
                                                 N, self.Nrod)
 
-            performance = self.det_performance(noislessRod)
+        performance = self.det_performance(noislessRod)
 
         # The hypPerformances are the hypothetical performances that would have been achieved in the absence of particle i
-        hypPerformances = self.det_hypPerformances(performance, iEp)
+        hypPerformances, hypRodAng = self.det_hypPerformances(performance, iEp)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
@@ -480,6 +481,16 @@ class MD_ROD():
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         rewards = self.diffRewFact * contrib * performance
+
+        # For debugging the performance and hypPerformances are saved together with the rod
+        # the performance was determined from and the hypothetical rods (just angles in for lattter two)
+
+        noislessRodAng = np.angle(complex(noislessRod[-1,0] - noislessRod[0,0], noislessRod[-1,1] - noislessRod[0,1]))
+
+        self.hypRodAng = hypRodAng
+        self.hypPerformances = hypPerformances
+        self.performance = performance
+        self.noislessRodAng = noislessRodAng
 
         return rewards
 
@@ -568,7 +579,7 @@ class MD_ROD():
         else:
             diffRewMode = self.diffRewMode
 
-        # Set the noise for determining the performance and hypothetical performances
+        # Set the noise for determining the hypothetical performances
         if self.diffRewNoise == 'on':
             Rm = self.Rm
             Rr = self.Rr
@@ -577,6 +588,7 @@ class MD_ROD():
             Rr = 0
 
         hypPerformances = np.zeros(self.particles.shape[0])
+        hypRodAng = np.zeros(self.particles.shape[0]) # this is just the angle
 
         # Define the starting configuretion
         Xrod = self.old_rod[:,0]
@@ -597,7 +609,7 @@ class MD_ROD():
                     # Make particle i non-existing
 
                     # Leave out particle i
-                    mask = np.ones(self.old_part.shape[0],dtype=bool)
+                    mask = np.ones(self.old_part.shape[0], dtype=bool)
                     mask[i] = 0
 
                     X = self.old_part[mask,0]
@@ -618,7 +630,7 @@ class MD_ROD():
                     # Now the hypPerformance in the absence of particle i is determined
                     hypPerformances[i] = self.det_performance(hyp_rod)
 
-                if diffRewMode == 'passive':
+                elif diffRewMode == 'passive':
                     # Make particle i passive
 
                     X = self.old_part[:,0]
@@ -641,9 +653,17 @@ class MD_ROD():
                     hypPerformances[i] = self.det_performance(hyp_rod)
 
             else:
+                # If the particle is too far away to have an effect (distance > rewCutoff),
+                # the performance without this particle should be the same as with it.
                 hypPerformances[i] = performance
+                hyp_rod = self.rod # needed for debugging
 
-        return hypPerformances
+            # for debugging, the hypothetical rod angles are also returned
+            hypTheta = np.angle(complex(hyp_rod[-1,0] - hyp_rod[0,0], hyp_rod[-1,1] - hyp_rod[0,1]))
+
+            hypRodAng[i] = hypTheta
+
+        return hypPerformances, hypRodAng
 
 #
 # ------------------------------------

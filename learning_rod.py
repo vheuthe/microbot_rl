@@ -42,7 +42,7 @@ default_parameters = {
 
     # for diff Reward
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
-    'diffRewMode': 'switch', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
+    'diffRewMode': 'nonExist', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
     'diffRewNoise' : 'off', # noise in determination of performance and hypPerformance for differential Reward
 
     # Particles
@@ -154,17 +154,17 @@ def do_task(selectedParameters, dataDir):
         json.dump(parameters, paramFile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     # Now there is training for nTrainEp episodes (training batch)
-    do_episode_batch(agent, parameters, dataDir, 'training', parameters['nTrainEp'], parameters['nStepEpTrain'], recordTraj=False, trainAgent=True)
+    do_episode_batch(agent, parameters, dataDir, 'training', parameters['nTrainEp'], parameters['nStepEpTrain'], recordTraj=False, trainAgent=True, debugging=True)
 
     # Training is done at this point
     agent.save_models(os.path.join(dataDir, 'model'))
 
     # And then evaluation for nEvalEp episodes (evaluation batch)
-    do_episode_batch(agent, parameters, dataDir, 'evaluation', parameters['nEvalEp'], parameters['nStepEpEval'], recordTraj=True, trainAgent=False)
+    do_episode_batch(agent, parameters, dataDir, 'evaluation', parameters['nEvalEp'], parameters['nStepEpEval'], recordTraj=True, trainAgent=False, debugging=True)
 
 
 
-def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, recordTraj=False, trainAgent=False):
+def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, recordTraj=False, trainAgent=False, debugging=False):
 
     # nStepEp is the number of simulation steps (observables -> actions -> evolved environment) in one episode
     # nEpisodes is the number of episodes to be conducted in this batch
@@ -181,7 +181,8 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
     for iEp in range(0, nEpisodes):
 
         if recordTraj:
-            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target, particles, rod = \
+            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target, particles, rod,\
+            hypRodAng, hypPerformances, perf, noislessRodAng = \
                 do_episode(iEp, agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
             rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
@@ -189,6 +190,19 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
 
             storFile.create_dataset(partName, compression='gzip', data=particles)
             storFile.create_dataset(rodName, compression='gzip', data=rod)
+
+            # This is for looking at the hypothetical rods and performances, etc.
+            if debugging:
+
+                hypRodsName = 'traj{}/hypRods'.format(iEp)          # hypothetical rods
+                hypPersName = 'traj{}/hypPers'.format(iEp)          # hypothetical performances
+                perfName = 'traj{}/perf'.format(iEp)                # performance
+                noislessRodName = 'traj{}/noislessRod'.format(iEp)   # rod, from which the performance was determined
+
+                storFile.create_dataset(hypRodsName, compression='gzip', data=hypRodAng)
+                storFile.create_dataset(hypPersName, compression='gzip', data=hypPerformances)
+                storFile.create_dataset(perfName, compression='gzip', data=perf)
+                storFile.create_dataset(noislessRodName, compression='gzip', data=noislessRodAng)
 
         else:
             rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target = \
@@ -217,6 +231,13 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
         particles = np.full((nStepEp, 5, parameters['N']), fill_value=np.nan) # order: X, Y, Theta, actions, rewards
         rod = np.full((nStepEp, 2, parameters['Nrod']), fill_value=np.nan) # order: X, Y
 
+        # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
+        # the performance was determined are saved, too
+        hypRodAng = np.zeros((parameters['N'], nStepEp), dtype='f4') # just the angle is saved (self.N x nStepEp values)
+        hypPerformances = np.zeros((parameters['N'], nStepEp), dtype='f4') # (self.N x nStepEp values)
+        perf = np.zeros((nStepEp), dtype='f4') # the overall performance in one timestep
+        noislessRodAng = np.zeros((nStepEp), dtype='f4') # the rod, from which perf was determined
+
     # Initialize the environment
     environment = MD_ROD(**parameters)
     obs, rewards = environment.get_obs_rewards(iEp) # gets first obs and rewards
@@ -227,15 +248,21 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
     # Real simulation loop
     for step in range(nStepEp):
 
+        # ZZZ Just for debugging
+        if step > 1:
+            old_rewards = new_rewards
+
         # Agent decides actions from the observables
         actions, logp = agent.get_actions()
 
-        # Just for debugging
-        if step == 500:
-                zzz = 2
-
         # The environment is updated according to the selected actions
         obs, rewards, rodTheta, rodCoM = environment.evolve_MD(iEp, actions)
+
+        # ZZZ For debugging: if the rewards flicker too much, there is a hold point
+        new_rewards = rewards
+        if step > 1:
+            if (abs(sum(new_rewards) - sum(old_rewards)) > 7) and iEp > 30:
+                zzz = 1
 
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response([], obs, rewards)
@@ -259,14 +286,24 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
             particles[step, 4, :] = rewards
             rod[step, :, :] = environment.rod.transpose()
 
+            # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
+            # the performance was determined are saved, too
+            hypRodAng[:,step] = environment.hypRodAng
+            hypPerformances[:,step] = environment.hypPerformances
+            perf[step] = environment.performance
+            noislessRodAng[step] = environment.noislessRodAng
+
+
     agent.finish_episode()
     if not trainAgent:
         agent.reset_memory()
 
-    if not recordTraj:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target
+    if recordTraj:
+        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target, particles, rod, hypRodAng, hypPerformances, perf, noislessRodAng
     else:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target, particles, rod
+        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target
+
+
 
 
 
