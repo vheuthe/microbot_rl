@@ -1,14 +1,18 @@
-subroutine evolve_md_rod(mR, IR, X, Y, Theta, oldNoise, Xrod, Yrod, &
+subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
+                        oldNoise, old_vel_noise, old_tor_noise, &
+                        Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
-                        nsteps, tor, vel_act, vel_tor, &
+                        tor, vel_act, vel_tor, &
                         ext_rod, cen_rod, mu, reproduction, &
-                        N, Nrod, &
-                        new_XYT, new_XY_rod, part_rod_forces, noise)
+                        N, Nrod, nsteps, &
+                        new_XYT, new_XY_rod, part_rod_forces, &
+                        noise, vel_noise, tor_noise)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
-    real,    intent(in) :: X(N), Y(N), Theta(N), oldNoise(N,3)
+    real,    intent(in) :: X(N), Y(N), Theta(N)
+    real,    intent(in) :: oldNoise(N, 3 * nsteps), old_vel_noise(N, nsteps), old_tor_noise(N, nsteps)
     real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), distRod
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
@@ -18,7 +22,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, oldNoise, Xrod, Yrod, &
     logical, intent(in) :: reproduction
     ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
-    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2), part_rod_forces(N,3), noise(N,3) ! F_perf are forces in x and y and torque every particle exerted on average
+    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2), part_rod_forces(N,3) ! F_perf are forces in x and y and torque every particle exerted on average
+    real , intent(out) :: noise(N, 3 * nsteps), vel_noise(N, nsteps), tor_noise(N, nsteps)
     ! =======================================
     real :: FX(N), FY(N), FR(N), v(N)
     real :: sig_vel_act, sig_vel_tor
@@ -135,9 +140,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, oldNoise, Xrod, Yrod, &
         ! in a reproduction step, the old noise is used again
         if (reproduction) then
 
-            FX = oldNoise(:,1)
-            FY = oldNoise(:,2)
-            FR = oldNoise(:,3)
+            FX = oldNoise(:,1 + (it-1) * 3)
+            FY = oldNoise(:,2 + (it-1) * 3)
+            FR = oldNoise(:,3 + (it-1) * 3)
 
         else
             do i = 1, N
@@ -146,9 +151,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, oldNoise, Xrod, Yrod, &
                 FR(i) = gran()*Rr
 
                 ! the thermal noise is saved for reproducing this sim-step without certain particles (diff Rewards)
-                noise(i, 1) = FX(i)
-                noise(i, 2) = FY(i)
-                noise(i, 3) = FR(i)
+                noise(i, 1 + (it-1) * 3) = FX(i)
+                noise(i, 2 + (it-1) * 3) = FY(i)
+                noise(i, 3 + (it-1) * 3) = FR(i)
 
             enddo
         endif
@@ -260,9 +265,23 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, oldNoise, Xrod, Yrod, &
                 ! Action includes rotation
                 ! ========================
 
-                v(i) = vel_act  + gran()*sig_vel_act
+                if (reproduction) then
+                    vel_noise(i, it) = old_vel_noise(i, it)
+                else
+                    vel_noise(i, it) = gran()*sig_vel_act
+                endif
+
+                v(i) = vel_act  + vel_noise(i, it)
+
                 if (act(i)>1) then
-                    v(i) = vel_tor + gran()*sig_vel_tor
+
+                    if (reproduction) then
+                        tor_noise(i, it) = old_tor_noise(i, it)
+                    else
+                        tor_noise(i, it) = gran()*sig_vel_act
+                    endif
+
+                    v(i) = vel_tor + tor_noise(i, it)
                     FR(i) = FR(i) - 2*tor*(act(i)-2.5)
                 endif
 

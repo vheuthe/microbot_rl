@@ -6,7 +6,7 @@ from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 from math import e
 import time
-from fortran import evolve_rod_rigid as evolve
+from fortran import evolve_rod_rigid_copy as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -268,15 +268,18 @@ class MD_ROD():
 
         # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
         reproduction = False
-        oldNoise = np.zeros((self.N, 3))
+        oldNoise = np.zeros((self.N, 3 * self.nStepSim))
+        oldVelNoise = np.zeros((self.N, self.nStepSim))
+        oldTorNoise = np.zeros((self.N, self.nStepSim))
 
-        self.particles, self.rod, self.part_rod_forces, self.oldNoise = evolve.evolve_md_rod(mRod, IRod,
-                                    X, Y, T, oldNoise,
+        self.particles, self.rod, self.part_rod_forces,
+        self.oldNoise, self.oldVelNoise, self.oldTorNoise = evolve.evolve_md_rod(mRod, IRod,
+                                    X, Y, T, oldNoise, oldVelNoise, oldTorNoise,
                                     Xrod, Yrod, self.distRod, action,
-                                    self.Rm, self.Rr, self.dt, self.nStepSim,
+                                    self.Rm, self.Rr, self.dt,
                                     self.torque, self.vel_act, self.vel_tor,
                                     self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                    self.N, self.Nrod)
+                                    self.N, self.Nrod, self.nStepSim)
         obs, rewards = self.get_obs_rewards(iEp, rotDir, old_rotDir)
 
         # Calculating the rod orientation and CoM for saving it to the stats file
@@ -469,15 +472,17 @@ class MD_ROD():
 
             # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
             reproduction = False
-            oldNoise = np.zeros((self.N, 3))
+            oldNoise = np.zeros((self.N, 3 * self.nStepSim))
+            oldVelNoise = np.zeros((self.N, self.nStepSim))
+            oldTorNoise = np.zeros((self.N, self.nStepSim))
 
-            _, noislessRod, _, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T, oldNoise,
+            _, noislessRod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T, oldNoise, oldVelNoise, oldTorNoise,
                                                 Xrod, Yrod, self.distRod, action,
-                                                0, 0, self.dt, self.nStepSim,
+                                                0, 0, self.dt,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                                N, self.Nrod)
+                                                N, self.Nrod, self.nStepSim)
 
         performance = self.det_performance(noislessRod)
 
@@ -605,9 +610,13 @@ class MD_ROD():
         if self.diffRewNoise == 'ideal':
             reproduction = True
             oldNoise = self.oldNoise
+            oldVelNoise = self.oldVelNoise
+            oldTorNoise = self.oldTorNoise
         else:
             reproduction = False
-            oldNoise = np.zeros((self.N, 3))
+            oldNoise = np.zeros((self.N, 3 * self.nStepSim))
+            oldVelNoise = np.zeros((self.N, self.nStepSim))
+            oldTorNoise = np.zeros((self.N, self.nStepSim))
 
 
         hypPerformances = np.zeros(self.particles.shape[0])
@@ -639,17 +648,21 @@ class MD_ROD():
                     Y = self.old_part[mask,1]
                     T = self.old_part[mask,2]
                     action = self.old_actions[mask]
+
+                    # All the old noises are masked, too
                     oldNoiseMasked = oldNoise[mask, :]
+                    oldVelNoiseMasked = oldVelNoise[mask, :]
+                    oldTorNoiseMasked = oldTorNoise[mask, :]
 
                     N = self.N - 1 # Don't forget the particle number
 
-                    _, hyp_rod, _, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T, oldNoiseMasked,
+                    _, hyp_rod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T, oldNoiseMasked, oldVelNoiseMasked, oldTorNoiseMasked,
                                                 Xrod, Yrod, self.distRod, action,
-                                                Rm, Rr, self.dt, self.nStepSim,
+                                                Rm, Rr, self.dt,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                                N, self.Nrod)
+                                                N, self.Nrod, self.nStepSim)
 
                     # Now the hypPerformance in the absence of particle i is determined
                     hypPerformances[i] = self.det_performance(hyp_rod)
@@ -665,13 +678,13 @@ class MD_ROD():
 
                     action[i] = 0
 
-                    _, hyp_rod, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                    _, hyp_rod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
                                                 X, Y, T, oldNoise,
                                                 Xrod, Yrod, self.distRod, action,
-                                                Rm, Rr, self.dt, self.nStepSim,
+                                                Rm, Rr, self.dt,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                                N, self.Nrod)
+                                                N, self.Nrod, self.nStepSim)
 
                     # Now the hypPerformance for the passivity of particle i is determined
                     hypPerformances[i] = self.det_performance(hyp_rod)
