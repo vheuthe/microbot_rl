@@ -43,7 +43,7 @@ default_parameters = {
     # for diff Reward
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
     'diffRewMode': 'nonExist', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
-    'diffRewNoise' : 'off', # noise in determination of performance and hypPerformance for differential Reward
+    'diffRewNoise' : 'ideal', # noise in determination of performance and hypPerformance for differential Reward ('on', 'off', 'mixed' or 'ideal')
 
     # Particles
     'vel_act': 0.45, # 0.35,

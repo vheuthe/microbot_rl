@@ -265,12 +265,17 @@ class MD_ROD():
         self.old_rod[:] = self.rod[:]
         self.old_part[:] = self.particles[:]
         self.old_actions[:] = action[:]
-        self.particles, self.rod, self.part_rod_forces = evolve.evolve_md_rod(mRod, IRod,
-                                    X, Y, T,
+
+        # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
+        reproduction = False
+        oldNoise = np.zeros((self.N, 3))
+
+        self.particles, self.rod, self.part_rod_forces, self.oldNoise = evolve.evolve_md_rod(mRod, IRod,
+                                    X, Y, T, oldNoise,
                                     Xrod, Yrod, self.distRod, action,
                                     self.Rm, self.Rr, self.dt, self.nStepSim,
                                     self.torque, self.vel_act, self.vel_tor,
-                                    self.ext_rod, self.cen_rod, self.mu_K,
+                                    self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                     self.N, self.Nrod)
         obs, rewards = self.get_obs_rewards(iEp, rotDir, old_rotDir)
 
@@ -443,7 +448,7 @@ class MD_ROD():
         # First up, the performance is determined according to the mode (translation, rotation, etc.)
         # for the case without noise (diffRewNoise = 'off') this is done from a noislessRod determined
         # from the last simulation step without noise
-        if self.diffRewNoise == 'on':
+        if self.diffRewNoise == 'on' or self.diffRewNoise == 'mixed' or self.diffRewNoise == 'ideal':
 
             # manely for having the same name for the rod in both cases, even if it is not noiseless sometimes
             noislessRod = self.rod
@@ -462,12 +467,16 @@ class MD_ROD():
             mRod = self.massRod
             IRod = self.inertiaRod
 
-            _, noislessRod, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T,
+            # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
+            reproduction = False
+            oldNoise = np.zeros((self.N, 3))
+
+            _, noislessRod, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T, oldNoise,
                                                 Xrod, Yrod, self.distRod, action,
                                                 0, 0, self.dt, self.nStepSim,
                                                 self.torque, self.vel_act, self.vel_tor,
-                                                self.ext_rod, self.cen_rod, self.mu_K,
+                                                self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 N, self.Nrod)
 
         performance = self.det_performance(noislessRod)
@@ -579,13 +588,27 @@ class MD_ROD():
         else:
             diffRewMode = self.diffRewMode
 
-        # Set the noise for determining the hypothetical performances
+        # Set the noise for determining the hypothetical performances:
+        # 'on':    noise in determining performance and hypPerf
+        # 'off':   no noise in determining perf and hypPerf
+        # 'mixed': noise in determining perf and no noise in determining hypPerf
+
         if self.diffRewNoise == 'on':
             Rm = self.Rm
             Rr = self.Rr
-        if self.diffRewNoise == 'off':
+        elif self.diffRewNoise == 'off' or self.diffRewNoise == 'mixed' or self.diffRewNoise == 'ideal':
             Rm = 0
             Rr = 0
+
+
+        # in the diffRewMode 'ideal', the same noise as in the last step is used to determine the hypPerfs
+        if self.diffRewNoise == 'ideal':
+            reproduction = True
+            oldNoise = self.oldNoise
+        else:
+            reproduction = False
+            oldNoise = np.zeros((self.N, 3))
+
 
         hypPerformances = np.zeros(self.particles.shape[0])
         hypRodAng = np.zeros(self.particles.shape[0]) # this is just the angle
@@ -616,15 +639,16 @@ class MD_ROD():
                     Y = self.old_part[mask,1]
                     T = self.old_part[mask,2]
                     action = self.old_actions[mask]
+                    oldNoiseMasked = oldNoise[mask, :]
 
                     N = self.N - 1 # Don't forget the particle number
 
-                    _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T,
+                    _, hyp_rod, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T, oldNoiseMasked,
                                                 Xrod, Yrod, self.distRod, action,
                                                 Rm, Rr, self.dt, self.nStepSim,
                                                 self.torque, self.vel_act, self.vel_tor,
-                                                self.ext_rod, self.cen_rod, self.mu_K,
+                                                self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 N, self.Nrod)
 
                     # Now the hypPerformance in the absence of particle i is determined
@@ -641,12 +665,12 @@ class MD_ROD():
 
                     action[i] = 0
 
-                    _, hyp_rod, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T,
+                    _, hyp_rod, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T, oldNoise,
                                                 Xrod, Yrod, self.distRod, action,
                                                 Rm, Rr, self.dt, self.nStepSim,
                                                 self.torque, self.vel_act, self.vel_tor,
-                                                self.ext_rod, self.cen_rod, self.mu_K,
+                                                self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 N, self.Nrod)
 
                     # Now the hypPerformance for the passivity of particle i is determined

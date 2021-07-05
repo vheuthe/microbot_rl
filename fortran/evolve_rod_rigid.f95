@@ -1,23 +1,24 @@
-subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
+subroutine evolve_md_rod(mR, IR, X, Y, Theta, oldNoise, Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
                         nsteps, tor, vel_act, vel_tor, &
-                        ext_rod, cen_rod, mu, &
+                        ext_rod, cen_rod, mu, reproduction, &
                         N, Nrod, &
-                        new_XYT, new_XY_rod, part_rod_forces)
+                        new_XYT, new_XY_rod, part_rod_forces, noise)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
-    real,    intent(in) :: X(N), Y(N), Theta(N)
+    real,    intent(in) :: X(N), Y(N), Theta(N), oldNoise(N,3)
     real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), distRod
     integer, intent(in) :: act(N)
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr
     real,    intent(in) :: tor, vel_act, vel_tor, dt, mR, IR
     real,    intent(in) :: ext_rod, cen_rod , mu
+    logical, intent(in) :: reproduction
     ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
-    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2), part_rod_forces(N,3) ! F_perf are forces in x and y and torque every particle exerted on average
+    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2), part_rod_forces(N,3), noise(N,3) ! F_perf are forces in x and y and torque every particle exerted on average
     ! =======================================
     real :: FX(N), FY(N), FR(N), v(N)
     real :: sig_vel_act, sig_vel_tor
@@ -131,11 +132,26 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         ! thermal motion
         ! =============================
 
-        do i = 1, N
-            FX(i) = gran()*Rm*etaCol
-            FY(i) = gran()*Rm*etaCol
-            FR(i) = gran()*Rr
-        enddo
+        ! in a reproduction step, the old noise is used again
+        if (reproduction) then
+
+            FX = oldNoise(:,1)
+            FY = oldNoise(:,2)
+            FR = oldNoise(:,3)
+
+        else
+            do i = 1, N
+                FX(i) = gran()*Rm*etaCol
+                FY(i) = gran()*Rm*etaCol
+                FR(i) = gran()*Rr
+
+                ! the thermal noise is saved for reproducing this sim-step without certain particles (diff Rewards)
+                noise(i, 1) = FX(i)
+                noise(i, 2) = FY(i)
+                noise(i, 3) = FR(i)
+
+            enddo
+        endif
 
         ! =============================
         ! repulsion between colloids
