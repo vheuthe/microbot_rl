@@ -154,7 +154,7 @@ def do_task(selectedParameters, dataDir):
         json.dump(parameters, paramFile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     # Now there is training for nTrainEp episodes (training batch)
-    do_episode_batch(agent, parameters, dataDir, 'training', parameters['nTrainEp'], parameters['nStepEpTrain'], recordTraj=False, trainAgent=True, debugging=True)
+    do_episode_batch(agent, parameters, dataDir, 'training', parameters['nTrainEp'], parameters['nStepEpTrain'], recordTraj=False, trainAgent=True, debugging=False)
 
     # Training is done at this point
     agent.save_models(os.path.join(dataDir, 'model'))
