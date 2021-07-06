@@ -6,7 +6,7 @@ from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 from math import e
 import time
-from fortran import evolve_rod_rigid_copy as evolve
+from fortran import evolve_rod_rigid as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -36,7 +36,7 @@ class MD_ROD():
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
                 data_path=None, rewMode='classic', diffRewMode = 'nonExist',
-                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10, diffRewNoise='off',
+                close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10, diffRewNoise='mixed',
                 rewCutoff=8, startConfig='standard', transpDist=100,
                 flagFixOr = 0, nTrainEp = 100, **unused_parameters):
 
@@ -272,14 +272,22 @@ class MD_ROD():
         oldVelNoise = np.zeros((self.N, self.nStepSim))
         oldTorNoise = np.zeros((self.N, self.nStepSim))
 
-        self.particles, self.rod, self.part_rod_forces,
+        # Is there noise at all?
+        # diffRewNoise == 'no' means no noise at all, also not in the real simulation steps
+        if self.diffRewNoise == 'no':
+            noiseFlag = 0
+        else:
+            noiseFlag = 1
+
+        self.particles, self.rod, self.part_rod_forces, \
         self.oldNoise, self.oldVelNoise, self.oldTorNoise = evolve.evolve_md_rod(mRod, IRod,
                                     X, Y, T, oldNoise, oldVelNoise, oldTorNoise,
                                     Xrod, Yrod, self.distRod, action,
                                     self.Rm, self.Rr, self.dt,
                                     self.torque, self.vel_act, self.vel_tor,
                                     self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                    self.N, self.Nrod, self.nStepSim)
+                                    noiseFlag, self.N, self.Nrod, self.nStepSim)
+
         obs, rewards = self.get_obs_rewards(iEp, rotDir, old_rotDir)
 
         # Calculating the rod orientation and CoM for saving it to the stats file
@@ -295,11 +303,7 @@ class MD_ROD():
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
     def get_obs_rewards(self, iEp, rotDir=0, old_rotDir=0, flag_side=0, obs_type=1):
-        '''
-        This calculates a reward based on the contribution of each particle to the performance.
-        The contribution of each particle is estimated by evaluating how well the forces the
-        particle exerted on the rod meet the desired rod.
-        '''
+
         # Determining the performance P of each particle (this is the important part)
         r = self.rod
         olr = self.old_rod
@@ -310,7 +314,7 @@ class MD_ROD():
             assert old_rotDir in [-1,1]
 
         # Now the observables are determined, if rewMode=='classic' the rewards determined here are used, too
-        obs, rewards, self.touch, self.rodDist = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
+        obs, rewardsClassic, self.touch, self.rodDist = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
                                           r[:,0], r[:,1], olr[:,0], olr[:,1], tar[:,0], tar[:,1],
                                           self.mode, rotDir, old_rotDir,
                                           flag_side, self.flag_LOS,
@@ -322,46 +326,48 @@ class MD_ROD():
 
         if self.rewMode == 'classic':
 
-            self.rewards = rewards
+            # Rewards based on position along and orientation with respect to the rod
+            rewards = rewardsClassic
 
         elif self.rewMode == 'forces':
 
-            rewards = self.get_forces_rewards(absFlag=False) # Determines the rewards according to the forces and te current mode
-
-            self.rewards = rewards
+            # Determines the rewards according to the forces and the current mode
+            rewards = self.get_forces_rewards(absFlag=False)
 
         elif self.rewMode == 'absForces':
 
-            rewards = self.get_forces_rewards(absFlag=True) # Determines the rewards according to the forces and te current mode
+            # Determines the rewards according to the forces and te current mode
+            rewards = self.get_forces_rewards(absFlag=True)
 
-            self.rewards = rewards
+        elif self.rewMode == 'primitive':
 
-        elif self.rewMode == 'primitive': # the primRewMode spwcifies if touching or closeness are decisive
-
-            rewards = self.get_primitive_rewards(primRewMode='close') # Determines rewards in primitive way (close? rotated?) So far only for rot.
-
-            self.rewards = rewards
+            # Determines rewards in primitive way (close? rotated?) So far only for rot.
+            # the primRewMode specifies if touching or closeness are decisive
+            rewards = self.get_primitive_rewards(primRewMode='close')
 
         elif self.rewMode == 'primitiveTouch':
 
-            rewards = self.get_primitive_rewards(primRewMode='touch') # Determines rewards in primitive way (close? rotated?) So far only for rot.
-
-            self.rewards = rewards
+            # Determines rewards in primitive way (close? rotated?) So far only for rot.
+            rewards = self.get_primitive_rewards(primRewMode='touch')
 
         elif self.rewMode == 'diff':
 
-            rewards = self.get_diff_rewards(iEp) # Determines the reward according to what would have happened if particle i would not have been there.
+            # Determines the reward according to what would have happened if particle i would not have been there.
+            rewards = self.get_diff_rewards(iEp)
 
-        # Check if there are any NaNs in the rewards
+        # Check if there are any NaNs in the rewards (this trains NaN weights in the networks)
         assert not np.isnan(rewards).any(), 'NaNs in rewards'
+
+        self.rewards = rewards
 
         return obs, rewards
 
 
     def get_forces_rewards(self, absFlag=False):
         '''
-        This rewards on the basis of how well the forces the particles exerted on the rod
-        comply to the objective (move the rod or rotate it, etc.)
+        This calculates a reward based on the contribution of each particle to the performance.
+        The contribution of each particle is estimated by evaluating how well the forces the
+        particle exerted on the rod meet the desired outcome.
         '''
         r = self.rod
         olr = self.old_rod
@@ -451,14 +457,15 @@ class MD_ROD():
         # First up, the performance is determined according to the mode (translation, rotation, etc.)
         # for the case without noise (diffRewNoise = 'off') this is done from a noislessRod determined
         # from the last simulation step without noise
-        if self.diffRewNoise == 'on' or self.diffRewNoise == 'mixed' or self.diffRewNoise == 'ideal':
+        if self.diffRewNoise == 'on' or self.diffRewNoise == 'mixed' or self.diffRewNoise == 'ideal' or self.diffRewNoise == 'no':
 
-            # manely for having the same name for the rod in both cases, even if it is not noiseless sometimes
-            noislessRod = self.rod
+            perfRod = self.rod
 
         elif self.diffRewNoise == 'off':
             # redo the last simulation step without noise to have a performance
             # that can be compared to the hypPerformances without noise
+
+            noiseFlag = 0
 
             X = self.old_part[:,0]
             Y = self.old_part[:,1]
@@ -470,21 +477,21 @@ class MD_ROD():
             mRod = self.massRod
             IRod = self.inertiaRod
 
-            # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
+            # these are necessary due to the possibility to reproduce the last step with the old noise and reproduction == True
             reproduction = False
             oldNoise = np.zeros((self.N, 3 * self.nStepSim))
             oldVelNoise = np.zeros((self.N, self.nStepSim))
             oldTorNoise = np.zeros((self.N, self.nStepSim))
 
-            _, noislessRod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
+            _, perfRod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
                                                 X, Y, T, oldNoise, oldVelNoise, oldTorNoise,
                                                 Xrod, Yrod, self.distRod, action,
-                                                0, 0, self.dt,
+                                                self.Rm, self.Rr, self.dt,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                                N, self.Nrod, self.nStepSim)
+                                                noiseFlag, N, self.Nrod, self.nStepSim)
 
-        performance = self.det_performance(noislessRod)
+        performance = self.det_performance(perfRod)
 
         # The hypPerformances are the hypothetical performances that would have been achieved in the absence of particle i
         hypPerformances, hypRodAng = self.det_hypPerformances(performance, iEp)
@@ -499,12 +506,12 @@ class MD_ROD():
         # For debugging the performance and hypPerformances are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
 
-        noislessRodAng = np.angle(complex(noislessRod[-1,0] - noislessRod[0,0], noislessRod[-1,1] - noislessRod[0,1]))
+        perfRodAng = np.angle(complex(perfRod[-1,0] - perfRod[0,0], perfRod[-1,1] - perfRod[0,1]))
 
         self.hypRodAng = hypRodAng
         self.hypPerformances = hypPerformances
         self.performance = performance
-        self.noislessRodAng = noislessRodAng
+        self.perfRodAng = perfRodAng
 
         return rewards
 
@@ -574,14 +581,14 @@ class MD_ROD():
         '''
         This determines for every particle, how the performance would have been in
         the absence of this particle. It needs the old particle and rod positions
-        as well as the old action selections.
+        as well as the old actions.
         For every particle, it evolves the environment one step without this particle.
         '''
 
         # In the case of diffRewMode == 'switch', the diffRewMode is switched from 'passive'
-        # to 'nonExist' after half the episodes in order to utilize the robust learning of
-        # the 'passive' mode in the beginning and the higher performance of the 'nonExist'
-        # in the end.
+        # to 'nonExist' after the first third of the episodes in order to utilize the robust
+        # learning of the 'passive' mode in the beginning and the higher performance of the
+        # 'nonExist' in the end.
         if self.diffRewMode == 'switch':
 
             if iEp <= self.nEpisodes / 3:
@@ -597,13 +604,12 @@ class MD_ROD():
         # 'on':    noise in determining performance and hypPerf
         # 'off':   no noise in determining perf and hypPerf
         # 'mixed': noise in determining perf and no noise in determining hypPerf
+        # 'ideal': exactly the same noise in both perf and hypPerf calculations
 
         if self.diffRewNoise == 'on':
-            Rm = self.Rm
-            Rr = self.Rr
-        elif self.diffRewNoise == 'off' or self.diffRewNoise == 'mixed' or self.diffRewNoise == 'ideal':
-            Rm = 0
-            Rr = 0
+            noiseFlag = 1
+        elif self.diffRewNoise == 'off' or self.diffRewNoise == 'mixed' or self.diffRewNoise == 'ideal' or self.diffRewNoise == 'no':
+            noiseFlag = 0
 
 
         # in the diffRewMode 'ideal', the same noise as in the last step is used to determine the hypPerfs
@@ -617,7 +623,6 @@ class MD_ROD():
             oldNoise = np.zeros((self.N, 3 * self.nStepSim))
             oldVelNoise = np.zeros((self.N, self.nStepSim))
             oldTorNoise = np.zeros((self.N, self.nStepSim))
-
 
         hypPerformances = np.zeros(self.particles.shape[0])
         hypRodAng = np.zeros(self.particles.shape[0]) # this is just the angle
@@ -649,23 +654,12 @@ class MD_ROD():
                     T = self.old_part[mask,2]
                     action = self.old_actions[mask]
 
-                    # All the old noises are masked, too
-                    oldNoiseMasked = oldNoise[mask, :]
-                    oldVelNoiseMasked = oldVelNoise[mask, :]
-                    oldTorNoiseMasked = oldTorNoise[mask, :]
+                    # All the old noises are masked, too (diffusion, velocity and torque)
+                    oldN = oldNoise[mask, :]
+                    oldVN = oldVelNoise[mask, :]
+                    oldTN = oldTorNoise[mask, :]
 
                     N = self.N - 1 # Don't forget the particle number
-
-                    _, hyp_rod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T, oldNoiseMasked, oldVelNoiseMasked, oldTorNoiseMasked,
-                                                Xrod, Yrod, self.distRod, action,
-                                                Rm, Rr, self.dt,
-                                                self.torque, self.vel_act, self.vel_tor,
-                                                self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                                N, self.Nrod, self.nStepSim)
-
-                    # Now the hypPerformance in the absence of particle i is determined
-                    hypPerformances[i] = self.det_performance(hyp_rod)
 
                 elif diffRewMode == 'passive':
                     # Make particle i passive
@@ -678,16 +672,20 @@ class MD_ROD():
 
                     action[i] = 0
 
-                    _, hyp_rod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
-                                                X, Y, T, oldNoise,
+                    oldN = oldNoise
+                    oldVN = oldVelNoise
+                    oldTN = oldTorNoise
+
+                _, hyp_rod, _, _, _, _ = evolve.evolve_md_rod(mRod, IRod,
+                                                X, Y, T, oldN, oldVN, oldTN,
                                                 Xrod, Yrod, self.distRod, action,
-                                                Rm, Rr, self.dt,
+                                                self.Rm, self.Rr, self.dt,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
-                                                N, self.Nrod, self.nStepSim)
+                                                noiseFlag, N, self.Nrod, self.nStepSim)
 
-                    # Now the hypPerformance for the passivity of particle i is determined
-                    hypPerformances[i] = self.det_performance(hyp_rod)
+                # Now the hypPerformance in the absence of particle i is determined
+                hypPerformances[i] = self.det_performance(hyp_rod)
 
             else:
                 # If the particle is too far away to have an effect (distance > rewCutoff),

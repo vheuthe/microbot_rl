@@ -4,7 +4,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
                         distRod, act, Rm, Rr, dt, &
                         tor, vel_act, vel_tor, &
                         ext_rod, cen_rod, mu, reproduction, &
-                        N, Nrod, nsteps, &
+                        noiseFlag, N, Nrod, nsteps, &
                         new_XYT, new_XY_rod, part_rod_forces, &
                         noise, vel_noise, tor_noise)
 ! ===========================================
@@ -14,7 +14,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
     real,    intent(in) :: X(N), Y(N), Theta(N)
     real,    intent(in) :: oldNoise(N, 3 * nsteps), old_vel_noise(N, nsteps), old_tor_noise(N, nsteps)
     real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), distRod
-    integer, intent(in) :: act(N)
+    integer, intent(in) :: act(N), noiseFlag
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr
     real,    intent(in) :: tor, vel_act, vel_tor, dt, mR, IR
@@ -146,9 +146,9 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
 
         else
             do i = 1, N
-                FX(i) = gran()*Rm*etaCol
-                FY(i) = gran()*Rm*etaCol
-                FR(i) = gran()*Rr
+                FX(i) = noiseFlag * gran()*Rm*etaCol
+                FY(i) = noiseFlag * gran()*Rm*etaCol
+                FR(i) = noiseFlag * gran()*Rr
 
                 ! the thermal noise is saved for reproducing this sim-step without certain particles (diff Rewards)
                 noise(i, 1 + (it-1) * 3) = FX(i)
@@ -268,7 +268,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
                 if (reproduction) then
                     vel_noise(i, it) = old_vel_noise(i, it)
                 else
-                    vel_noise(i, it) = gran()*sig_vel_act
+                    vel_noise(i, it) = noiseFlag * gran()*sig_vel_act
                 endif
 
                 v(i) = vel_act  + vel_noise(i, it)
@@ -278,7 +278,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
                     if (reproduction) then
                         tor_noise(i, it) = old_tor_noise(i, it)
                     else
-                        tor_noise(i, it) = gran()*sig_vel_act
+                        tor_noise(i, it) = noiseFlag * gran()*sig_vel_act
                     endif
 
                     v(i) = vel_tor + tor_noise(i, it)

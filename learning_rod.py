@@ -31,19 +31,19 @@ default_parameters = {
 
     # For Rewards
     'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rewMode': 'classic', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
+    'rewMode': 'diff', # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'diff' or 'classic')
     'close_pen': 0, # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0, # Prefactor for proximity reward (prox. to rod)
     'rotRewFact': 2, # Prefactor for rotation rewards for rewards based on forces
     'pushRewFact': 5,
-    'rewCutoff': 50, # Cutoff for the primitive/differential rewards
+    'rewCutoff': 60, # Cutoff for the primitive/differential rewards
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
 
     # for diff Reward
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
     'diffRewMode': 'nonExist', # 'nonExist' for non-existing particles or 'passive' for passive particles for determining the hypPerformance ('switch' for combi)
-    'diffRewNoise' : 'ideal', # noise in determination of performance and hypPerformance for differential Reward ('on', 'off', 'mixed' or 'ideal')
+    'diffRewNoise' : 'ideal', # noise in determination of performance and hypPerformance for differential Reward ('on', 'off', 'mixed', 'no' or 'ideal')
 
     # Particles
     'vel_act': 0.45, # 0.35,
