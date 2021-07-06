@@ -182,7 +182,7 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
 
         if recordTraj:
             rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target, particles, rod,\
-            hypRodAng, hypPerformances, perf, noislessRodAng = \
+            hypRodAng, hypPerformances, perf, perfRodAng = \
                 do_episode(iEp, agent, parameters, nStepEp, recordTraj=recordTraj, trainAgent=trainAgent)
 
             rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
@@ -197,12 +197,12 @@ def do_episode_batch(agent, parameters, dataDir, name, nEpisodes, nStepEp, *, re
                 hypRodsName = 'traj{}/hypRods'.format(iEp)          # hypothetical rods
                 hypPersName = 'traj{}/hypPers'.format(iEp)          # hypothetical performances
                 perfName = 'traj{}/perf'.format(iEp)                # performance
-                noislessRodName = 'traj{}/noislessRod'.format(iEp)   # rod, from which the performance was determined
+                perfRodName = 'traj{}/perfRod'.format(iEp)   # rod, from which the performance was determined
 
                 storFile.create_dataset(hypRodsName, compression='gzip', data=hypRodAng)
                 storFile.create_dataset(hypPersName, compression='gzip', data=hypPerformances)
                 storFile.create_dataset(perfName, compression='gzip', data=perf)
-                storFile.create_dataset(noislessRodName, compression='gzip', data=noislessRodAng)
+                storFile.create_dataset(perfRodName, compression='gzip', data=perfRodAng)
 
         else:
             rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target = \
@@ -236,7 +236,7 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
         hypRodAng = np.zeros((parameters['N'], nStepEp), dtype='f4') # just the angle is saved (self.N x nStepEp values)
         hypPerformances = np.zeros((parameters['N'], nStepEp), dtype='f4') # (self.N x nStepEp values)
         perf = np.zeros((nStepEp), dtype='f4') # the overall performance in one timestep
-        noislessRodAng = np.zeros((nStepEp), dtype='f4') # the rod, from which perf was determined
+        perfRodAng = np.zeros((nStepEp), dtype='f4') # the rod, from which perf was determined
 
     # Initialize the environment
     environment = MD_ROD(**parameters)
@@ -291,7 +291,7 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
             hypRodAng[:,step] = environment.hypRodAng
             hypPerformances[:,step] = environment.hypPerformances
             perf[step] = environment.performance
-            noislessRodAng[step] = environment.noislessRodAng
+            perfRodAng[step] = environment.perfRodAng
 
 
     agent.finish_episode()
@@ -299,7 +299,7 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
         agent.reset_memory()
 
     if recordTraj:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target, particles, rod, hypRodAng, hypPerformances, perf, noislessRodAng
+        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target, particles, rod, hypRodAng, hypPerformances, perf, perfRodAng
     else:
         return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target
 
