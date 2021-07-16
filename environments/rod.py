@@ -6,6 +6,7 @@ from scipy.spatial.distance import cdist
 from scipy.stats import entropy
 from math import e
 import time
+import random
 from fortran import evolve_rod_rigid as evolve
 # ---------------------------------------
 
@@ -35,7 +36,7 @@ class MD_ROD():
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 ss=6.2, ssrod=0.0, ss_touch=6.8, mode=1, swirl=False,
-                data_path=None, rewMode='classic', diffRewMode = 'nonExist',
+                data_path=None, rewMode='classic', diffRewMode = 'nonExist', singRew = False,
                 close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10, diffRewNoise='mixed',
                 rewCutoff=8, startConfig='standard', transpDist=100,
                 flagFixOr = 0, nTrainEp = 100, **unused_parameters):
@@ -109,6 +110,8 @@ class MD_ROD():
         self.diffRewMode = diffRewMode # non-existing ('nonExist') or 'passive' particles in det_hypPerformance
         self.nEpisodes = nTrainEp # is needed in diffRewMode == 'switch'
         self.diffRewNoise = diffRewNoise # noise in determination of performance and hypPerformance for diff Rews
+        self.singRew = singRew # gives only one, random particle a reward every step
+        self.lastRewPart = [] # needed for first step in singRew
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
@@ -357,6 +360,26 @@ class MD_ROD():
 
         # Check if there are any NaNs in the rewards (this trains NaN weights in the networks)
         assert not np.isnan(rewards).any(), 'NaNs in rewards'
+
+        # Gives only one, random particle a reward every step
+        if self.singRew:
+
+            # selecting one particle that is rewarded
+            randPart = random.randrange(self.N)
+            mask = np.ones((self.N),dtype=bool)
+            mask[randPart] = 0
+
+            # give no reward to the other particles ...
+            rewards[mask] = 0
+
+            # ... and make them all lost
+            self.lost = np.zeros((self.N), dtype=int)
+            self.lost[mask] = 1
+
+            # the particle needs to be non-lost for two frames, so we have o, v, r, o', v'
+            self.lost[self.lastRewPart] = 0
+
+            self.lastRewPart = randPart
 
         self.rewards = rewards
 

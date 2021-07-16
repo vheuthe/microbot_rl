@@ -40,6 +40,7 @@ default_parameters = {
     'rewCutoff': 60, # Cutoff for the primitive/differential rewards
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
+    'singRew': False, # gives only one, random particle a reward every step
 
     # for diff Reward
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
@@ -266,7 +267,7 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
                 zzz = 1
 
         # Add the environment response to the knowledge od the agent
-        values = agent.add_environment_response([], obs, rewards)
+        values = agent.add_environment_response(environment.lost, obs, rewards)
 
         # Train the agent
         if trainAgent and (step+1) % parameters['stepsTrain'] == 0:
