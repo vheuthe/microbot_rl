@@ -95,8 +95,8 @@ class AgentActiveMatter():
     if (load_models):
       print('Loading from ' + load_models)
 
-      self.critic = tf.keras.models.load_model(load_models + '_critic/')
-      self.policy = tf.keras.models.load_model(load_models + '_policy/')
+      self.critic = tf.keras.models.load_model(load_models + 'model_critic/')
+      self.policy = tf.keras.models.load_model(load_models + 'model_policy/')
 
       self.input_dim = self.critic.layers[0].input_shape[1]
       self.nActions = self.policy.layers[-1].output_shape[1]

@@ -28,6 +28,7 @@ default_parameters = {
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
     'nActions': 4,
     'training_epochs': 50,
+    'load_models': None,
 
     # For Rewards
     'mode': 3, # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
@@ -90,7 +91,7 @@ default_parameters = {
 def do_array_task(task_id, job_dir): # Copied from Robert
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
-    This is than fed into do_task
+    This is then fed into do_task
     '''
 
     # parameter ranges are stored in the job_dir
