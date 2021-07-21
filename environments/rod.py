@@ -366,18 +366,20 @@ class MD_ROD():
 
             # selecting one particle that is rewarded
             randPart = random.randrange(self.N)
-            mask = np.ones((self.N),dtype=bool)
-            mask[randPart] = 0
-
-            # give no reward to the other particles ...
-            rewards[mask] = 0
-
-            # ... and make them all lost
-            self.lost = np.zeros((self.N), dtype=int)
-            self.lost[mask] = 1
+            nonlost_logic = np.zeros((self.N),dtype=bool)
+            nonlost_logic[randPart] = 1
 
             # the particle needs to be non-lost for two frames, so we have o, v, r, o', v'
-            self.lost[self.lastRewPart] = 0
+            nonlost_logic[self.lastRewPart] = 1
+
+            # If I got this right, self.lost needs to contain the indices and not the logical array
+            lost_ind = np.nonzero(nonlost_logic)[0].tolist()
+
+            # give no reward to the other particles ...
+            rewards[~nonlost_logic] = 0
+
+            # ... and make them all lost
+            self.lost = lost_ind
 
             self.lastRewPart = randPart
 
