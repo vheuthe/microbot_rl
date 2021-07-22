@@ -69,15 +69,15 @@ class AgentActiveMatter():
   '''
 
 
-  def __init__(self, input_dim, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
-               nActions=4, load_models = None, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')],
+  def __init__(self, n_obs, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
+               n_actions, load_models, model_structure,
                **unused_parameters):
     '''
     Constructs a new RL Agent.
 
     If `load_models` is set, models are loaded from `load_models + '_critic/'` and
     `load_models + '_policy/'`, otherwise new models are constructed based on
-    `input_dim`, `output_dim` and `model_structure`.
+    `n_obs`, `output_dim` and `model_structure`.
 
     `lrPI, lrV, gamma, CL, en_coeff, lam, target_kl` are training parameters.
     '''
@@ -95,30 +95,30 @@ class AgentActiveMatter():
     if (load_models):
       print('Loading from ' + load_models)
 
-      self.critic = tf.keras.models.load_model(load_models + 'model_critic/')
-      self.policy = tf.keras.models.load_model(load_models + 'model_policy/')
+      self.critic = tf.keras.models.load_model(load_models + '_critic/')
+      self.policy = tf.keras.models.load_model(load_models + '_policy/')
 
-      self.input_dim = self.critic.layers[0].input_shape[1]
-      self.nActions = self.policy.layers[-1].output_shape[1]
+      self.n_obs = self.critic.layers[0].input_shape[1]
+      self.n_actions = self.policy.layers[-1].output_shape[1]
       self.reset_memory()
 
     else:
       print('Starting new model')
       assert model_structure, 'model structure is not defined!'
 
-      self.input_dim = input_dim
-      self.nActions = nActions
+      self.n_obs = n_obs
+      self.n_actions = n_actions
       self.reset_memory()
 
       # Actor Neural Network
       self.policy = tf.keras.Sequential(
         [
           # Input mask
-          tf.keras.Input(shape=(self.input_dim,)),
+          tf.keras.Input(shape=(self.n_obs,)),
           # Hidden Layers
           *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
           # Output Layer defining actions
-          tf.keras.layers.Dense(self.nActions, activation='linear')
+          tf.keras.layers.Dense(self.n_actions, activation='linear')
         ]
       )
 
@@ -126,7 +126,7 @@ class AgentActiveMatter():
       self.critic = tf.keras.Sequential(
         [
           # Input mask
-          tf.keras.Input(shape=(self.input_dim,)),
+          tf.keras.Input(shape=(self.n_obs,)),
           # Hidden Layers
           *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
           # Output Layer defining value of state
@@ -157,7 +157,7 @@ class AgentActiveMatter():
 
   def reset_memory(self):
     '''Erases all cumulated experience'''
-    self.observables = np.empty((0,self.input_dim))
+    self.observables = np.empty((0,self.n_obs))
     self.logp = np.empty((0))
     self.advantage = np.empty((0))
     self.estimated_return = np.empty((0))
@@ -165,7 +165,7 @@ class AgentActiveMatter():
 
 
   def initialize(self, observables):
-    '''Initialize new trajectories with `observables` of shape `(n_particles, input_dim)`.'''
+    '''Initialize new trajectories with `observables` of shape `(n_particles, n_obs)`.'''
     self.particles = [
       Trajectory(obs, self.critic(obs.reshape(1,-1))) for obs in observables
     ]
@@ -190,7 +190,7 @@ class AgentActiveMatter():
     logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
-    actions = [np.random.choice(self.nActions, p=p) for p in np.exp(logp)]
+    actions = [np.random.choice(self.n_actions, p=p) for p in np.exp(logp)]
 
     # save for training
     for par, a, dist in zip(self.particles, actions, logp):
@@ -205,7 +205,7 @@ class AgentActiveMatter():
 
     If particles got lost since the last action, their IDs (= index position of
     the corresponding actions) need to be provided in order finish their trajectories.
-    `observables` is expected to be of shape `(n_particle, input_dim)` wich may not
+    `observables` is expected to be of shape `(n_particle, n_obs)` wich may not
     contain the lost particles anymore, but may contain new particles at the end.
     '''
 
@@ -333,7 +333,7 @@ class AgentActiveMatter():
         # A^{π_θ_k}(s,a) == self.adv
         # ε == self.CL
         new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
-        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.nActions) * (new_logp_dist), axis=1)
+        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * (new_logp_dist), axis=1)
         probability_ratio = tf.exp(new_logp - self.logp)
         max_adv = np.where(self.advantage > 0, (1+self.CL) * self.advantage, (1-self.CL) * self.advantage)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
