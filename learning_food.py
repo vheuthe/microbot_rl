@@ -12,8 +12,8 @@ from environments.food import FoodSimulation
 default_parameters = {
 
     # RL Agent
-    'input_dim': 20,
-    'output_dim': 4,
+    'n_obs': 20,
+    'n_actions': 4,
     'en_coeff': 0.0,
     'CL': 0.07,
     'gamma': 0.97,
@@ -24,6 +24,7 @@ default_parameters = {
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
     'training_frequency': 240,
     'training_epochs': 50,
+    'load_models': None,
 
     # Reward
     'food_rew': 0.6,

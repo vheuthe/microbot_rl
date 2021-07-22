@@ -2,6 +2,7 @@
 import numpy as np
 import tensorflow as tf
 import scipy.signal
+import copy
 
 tf.keras.backend.set_floatx('float32')
 
@@ -68,15 +69,15 @@ class AgentActiveMatter():
   '''
 
 
-  def __init__(self, input_dim, output_dim, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
-               load_models=None, model_structure=[(32, 'relu'),(16, 'relu'),(16, 'relu')],
+  def __init__(self, n_obs, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
+               n_actions, load_models, model_structure,
                **unused_parameters):
     '''
     Constructs a new RL Agent.
 
     If `load_models` is set, models are loaded from `load_models + '_critic/'` and
     `load_models + '_policy/'`, otherwise new models are constructed based on
-    `input_dim`, `output_dim` and `model_structure`.
+    `n_obs`, `n_actions` and `model_structure`.
 
     `lrPI, lrV, gamma, CL, en_coeff, lam, target_kl` are training parameters.
     '''
@@ -85,7 +86,7 @@ class AgentActiveMatter():
     self.optimizer = tf.optimizers.Adam(learning_rate=lrPI) # optimizer
     self.gamma = gamma                                      # gamma for discount future rewards
     self.lam = lam                                          # lambda for GAE
-    self.CL = CL                                            # clipping parameter
+    self.eps_clip = CL                                      # clipping parameter
     self.en_coeff = en_coeff                                # entropy coefficient
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.particles = []
@@ -97,7 +98,7 @@ class AgentActiveMatter():
       self.critic = tf.keras.models.load_model(load_models + '_critic/')
       self.policy = tf.keras.models.load_model(load_models + '_policy/')
 
-      self.input_dim = self.critic.layers[0].input_shape[1]
+      self.n_obs = self.critic.layers[0].input_shape[1]
       self.n_actions = self.policy.layers[-1].output_shape[1]
       self.reset_memory()
 
@@ -105,15 +106,15 @@ class AgentActiveMatter():
       print('Starting new model')
       assert model_structure, 'model structure is not defined!'
 
-      self.input_dim = input_dim
-      self.n_actions = output_dim
+      self.n_obs = n_obs
+      self.n_actions = n_actions
       self.reset_memory()
 
       # Actor Neural Network
       self.policy = tf.keras.Sequential(
         [
           # Input mask
-          tf.keras.Input(shape=(self.input_dim,)),
+          tf.keras.Input(shape=(self.n_obs,)),
           # Hidden Layers
           *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
           # Output Layer defining actions
@@ -125,7 +126,7 @@ class AgentActiveMatter():
       self.critic = tf.keras.Sequential(
         [
           # Input mask
-          tf.keras.Input(shape=(self.input_dim,)),
+          tf.keras.Input(shape=(self.n_obs,)),
           # Hidden Layers
           *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
           # Output Layer defining value of state
@@ -156,7 +157,7 @@ class AgentActiveMatter():
 
   def reset_memory(self):
     '''Erases all cumulated experience'''
-    self.observables = np.empty((0,self.input_dim))
+    self.observables = np.empty((0,self.n_obs))
     self.logp = np.empty((0))
     self.advantage = np.empty((0))
     self.estimated_return = np.empty((0))
@@ -164,7 +165,7 @@ class AgentActiveMatter():
 
 
   def initialize(self, observables):
-    '''Initialize new trajectories with `observables` of shape `(n_particles, input_dim)`.'''
+    '''Initialize new trajectories with `observables` of shape `(n_particles, n_obs)`.'''
     self.particles = [
       Trajectory(obs, self.critic(obs.reshape(1,-1))) for obs in observables
     ]
@@ -179,8 +180,13 @@ class AgentActiveMatter():
     # current observables of all particles
     observables = np.array([par.obs[-1] for par in self.particles])
 
+    # print(observables)
+
     # action preference `h` is defined on interval (-Inf, Inf)
     preferences = self.policy(observables)
+
+    # print(preferences)
+
     logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
@@ -199,7 +205,7 @@ class AgentActiveMatter():
 
     If particles got lost since the last action, their IDs (= index position of
     the corresponding actions) need to be provided in order finish their trajectories.
-    `observables` is expected to be of shape `(n_particle, input_dim)` wich may not
+    `observables` is expected to be of shape `(n_particle, n_obs)` wich may not
     contain the lost particles anymore, but may contain new particles at the end.
     '''
 
@@ -273,7 +279,9 @@ class AgentActiveMatter():
 
     # compute Generalized Advantage Estimate to train policy
     # (for details, see https://arxiv.org/abs/1506.02438v6)
+
     deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
+
     self.advantage = np.append(self.advantage, discount_cumsum(deltas, self.gamma * self.lam))
 
     # compute estimated return as target for the value function
@@ -302,8 +310,10 @@ class AgentActiveMatter():
 
     # normalize advantage for better convergence
     adv_std = np.std(self.advantage)
+
     if (adv_std > 0.1e-1):
         self.advantage = (self.advantage - np.mean(self.advantage)) / adv_std
+
 
     # -- POLICY FITTING --
     for i in range(epochs):
@@ -321,11 +331,11 @@ class AgentActiveMatter():
         # π_θ_k(a|s) == exp(self.logp)
         # π_θ(a|s) == exp(new_logp)
         # A^{π_θ_k}(s,a) == self.adv
-        # ε == self.CL
+        # ε == self.eps_clip
         new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
-        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * new_logp_dist, axis=1)
+        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * (new_logp_dist), axis=1)
         probability_ratio = tf.exp(new_logp - self.logp)
-        max_adv = np.where(self.advantage > 0, (1+self.CL) * self.advantage, (1-self.CL) * self.advantage)
+        max_adv = np.where(self.advantage > 0, (1+self.eps_clip) * self.advantage, (1-self.eps_clip) * self.advantage)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
 
         # additional loss function to keep finite entropy:
@@ -337,6 +347,7 @@ class AgentActiveMatter():
 
       # calculate numerical derivative of the loss function in respect to the policy parameters θ
       grads = tape.gradient(loss, self.policy.trainable_variables)
+
       # optimize the policy along these gradients
       self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 

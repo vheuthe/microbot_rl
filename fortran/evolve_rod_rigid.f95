@@ -1,23 +1,29 @@
-subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
+subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
+                        oldNoise, old_vel_noise, old_tor_noise, &
+                        Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
-                        nsteps, tor, vel_act, vel_tor, &
-                        ext_rod, cen_rod, mu,&
-                        N, Nrod, &
-                        new_XYT, new_XY_rod)
+                        tor, vel_act, vel_tor, &
+                        ext_rod, cen_rod, mu, reproduction, &
+                        noiseFlag, N, Nrod, nsteps, &
+                        new_XYT, new_XY_rod, part_rod_forces, &
+                        noise, vel_noise, tor_noise)
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
     real,    intent(in) :: X(N), Y(N), Theta(N)
+    real,    intent(in) :: oldNoise(N, 3 * nsteps), old_vel_noise(N, nsteps), old_tor_noise(N, nsteps)
     real,    intent(in) :: Xrod(Nrod), Yrod(Nrod), distRod
-    integer, intent(in) :: act(N)
+    integer, intent(in) :: act(N), noiseFlag
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr
     real,    intent(in) :: tor, vel_act, vel_tor, dt, mR, IR
     real,    intent(in) :: ext_rod, cen_rod , mu
+    logical, intent(in) :: reproduction
     ! shape of rod is determined by factor of size of extremes and center
     ! =======================================
-    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2)
+    real , intent(out) :: new_XYT(N,3), new_XY_rod(Nrod,2), part_rod_forces(N,3) ! F_perf are forces in x and y and torque every particle exerted on average
+    real , intent(out) :: noise(N, 3 * nsteps), vel_noise(N, nsteps), tor_noise(N, nsteps)
     ! =======================================
     real :: FX(N), FY(N), FR(N), v(N)
     real :: sig_vel_act, sig_vel_tor
@@ -30,6 +36,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
 
     real :: FXrod, FYrod
     real :: torquerod, rodXcm, rodYcm, rodtheta
+    real :: FXrod_eval(N), FYrod_eval(N)
     integer :: i, j, it
     real :: dx, dy, r2, drodx, drody
     real, parameter :: PI = 3.14159265358979323846264
@@ -54,6 +61,10 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
 
     new_XY_rod(:,1) = Xrod
     new_XY_rod(:,2) = Yrod
+
+    part_rod_forces = 0
+    FXrod_eval = 0
+    FYrod_eval = 0
 
     ! Nrod EVEN number!
 
@@ -126,11 +137,26 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         ! thermal motion
         ! =============================
 
-        do i = 1, N
-            FX(i) = gran()*Rm*etaCol
-            FY(i) = gran()*Rm*etaCol
-            FR(i) = gran()*Rr
-        enddo
+        ! in a reproduction step, the old noise is used again
+        if (reproduction) then
+
+            FX = oldNoise(:,1 + (it-1) * 3)
+            FY = oldNoise(:,2 + (it-1) * 3)
+            FR = oldNoise(:,3 + (it-1) * 3)
+
+        else
+            do i = 1, N
+                FX(i) = noiseFlag * gran()*Rm*etaCol
+                FY(i) = noiseFlag * gran()*Rm*etaCol
+                FR(i) = noiseFlag * gran()*Rr
+
+                ! the thermal noise is saved for reproducing this sim-step without certain particles (diff Rewards)
+                noise(i, 1 + (it-1) * 3) = FX(i)
+                noise(i, 2 + (it-1) * 3) = FY(i)
+                noise(i, 3 + (it-1) * 3) = FR(i)
+
+            enddo
+        endif
 
         ! =============================
         ! repulsion between colloids
@@ -195,10 +221,10 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
 
                     F_proj = (ff*dx)*cos(rodtheta) + (ff*dy)*sin(rodtheta)
 
-                    F_pRX = F_proj*cos(rodtheta)
+                    F_pRX = F_proj*cos(rodtheta) ! I guess these are the forces parallel to the rod ...
                     F_pRY = F_proj*sin(rodtheta)
 
-                    F_Perp_X = (ff*dx - F_pRX)
+                    F_Perp_X = (ff*dx - F_pRX) ! ... and that is why they are subtracted here ...
                     F_Perp_Y = (ff*dy - F_pRY)
 
                     F_Perp(i) = F_Perp(i) + sqrt(F_Perp_X**2 + F_Perp_Y**2)
@@ -207,11 +233,14 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     ! mu_K = 0       --> some corrugation.
                     ! mu_K_true > 0  --> friction
 
-                    FX(i) = FX(i) - (ff*dx - F_pRX*mu_K)
+                    FX(i) = FX(i) - (ff*dx - F_pRX*mu_K) ! ... and added again according to mu_K here.
                     FY(i) = FY(i) - (ff*dy - F_pRY*mu_K)
 
-                    FXrod = FXrod + (ff*dx - F_pRY*mu_K)
+                    FXrod = FXrod + (ff*dx - F_pRX*mu_K)
                     FYrod = FYrod + (ff*dy - F_pRY*mu_K)
+
+                    FXrod_eval(i) = 1.0/Nrod * (ff*dx - F_pRX*mu_K) ! The forces on the rod for each particle are saved, get Friction corrected later
+                    FYrod_eval(i) = 1.0/Nrod * (ff*dy - F_pRY*mu_K)
 
                     ! =======================
                     ! component of force in direction of rod
@@ -221,6 +250,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                     torquerod = torquerod + (ff*dy - F_pRY*mu_K)*drodx -&
                                             (ff*dx - F_pRX*mu_K)*drody
 
+                    part_rod_forces(i,3) =  1.0/nsteps * 1.0/Nrod * (ff*dy - F_pRY*mu_K)*drodx -&
+                                                          (ff*dx - F_pRX*mu_K)*drody
                 endif
             enddo
 
@@ -233,9 +264,24 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                 ! ========================
                 ! Action includes rotation
                 ! ========================
-                v(i) = vel_act + gran()*sig_vel_act
+
+                if (reproduction) then
+                    vel_noise(i, it) = old_vel_noise(i, it)
+                else
+                    vel_noise(i, it) = noiseFlag * gran()*sig_vel_act
+                endif
+
+                v(i) = vel_act  + vel_noise(i, it)
+
                 if (act(i)>1) then
-                    v(i) = vel_tor + gran()*sig_vel_tor
+
+                    if (reproduction) then
+                        tor_noise(i, it) = old_tor_noise(i, it)
+                    else
+                        tor_noise(i, it) = noiseFlag * gran()*sig_vel_act
+                    endif
+
+                    v(i) = vel_tor + tor_noise(i, it)
                     FR(i) = FR(i) - 2*tor*(act(i)-2.5)
                 endif
 
@@ -274,7 +320,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
                         Friction(i) = + min(F_perp(i)*mu_K_true, &
                             abs(etaCol*(velC_scf - velRod_scf)))
                     else
-                        Friction(i) = + min(F_perp(i)*mu_K_true, &
+                        Friction(i) = - min(F_perp(i)*mu_K_true, &
                             abs(etaCol*(velC_scf - velRod_scf)))
                     endif
 
@@ -290,6 +336,15 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, Xrod, Yrod, &
         do i = 1, N
             FX(i) = FX(i) - Friction(i)*cos(rodtheta)
             FY(i) = FY(i) - Friction(i)*sin(rodtheta)
+
+            FXrod_eval(i) = FXrod_eval(i) + Friction(i)*cos(rodtheta) ! Friction-correction of the forces for particle performance evaluation
+            FYrod_eval(i) = FYrod_eval(i) + Friction(i)*sin(rodtheta)
+
+            ! print*, FXrod_eval(i), Friction(i)*cos(rodtheta)
+
+            part_rod_forces(i,1) = part_rod_forces(i,1) + 1.0/nsteps * FXrod_eval(i)
+            part_rod_forces(i,2) = part_rod_forces(i,2) + 1.0/nsteps * FYrod_eval(i)
+
         enddo
 
         FXrod = FXrod + SUM(Friction)*cos(rodtheta)
@@ -367,24 +422,24 @@ contains
 end subroutine
 
 
-subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
+subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y, &
                         mode, rotDir, old_rotDir, &
                         flag_side, flag_LOS, &
                         ss, ssrod_ext, mR,&
                         ext_rod, cen_rod, &
-                        obs_type, cones, cone_angle, &
-                        Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
+                        obs_type, cones, cone_angle, close_pen, prox_rew, flagFixOr, &
+                        Nobs, N, Nrod, Obs, Rew, touch, near2) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), tar_X(Nrod), tar_Y(Nrod), cone_angle, close_pen, prox_rew
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
-    integer, intent(in) :: flag_side, obs_type, cones
+    integer, intent(in) :: flag_side, obs_type, cones, flagFixOr
     logical, intent(in) :: flag_LOS
-    real, intent(out)   :: Obs(N, Nobs), Rew(N)
+    real, intent(out)   :: Obs(N, Nobs), Rew(N), near2(N)
     integer :: i, j, k, n_cone, side
     integer :: iter_touch, adj(N,N)
     integer, intent(out) :: touch(N)
@@ -395,13 +450,15 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     real :: dRodtheta, dRod, Rodtheta
     real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
     Rew = 0
 
     adj = 0
+
+    min_dist = 1000
 
     cmRod(1) = SUM(Xrod)/Nrod
     cmRod(2) = SUM(Yrod)/Nrod
@@ -442,39 +499,39 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
         case (1)
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(Nobs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
         case (2)
-            if (.not.(NObs == (2+flag_side)*cones+2)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+2
+            if (.not.(Nobs == (2+flag_side)*cones+2)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones+2
                 STOP
             endif
         case (3)
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency  NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(Nobs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency  Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
         case (4)
-            if (.not.(NObs == (2+flag_side)*cones+1)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+1
+            if (.not.(Nobs == (2+flag_side)*cones+1)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones+1
                 STOP
             endif
         case (5)
-            if (.not.(NObs == (2+flag_side)*cones)) then
-                print*, 'ERROR consistency NObs'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones
+            if (.not.(Nobs == (2+flag_side)*cones)) then
+                print*, 'ERROR consistency Nobs'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones
                 STOP
             endif
         case (6)
-            if (.not.(NObs == (2+flag_side)*cones+1)) then
-                print*, 'ERROR consistency  NObs. Need direction of Rod.'
-                print*, 'NObs=', NObs, ' Should be =',(2+flag_side)*cones+1
+            if (.not.(Nobs == (2+flag_side)*cones+1)) then
+                print*, 'ERROR consistency  Nobs. Need direction of Rod.'
+                print*, 'Nobs=', Nobs, ' Should be =',(2+flag_side)*cones+1
                 STOP
             endif
     end select
@@ -488,7 +545,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
         do j = i+1, N
 
             !side = crossing(X(i),Y(i),X(j),Y(j),Xrod(1),&
-            !                Yrod(1),Xrod(Nrod),Yrod(Nrod))
+            !               Yrod(1),Xrod(Nrod),Yrod(Nrod))
 
             side = 0
             ! side = 0 means on the same side of rod.
@@ -503,6 +560,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
+
+                ! find the distance to the closest particle
+                if (r < min_dist(i)) min_dist(i) = r
 
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
@@ -632,13 +692,13 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
     touch = 0
     near2 = 1000
 
-    ! seeing the rod particles + rewards
+    ! seeing the rod particles and the target particles + rewards
     do i = 1, N
 
-        a = Theta(i)  ! orientation of particle respect to x-axis.
-        b = dRodtheta ! direction of motion of rod.
-
         do j = 1, Nrod
+
+            ! Vision of the rod ---------------------------------------------------------------
+
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
@@ -707,9 +767,91 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     Obs(i,n_cone+(1+flag_side)*cones) = Obs(i,n_cone+(1+flag_side)*cones)+val*in_sight
                 enddo
 
-
             endif
             if (near2(i) <= ss_touch*1.25) touch(i) = 1
+
+            ! End of Vision of the rod --------------------------------------------------------
+            ! Vision of the target: basically the same as vision of the rod, just with different rod particles
+            ! (Without near2 and touch)
+            ! This does of course only apply in mode 7 (transportation problem)
+
+            if (mode == 7) then
+
+                dx = tar_X(j)-X(i)
+                dy = tar_Y(j)-Y(i)
+                r = sqrt(dx*dx + dy*dy)
+
+                dtheta = atan2(dy,dx)
+                ! particle sees rod
+                th = (dtheta - Theta(i))/2./PI
+                th = (th - floor(th + 0.5))*2*PI
+                sp_th = atan(ssrod, r)/2.
+                ! -----------------------------
+                n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
+                ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
+
+                if (obs_type == 1) then
+                    val = (true_ssrod)/r*fact(i)
+                else if (obs_type == 2) then
+                    val = (true_ssrod/r**2)*fact(i)
+                else
+                    print*, 'ERROR NO OBS_TYPE IS DEFINED!'
+                    STOP
+                endif
+
+                covered_l = 0
+                covered_r = 0
+                if ((th>-(cone_angle/2.+sp_th)).and.(th<(cone_angle/2.+sp_th))) then
+                    ! terribly expensive way
+                    ! to account for line of sight
+
+                    if (flag_LOS) then
+                        do k = 1, N
+
+                            dx2 = X(k)-X(i)
+                            dy2 = Y(k)-Y(i)
+                            r2 = sqrt(dx2*dx2 + dy2*dy2)
+
+                            if (r2 > r) cycle !only closer particles can obscure
+
+                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = (dtheta2 - Theta(i))/2./PI
+                            dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
+                            dark = atan(ss, r2)/2 ! cone of shadow
+
+
+                            if (abs(th-dtheta2) < dark + sp_th) then
+                                if (th .lt. dtheta2) then
+                                    covered_l = max(covered_l, (th + sp_th) - (dtheta2 - dark))
+                                else if (th .ge. dtheta2) then
+                                    covered_r = max(covered_r, (dtheta2 + dark) - (th - sp_th))
+                                endif
+
+                                if (covered_l+covered_r > 2*sp_th) exit  ! fully covered
+                            endif
+
+                        enddo
+                    endif
+
+                    vision_l = th+sp_th-covered_l
+                    vision_r = th-sp_th+covered_r
+
+                    do n_cone= 1, cones
+                        ! fraction of particle in sight
+                        ! if particle in cone
+                        in_sight = 0.
+                        in_sight = max((min(vision_l, edge(n_cone+1)) - max(vision_r, edge(n_cone))), 0.) /sp_th/2.
+
+                        ! mode 7 requires 15 observables
+                        Obs(i,n_cone+(2+flag_side)*cones) = Obs(i,n_cone+(2+flag_side)*cones)+val*in_sight
+                    enddo
+
+                endif
+
+            endif ! end of the if mode == 7 condition for target vision
+
+            ! End of Vision of the target -----------------------------------------------------
+
         enddo
 
     enddo
@@ -769,17 +911,24 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, &
                     ! Normalization: Reward is proportional to rod mass
                     Obs(i, (2+flag_side)+1) = rotDir
                 endif
+
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
+
             case (6) ! reward for pushing along long direction
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-                    Rew(i) = reward_push_along( a, dRod, dRodtheta, Rodtheta, touch(i))
+
+                    Rew(i) = reward_push_along(a, dRod, dRodtheta, Rodtheta, touch(i), cmRod, flagFixOr)
+
+                    ! This additional observable gives the relative orientation of the particle to the rod
                     Obs(i, (2+flag_side)+1) = cos(a-Rodtheta)
                 endif
         end select
 
-        Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
+        Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
+
+        Rew(i) = Rew(i) - prox_rew * (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo
 
     return
@@ -838,25 +987,45 @@ contains
       return
     end function reward_move
 
-    real FUNCTION reward_push_along(orient, dRod, dRodtheta, Rodtheta, near)
+    real FUNCTION reward_push_along(orient, dRod, dRodtheta, Rodtheta, near, cmRod, flagFixOr)
     ! Reward function for linear translation only along long axis
     implicit none
-    real :: orient, dRod, dRodtheta, Rodtheta
-    real :: diffT
-    integer :: near
+    real :: orient, dRod, dRodtheta, Rodtheta, cmRod(2)
+    real :: diffT, cmRodTheta
+    integer :: near, flagFixOr
 
+    ! diffT = (Rodtheta - dRodtheta)/2./PI
+    ! diffT = (diffT - floor(diffT + 0.5))*2*PI
+    ! reward_push_along = near * cos( sqrt(abs(diffT))*sqrt(PI) ) * dRod
 
-    diffT = (Rodtheta - dRodtheta)/2./PI
-    diffT = (diffT - floor(diffT + 0.5))*2*PI
-    reward_push_along = near * cos( sqrt(abs(diffT))*sqrt(PI) ) * dRod
+    ! MAy help to ADD PENALTY TO ROTATION:
+    !1 Aaccept rotation at RRrot
+    ! dRrod -> angle of rotation -> Mminimum translation = dRrod/2/pi/RRot
+    ! reward_push_alogn = *max(dRrod-dRod/2/pi/RRot, 0)
 
-    !if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
-    !    reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod
-    !else if (cos(Rodtheta - orient)>=0) then
-    !    reward_push_along = 0
-    !else
-    !    reward_push_along = -near * cos(Rodtheta - orient   )**2 * dRod
-    !endif
+    ! cos(rodtheta - dRrodtheta) >= 0 means: rod has moved at least a bit in the direction of it's orientation
+    ! cos(rodtheta   -   orient) >= 0 means: particle is oriented less than perpendicular to the rod
+
+    ! Orientation of the rod's position with respect to the origin:
+    cmRodTheta = atan(cmRod(1)/cmRod(2)) - 1.571 ! (subtract the initial 90°)
+
+    if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
+
+        ! Reward for particle is oriented parallelish to the rod and rod has moved in the direction of it's orientation.
+        ! The last term is one if flagFixOr = 0 and cos(cmRodTheta)**3 otherwise,
+        ! in order to only reward movements in the direction, the rod was originally oriented in.
+
+        reward_push_along =  near * cos(Rodtheta - dRodtheta)**2 * dRod * (1 - (1-cos(cmRodTheta)**3)*flagFixOr)
+
+    else if (cos(Rodtheta - orient)>=0) then
+
+        ! No punishment, if particle is oriented parallelish to the rod
+        reward_push_along = 0
+    else
+
+        ! Penalty for pushing inn the wrong direction
+        reward_push_along = -near * cos(Rodtheta   -  orient)**2 * dRod
+    endif
 
     end function reward_push_along
 
@@ -869,18 +1038,19 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                         mode, rotDir, old_rotDir, &
                         flag_diff, flag_LOS, &
                         ss, ssrod_ext, mR,&
-                        obs_type, cones, cone_angle, &
-                        Nobs, N, Nrod, Obs, Rew, touch) !DEBUG
+                        obs_type, cones, cone_angle, close_pen, &
+                        Nobs, N, Nrod, r_Nrod, Obs, Rew, touch) !DEBUG
 ! ===========================================
 ! gets observables and rewards from positions
 ! ===========================================
     implicit none
     real, intent(in)    :: X(N), Y(N), Theta(N)
     real, intent(in)    :: Xrod(Nrod), Yrod(Nrod)
-    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle
+    real, intent(in)    :: oldXrod(Nrod), oldYrod(Nrod), cone_angle, close_pen
     integer, intent(in) :: N, Nrod, Nobs, mode, rotDir, old_rotDir
     integer, intent(in) :: flag_diff, obs_type, cones
     logical, intent(in) :: flag_LOS
+    real, intent(in)    :: r_Nrod
     real, intent(out)   :: Obs(N, Nobs), Rew(N)
     integer :: i, j, k, n_cone, side
     integer :: iter_touch, adj(N,N)
@@ -891,7 +1061,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
     real, allocatable :: edge(:)
-    real :: a, b, torque, near2(N), rod_L
+    real :: a, b, torque, near2(N), rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
 
     Obs = 0
@@ -899,8 +1069,10 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
     adj = 0
 
-    cmRod(1) = SUM(Xrod)/Nrod
-    cmRod(2) = SUM(Yrod)/Nrod
+    min_dist = 1000
+
+    cmRod(1) = SUM(Xrod)/r_Nrod
+    cmRod(2) = SUM(Yrod)/r_Nrod
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
@@ -909,8 +1081,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     ssrod = ssrod_ext
     if (ssrod==0) ssrod = true_ssrod
 
-    oldcmRod(1) = SUM(oldXrod)/Nrod
-    oldcmRod(2) = SUM(oldYrod)/Nrod
+    oldcmRod(1) = SUM(oldXrod)/r_Nrod
+    oldcmRod(2) = SUM(oldYrod)/r_Nrod
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
 
@@ -932,28 +1104,28 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
         case (1)
-            if (.not.(NObs == (2+flag_diff)*cones)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
         case (2)
-            if (.not.(NObs == (2+flag_diff)*cones+2)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones+2)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
         case (3)
-            if (.not.(NObs == (2+flag_diff)*cones)) then
-                print*, 'ERROR consistency  NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones)) then
+                print*, 'ERROR consistency  Nobs'
                 STOP
             endif
         case (4)
-            if (.not.(NObs == (2+flag_diff)*cones+1)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones+1)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
         case (5)
-            if (.not.(NObs == (2+flag_diff)*cones)) then
-                print*, 'ERROR consistency NObs'
+            if (.not.(Nobs == (2+flag_diff)*cones)) then
+                print*, 'ERROR consistency Nobs'
                 STOP
             endif
     end select
@@ -981,6 +1153,9 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                     adj(i,j) = 1
                     adj(j,i) = 1
                 endif
+
+                ! find the distance to the closest particle
+                if (r < min_dist(i)) min_dist(i) = r
 
                 dtheta = atan2(dy,dx)
                 sp_th = atan(ss, r)/2.
@@ -1255,6 +1430,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
             case (5) ! debug reward for contact
                 Rew(i) = r/true_ss * touch(i)
         end select
+
+        Rew(i) = Rew(i) - close_pen * exp(-abs(min_dist(i))/3.6)
 
         Rew(i) = Rew(i) - (tanh((near2(i)-10*ss_touch)/10)+1)/5
     enddo

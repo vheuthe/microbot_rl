@@ -7,7 +7,7 @@ from fortran import evolve_food
 class AbstractFood():
 
     def __init__(self, food_mode, food_dist, food_amount, food_width, food_delay,
-                 input_dim, food_rew, touch_penalty, tp_type, max_nn_rew, cones,
+                 n_obs, food_rew, touch_penalty, tp_type, max_nn_rew, cones,
                  rew_cones, vision_angle, particle_size, visual_particle_size, obs_type,
                  **parameters):
 
@@ -17,7 +17,7 @@ class AbstractFood():
         self.food_width = food_width
         self.food_delay = food_delay
         # Obervables and Rewards
-        self.n_obs = input_dim
+        self.n_obs = n_obs
         self.cones = cones
         self.vision_angle = vision_angle / 180 * np.pi
         self.particle_size = particle_size

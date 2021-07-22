@@ -102,7 +102,7 @@ def serve_experiment():
                     actions = actions + 1
                     logp = np.append(np.full(actions.shape, -np.inf), logp, axis=1)
                 elif agent.n_actions != 4:
-                    raise NotImplementedError('Unsupported output_dim')
+                    raise NotImplementedError('Unsupported n_actions')
 
                 # add food info as first row and flatten in 'Fortran' style
                 data = np.append(
