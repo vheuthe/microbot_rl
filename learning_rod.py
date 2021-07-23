@@ -16,8 +16,8 @@ from firstrl import AgentActiveMatter
 default_parameters = {
 
     # RL Agent
-    'input_dim': 10,
-    'output_dim': 4,
+    'n_obs': 10,
+    'n_actions': 4,
     'en_coeff': 0.01,
     'CL': 0.03,
     'gamma': 0.95,
@@ -26,7 +26,6 @@ default_parameters = {
     'lrV': 0.001,
     'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
-    'nActions': 4,
     'training_epochs': 50,
     'load_models': None,
 
@@ -41,6 +40,7 @@ default_parameters = {
     'flagFixOr': 0, # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'transpDist': 100, # distance, over which the rod should be transportet in mode 7
     'singRew': False, # gives only one, random particle a reward every step
+    'nRewFrames': 1, # number of frames one particle is rewarded in the singRew==true mode
 
     # for diff Reward
     'diffRewFact': 10000, # Prefactor for differential rewards (1e4 is good for rotation)
@@ -278,7 +278,7 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
         meanRew[step] = np.mean(rewards)
         rodOr[step] = rodTheta
         rodCM[0,step,:] = rodCoM
-        meanEntr[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.nActions, axis=1))
+        meanEntr[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
         meanVal[step] = np.mean(values)
 
         if recordTraj:

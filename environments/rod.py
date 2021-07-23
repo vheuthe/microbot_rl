@@ -39,7 +39,7 @@ class MD_ROD():
                 data_path=None, rewMode='classic', diffRewMode = 'nonExist', singRew = False,
                 close_pen=0, prox_rew=0, rotRewFact=2, pushRewFact=3, diffRewFact=10, diffRewNoise='mixed',
                 rewCutoff=8, startConfig='standard', transpDist=100,
-                flagFixOr = 0, nTrainEp = 100, **unused_parameters):
+                flagFixOr = 0, nTrainEp = 100, nRewFrames=1, **unused_parameters):
 
         # path for writing the trajectories
         self.data_path = data_path
@@ -112,6 +112,7 @@ class MD_ROD():
         self.diffRewNoise = diffRewNoise # noise in determination of performance and hypPerformance for diff Rews
         self.singRew = singRew # gives only one, random particle a reward every step
         self.lastRewPart = [] # needed for first step in singRew
+        self.nRewFrames = nRewFrames # number of frames a particle is rewarded in the singRew==true case
 
         # parameters of dynamics
         self.nStepSim = nStepSim # number of integration steps done in every simulation step
@@ -364,24 +365,25 @@ class MD_ROD():
         # Gives only one, random particle a reward every step
         if self.singRew:
 
-            # selecting one particle that is rewarded
+            # selecting one particle that is rewarded in the next nRewFrames frames
             randPart = random.randrange(self.N)
-            nonlost_logic = np.zeros((self.N),dtype=bool)
-            nonlost_logic[randPart] = 1
 
-            # the particle needs to be non-lost for two frames, so we have o, v, r, o', v'
-            nonlost_logic[self.lastRewPart] = 1
+            # update lastRewPart (all particles that are not lost this frame)
+            self.lastRewPart.extend([num for num in set(self.lastRewPart)])
+            self.lastRewPart.append(randPart)
 
-            # If I got this right, self.lost needs to contain the indices and not the logical array
-            lost_ind = np.nonzero(nonlost_logic)[0].tolist()
+            # the particle is non-lost for self.nFramesLost + 1 frames, then it is lost again
+            # toRemove = [num for num in self.lastRewPart if self.lastRewPart.count(num) > self.nRewFrames + 1]
+
+            # if toRemove: for num in toRemove: self.lastRewPart.remove(num)
+
+            self.lastRewPart = list(num for num in self.lastRewPart if self.lastRewPart.count(num) < self.nRewFrames + 1)
 
             # give no reward to the other particles ...
-            rewards[~nonlost_logic] = 0
+            rewards[[partNum in self.lastRewPart for partNum in range(self.N)]] = 0
 
             # ... and make them all lost
-            self.lost = lost_ind
-
-            self.lastRewPart = randPart
+            self.lost = np.unique(self.lastRewPart)
 
         self.rewards = rewards
 
