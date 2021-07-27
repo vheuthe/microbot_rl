@@ -380,7 +380,7 @@ class MD_ROD():
             self.lastRewPart = list(num for num in self.lastRewPart if self.lastRewPart.count(num) < self.nRewFrames + 1)
 
             # give no reward to the other particles ...
-            rewards[[partNum in self.lastRewPart for partNum in range(self.N)]] = 0
+            rewards[[partNum not in self.lastRewPart for partNum in range(self.N)]] = 0
 
             # ... and make them all lost
             self.lost = np.unique(self.lastRewPart)

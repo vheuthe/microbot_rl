@@ -262,8 +262,8 @@ def do_episode(iEp, agent, parameters, nStepEp, *, recordTraj=False, trainAgent=
 
         # ZZZ For debugging: if the rewards flicker too much, there is a hold point
         new_rewards = rewards
-        if step > 1:
-            if (abs(sum(new_rewards) - sum(old_rewards)) > 7) and iEp > 30:
+        if step > 500:
+            if  iEp > 3: # (abs(sum(new_rewards) - sum(old_rewards)) > 7) and
                 zzz = 1
 
         # Add the environment response to the knowledge od the agent
