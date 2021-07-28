@@ -1,4 +1,4 @@
-import itertools
+import h5py
 import json
 import numpy as np
 import scipy.stats
@@ -6,14 +6,14 @@ import sys
 import os
 
 from firstrl import AgentActiveMatter
-from environments.food import FoodEnvironment
+from environments.food import FoodSimulation
 
 
 default_parameters = {
 
     # RL Agent
-    'input_dim': 20,
-    'output_dim': 4,
+    'n_obs': 20,
+    'n_actions': 4,
     'en_coeff': 0.0,
     'CL': 0.07,
     'gamma': 0.97,
@@ -22,36 +22,41 @@ default_parameters = {
     'lrV': 0.003,
     'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
-
-    # Training
-    'food_rew': 0.6,
-    'touch_penalty': 0, # 3,
-    'max_nn_rew': 999,
-    'obs_type': '1overR2',
-    'cones': 5,
-    'cone_angle': 180,
-    'visual_particle_size': 6.2,
-    'obs_noise': 0,
     'training_frequency': 240,
     'training_epochs': 50,
-    'food_mode': 'randombox',
-    'food_dist': 200, # distance for new food
-    'food_amount': 2000,
-    'food_width': 100,
-    'food_delay': 100,
+    'load_models': None,
 
-    # Episodes
+    # Reward
+    'food_rew': 0.6,
+    'touch_penalty': 2,
+    'tp_type': '1overR3',
+    'max_nn_rew': 999,
+    'obs_type': '1overR',
+    'cones': 5,
+    'rew_cones': 0,
+    'vision_angle': 180,
+    'visual_particle_size': 6.2,
+
+    # Food
+    'food_mode': 'experiment',
+    'food_dist': 120, # distance for new food
+    'food_amount': 2000,
+    'food_width': 80,
+    'food_delay': 200,
+
+    # Simulation
     'N': 30,
-    'training_mode': 'dynamic',
-    'dt': 0.2,
-    'action_time': 6,
-    'Dt': 0, # 0.014,
-    'Dr': 0, # 1.0 / 350.0,
-    'vel_act': 0.5,
-    'sig_vel_act': 0, # 0.25,
-    'vel_tor': 0.35,
-    'sig_vel_tor': 0, # 0.175,
-    'torque': 25,
+    'particle_size': 6.2, # µm
+    'dt': 0.2, # seconds
+    'action_time': 6, # seconds
+    'episode_length': 5*3600, # seconds
+    'training_episodes': 60,
+    'evaluation_episodes': 5,
+    'vel_act': 0.5, # µm/s
+    'vel_tor': 0.35, # µm/s
+    'vel_noise': 0.2, # relative
+    'torque': 25, # kT
+    'torque_noise': 0.2, # relative
 }
 
 
@@ -61,20 +66,31 @@ def do_array_task(task_id, job_dir):
     with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
         job_parameters = json.load(reader)
 
+
+    # split loaded parameters
+    flat_parameters = dict([
+        (key, value) for key, value in job_parameters.items()
+        if type(value) is not list
+    ])
+    ranged_parameters = dict([
+        (key, value) for key, value in job_parameters.items()
+        if type(value) is list
+    ])
+
     # choose one set out of all possible parameter combinations
     # (task_id's start at 1 !!)
     selected_parameters = dict(zip(
-        job_parameters.keys(),
-        [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
+        ranged_parameters.keys(),
+        [values.flat[task_id - 1] for values in np.meshgrid(*ranged_parameters.values())]
     ))
 
-    # construct folder name from relevant parameters
+    # construct folder name from ranged parameters
     data_dir = os.path.join(
         job_dir,
         '_'.join([key + str(val) for key, val in selected_parameters.items()])
     )
 
-    do_task(selected_parameters, data_dir)
+    do_task({**flat_parameters, **selected_parameters}, data_dir)
 
 
 def do_task(selected_parameters, data_dir):
@@ -82,88 +98,115 @@ def do_task(selected_parameters, data_dir):
     # initialize data folder
     os.makedirs(data_dir, exist_ok=True)
 
-    # create and save full parameter set
+    # create full parameter set
     parameters = default_parameters.copy()
+
+    # update with parameters from loaded model
+    if selected_parameters.get('load_models'):
+        with open(os.path.join(
+            data_dir, # is ignored if the next is absolute
+            selected_parameters['load_models'][:-5],
+            'parameters.json'
+        )) as paramfile:
+            parameters.update(json.load(paramfile))
+
+    # update with selected
     parameters.update(selected_parameters)
+
+    # save alongside the current data
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
-    # instantiate agent with new neural networks
-    agent = AgentActiveMatter(
-        models_rootname = os.path.join(data_dir, 'model'),
-        restart_models = False,
-        **parameters
-    )
+    # convert model path to absolute to be able to load it
+    # (only do this after saving for better readability in the parameters file)
+    if parameters.get('load_models'):
+        parameters['load_models'] = os.path.join(data_dir, parameters['load_models'])
 
+    # instantiate agent with new neural networks
+    agent = AgentActiveMatter(**parameters)
     agent.save_models(os.path.join(data_dir, 'model'))
 
-    # sequentially train the agent,
-    # write trajectories only every 10th episode
-    for episode in range(100):
-        do_episode(
-            agent,
-            parameters,
-            stats_file = '{}/train_{:02d}_stats.xyz'.format(data_dir, episode),
-            traj_file = None if (episode + 1) % 10 else '{}/train_{:02d}_traj.xyz'.format(data_dir, episode),
-            train_agent = True,
-            stop_time = 2*3600,
-        )
-        agent.save_weights(os.path.join(data_dir, 'model'), 'train_{:02d}'.format(episode))
+    # setup reusable environment
+    environment = FoodSimulation(**parameters)
 
-    # increase episode length
-    for episode in range(100,150):
-        do_episode(
-            agent,
-            parameters,
-            stats_file = '{}/train_{:02d}_stats.xyz'.format(data_dir, episode),
-            traj_file = None if (episode + 1) % 10 > 0 else '{}/train_{:02d}_traj.xyz'.format(data_dir, episode),
-            train_agent = True,
-            stop_time = 10*3600,
-        )
-        agent.save_weights(os.path.join(data_dir, 'model'), 'train_{:02d}'.format(episode))
+    # - - - - - - - - - -
+    # sequentially train the agent
+
+    do_batch(
+        agent, environment, parameters, data_dir,
+        'train', parameters['training_episodes'], int(parameters['episode_length'] / parameters['action_time']), train_agent=True
+    )
 
     # no training after this point
     agent.save_models(os.path.join(data_dir, 'model'))
 
+    # - - - - - - - - - -
     # do some episodes with fixed seeds for evaluation
-    for seed in range(5):
-        do_episode(
-            agent,
-            parameters,
-            stats_file = '{}/evaluate_{:02d}_stats.xyz'.format(data_dir, seed),
-            traj_file = None if seed > 0 else '{}/evaluate_{:02d}_traj.xyz'.format(data_dir, seed),
-            seed = seed,
-            # stop_food_counter = 11,
-            stop_time = 10*3600, # as backup
-        )
+
+    do_batch(
+        agent, environment, parameters, data_dir,
+        'evaluate', parameters['evaluation_episodes'], int(parameters['episode_length'] / parameters['action_time']), fixed_seeds=True, record_traj=True
+    )
 
     # do one episode without food to evaluate steady state behavior
-    do_episode(
-        agent,
-        {**parameters, 'food_mode': 'none'},
-        stats_file = '{}/nofood_stats.xyz'.format(data_dir),
-        traj_file = '{}/nofood_traj.xyz'.format(data_dir),
-        seed = 0,
-        stop_time = 10*3600,
+
+    nofood_environment = FoodSimulation(**{**parameters, 'food_mode': 'none'})
+
+    do_batch(
+        agent, nofood_environment, parameters, data_dir,
+        'nofood', 1, int(10*3600 / parameters['action_time']), fixed_seeds=True, record_traj=True
     )
 
 
 
-def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agent=False, seed=None, stop_time=np.inf, stop_food_counter=np.inf):
+def do_batch(agent, environment, parameters, data_dir, name, episodes, steps, *, fixed_seeds=False, record_traj=False, train_agent=False):
 
-    # argument checks
-    assert np.isfinite(stop_time) or np.isfinite(stop_food_counter), "No stop condition set!"
+    storage = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
+    rewards = storage.create_dataset('/rewards', (episodes,steps), dtype='f4', compression='gzip')
+    entropies = storage.create_dataset('/entropies', (episodes,steps), dtype='f4', compression='gzip')
+    values = storage.create_dataset('/values', (episodes,steps), dtype='f4', compression='gzip')
 
-    if stats_file:
-        stats_file = open(stats_file, 'w')
-    if traj_file:
-        traj_file = open(traj_file, 'w')
+    for i in range(0, episodes):
 
-    environment = FoodEnvironment(**parameters)
+        if i == 0 and record_traj:
+            rewards[i,:], entropies[i,:], values[i,:], food, particles = do_episode(
+                agent, environment, parameters, steps,
+                seed=(i if fixed_seeds else None), record_traj=True, train_agent=train_agent
+            )
+            storage.create_dataset('/traj/food', compression='gzip', data=food)
+            storage.create_dataset('/traj/particles', compression='gzip', data=particles)
+        else:
+            rewards[i,:], entropies[i,:], values[i,:] = do_episode(
+                agent, environment, parameters, steps,
+                seed=(i if fixed_seeds else None), train_agent=train_agent
+            )
+
+        if train_agent:
+            agent.save_weights(os.path.join(data_dir, 'model'), name + '_{:02d}'.format(i))
+
+    storage.close()
+
+
+def do_episode(agent, environment, parameters, steps, *, record_traj=False, train_agent=False, seed=None):
+
+    #steps = int(episode_length / parameters['action_time'])
+
+    # save stats as single precision floats (32bit == 4byte)
+    mean_reward = np.zeros((steps), dtype='f4')
+    mean_entropy = np.zeros((steps), dtype='f4')
+    mean_value = np.zeros((steps), dtype='f4')
+
     observables = environment.reset(parameters['N'], seed=seed)
     agent.initialize(observables)
 
-    for step in itertools.count():
+    if record_traj:
+        food = np.full((steps+1, *environment.food.transpose().shape), np.nan)
+        particles = np.full(( steps+1, 5, parameters['N']), np.nan)
+        food[0,:,:] = environment.food.transpose()
+        particles[0,0:3,:] = environment.particles.transpose()
+
+    # main loop
+    for step in range(0, steps):
 
         # get actions
         actions, logp = agent.get_actions()
@@ -179,35 +222,31 @@ def do_episode(agent, parameters, *, stats_file=None, traj_file=None, train_agen
         values = agent.add_environment_response([], observables, rewards)
 
         # Save stats
-        entropies = scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1)
-        if stats_file:
-            stats_file.write('{} {} {} {}\n'.format(step, np.mean(rewards), np.mean(entropies), np.mean(values)))
-        if traj_file:
-            # stick to emanueles format for now
-            traj_file.write('\n\n')
-            for f in environment.food:
-                traj_file.write('1 {} {} 0 0 0 {} {} 0\n'.format(*f[0:4]))
-            for p, r, a in zip(environment.particles, rewards, actions):
-                traj_file.write('0 {} {} 0 {} {} {} 6.2 {}\n'.format(p[0], p[1], np.cos(p[2]), np.sin(p[2]), r, a))
+        mean_reward[step] = np.mean(rewards)
+        mean_entropy[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
+        mean_value[step] = np.mean(values)
+
+        if record_traj:
+            food[step+1,:,:] = environment.food.transpose()
+            particles[step,4,:] = actions # store actions along the positions for which they have been choosen
+            particles[step+1,0:3,:] = environment.particles.transpose()
+            particles[step+1,3,:] = rewards # store reward along the positions for which it was calculated
 
         # train model
         if train_agent and (step + 1) % parameters['training_frequency'] == 0:
             agent.train_step(epochs=parameters['training_epochs'])
             agent.initialize(observables)
 
-        # stop episode
-        if step*parameters['action_time'] >= stop_time or environment.food_counter >= stop_food_counter:
-            break
 
     # clean up unfinished trajectories
     agent.finish_episode()
     if not train_agent:
         agent.reset_memory()
 
-    if stats_file:
-        stats_file.close()
-    if traj_file:
-        traj_file.close()
+    if not record_traj:
+        return mean_reward, mean_entropy, mean_value
+    else:
+        return mean_reward, mean_entropy, mean_value, food, particles
 
 
 
@@ -230,7 +269,14 @@ class NumpyEncoder(json.JSONEncoder):
 
 if __name__ == "__main__":
     # mainly for testing
-    if len(sys.argv) > 1:
+
+    if len(sys.argv) > 2:
+        task_id = int(sys.argv[2])
+        job_dir = os.path.abspath(sys.argv[1])
+        do_array_task(task_id, job_dir)
+
+    elif len(sys.argv) > 1:
         do_task({}, sys.argv[1])
+
     else:
         do_task({}, 'sim-test')

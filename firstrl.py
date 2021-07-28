@@ -77,7 +77,7 @@ class AgentActiveMatter():
 
     If `load_models` is set, models are loaded from `load_models + '_critic/'` and
     `load_models + '_policy/'`, otherwise new models are constructed based on
-    `n_obs`, `output_dim` and `model_structure`.
+    `n_obs`, `n_actions` and `model_structure`.
 
     `lrPI, lrV, gamma, CL, en_coeff, lam, target_kl` are training parameters.
     '''
@@ -86,7 +86,7 @@ class AgentActiveMatter():
     self.optimizer = tf.optimizers.Adam(learning_rate=lrPI) # optimizer
     self.gamma = gamma                                      # gamma for discount future rewards
     self.lam = lam                                          # lambda for GAE
-    self.CL = CL                                            # clipping parameter
+    self.eps_clip = CL                                      # clipping parameter
     self.en_coeff = en_coeff                                # entropy coefficient
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.particles = []
@@ -190,7 +190,7 @@ class AgentActiveMatter():
     logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
-    actions = [np.random.choice(self.n_actions, p=p) for p in np.exp(logp)]
+    actions = np.array([np.random.choice(self.n_actions, p=p) for p in np.exp(logp)])
 
     # save for training
     for par, a, dist in zip(self.particles, actions, logp):
@@ -331,11 +331,11 @@ class AgentActiveMatter():
         # π_θ_k(a|s) == exp(self.logp)
         # π_θ(a|s) == exp(new_logp)
         # A^{π_θ_k}(s,a) == self.adv
-        # ε == self.CL
+        # ε == self.eps_clip
         new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
         new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * (new_logp_dist), axis=1)
         probability_ratio = tf.exp(new_logp - self.logp)
-        max_adv = np.where(self.advantage > 0, (1+self.CL) * self.advantage, (1-self.CL) * self.advantage)
+        max_adv = np.where(self.advantage > 0, (1+self.eps_clip) * self.advantage, (1-self.eps_clip) * self.advantage)
         loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
 
         # additional loss function to keep finite entropy:
@@ -343,7 +343,7 @@ class AgentActiveMatter():
         # between the current distribution and a uniform distribution. If en_coeff > 0 this
         # term biases the loss function towards more entropy, to keep a minimum amount of
         # explorative behavior in the policy
-        loss = loss_ppo2 + self.en_coeff * tf.reduce_mean(-new_logp_dist)
+        loss = loss_ppo2 - self.en_coeff * tf.reduce_mean(new_logp_dist)
 
       # calculate numerical derivative of the loss function in respect to the policy parameters θ
       grads = tape.gradient(loss, self.policy.trainable_variables)
