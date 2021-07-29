@@ -138,7 +138,6 @@ def do_task(selectedParameters, dataDir):
     # so one does not have to specify the parameters dependant on the mode.
     if parameters['mode'] == 3:
         parameters['input_dim'] = 2 * parameters['cones']
-        parameters['startConfig'] = 'standard'
     elif parameters['mode'] == 6:
         parameters['input_dim'] = 2 * parameters['cones'] + 1
         parameters['startConfig'] = 'standard'
