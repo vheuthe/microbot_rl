@@ -69,7 +69,7 @@ class AgentActiveMatter():
   '''
 
 
-  def __init__(self, n_obs, lrPI, lrV, gamma, CL, en_coeff, lam, target_kl,
+  def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
                n_actions, load_models, model_structure,
                **unused_parameters):
     '''
@@ -79,11 +79,11 @@ class AgentActiveMatter():
     `load_models + '_policy/'`, otherwise new models are constructed based on
     `n_obs`, `n_actions` and `model_structure`.
 
-    `lrPI, lrV, gamma, CL, en_coeff, lam, target_kl` are training parameters.
+    `lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl` are training parameters.
     '''
 
     # internal knowledge
-    self.optimizer = tf.optimizers.Adam(learning_rate=lrPI) # optimizer
+    self.optimizer = tf.optimizers.Adam(learning_rate=lr_pi) # optimizer
     self.gamma = gamma                                      # gamma for discount future rewards
     self.lam = lam                                          # lambda for GAE
     self.eps_clip = CL                                      # clipping parameter
@@ -135,7 +135,7 @@ class AgentActiveMatter():
       )
 
       # The critic layer is optimized with a default algorithm, so it can be compiled for speed
-      self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lrV), loss='mse')
+      self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
 
 
   def save_models(self, path):
