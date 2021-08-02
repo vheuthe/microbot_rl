@@ -31,7 +31,7 @@ default_parameters = {
 
     # For Rewards
     'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'absForces', 'primitive', 'primitiveTouch', 'WLU' or 'classic')
+    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'primitive', 'primitive_touch', 'WLU' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 2,            # Reward prefactor for rotation rewards for rewards based on forces
@@ -99,25 +99,22 @@ def do_array_task(task_id, job_dir): # Copied from Robert
 
     # choose one set out of all possible parameter combinations
     # (task_id's start at 1 !!)
-    selectedParameters = dict(zip(
+    selected_params = dict(zip(
         job_parameters.keys(),
         [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
     ))
 
-    for rep in range(1, selectedParameters['nRep'] + 1):
+    # Constructs the folder name for the task from the relevant parameters
+    data_dir = os.path.join(
+        job_dir,
+        '_'.join([key + str(val) for key, val in selected_params.items()])
+    )
 
-        # Constructs the folder name for the task from the relevant parameters
-        data_dir = os.path.join(
-            job_dir,
-            '_'.join([key + str(val) for key, val in selectedParameters.items()]),
-            'rep_{}'.format(rep)
-        )
-
-        do_task(selectedParameters, data_dir)
+    do_task(selected_params, data_dir)
 
 
 
-def do_task(selectedParameters, data_dir):
+def do_task(selected_params, data_dir):
     '''
     This takes the set of parameters selected by do_array_task and does two batches
     of simulations: First train_ep training episodes and then eval_ep evaluation episodes.#
@@ -130,7 +127,7 @@ def do_task(selectedParameters, data_dir):
 
     # Use the default parameters but update the specified ones
     parameters = default_parameters.copy()
-    parameters.update(selectedParameters)
+    parameters.update(selected_params)
 
     # Make sure, that the input dimension and the start_conf is ok (self-consistency),
     # so one does not have to specify the parameters dependant on the mode.
@@ -163,89 +160,89 @@ def do_task(selectedParameters, data_dir):
 
 
 
-def do_episode_batch(agent, parameters, data_dir, name, nEpisodes, nStepEp, *, rec_traj=False, train_agent=False, debugging=False):
+def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
 
-    # nStepEp is the number of simulation steps (observables -> actions -> evolved environment) in one episode
-    # nEpisodes is the number of episodes to be conducted in this batch
+    # n_step_ep is the number of simulation steps (observables -> actions -> evolved environment) in one episode
+    # n_episodes is the number of episodes to be conducted in this batch
 
     # Set up the data storage file in h5 format
-    storFile = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
+    store_file = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
 
-    rewards = storFile.create_dataset('/rewards', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
-    rodOr = storFile.create_dataset('/rodOr', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
-    rodCM = storFile.create_dataset('/rodCM', (nEpisodes,nStepEp,2), dtype='f4', compression='gzip') # rodCoM[:,:,0] is x-component and rodCoM[:,:,1] is y-component
-    entropies = storFile.create_dataset('/entropies', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
-    values = storFile.create_dataset('/values', (nEpisodes,nStepEp), dtype='f4', compression='gzip')
+    rewards = store_file.create_dataset('/rewards', (n_episodes,n_step_ep), dtype='f4', compression='gzip')
+    rod_or = store_file.create_dataset('/rod_or', (n_episodes,n_step_ep), dtype='f4', compression='gzip')
+    rod_cm = store_file.create_dataset('/rod_cm', (n_episodes,n_step_ep,2), dtype='f4', compression='gzip') # rod_com[:,:,0] is x-component and rod_com[:,:,1] is y-component
+    entropies = store_file.create_dataset('/entropies', (n_episodes,n_step_ep), dtype='f4', compression='gzip')
+    values = store_file.create_dataset('/values', (n_episodes,n_step_ep), dtype='f4', compression='gzip')
 
-    for iEp in range(0, nEpisodes):
+    for i_ep in range(0, n_episodes):
 
         if rec_traj:
-            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target, particles, rod,\
-            hypRodAng, hypPerformances, perf, perfRodAng = \
-                do_episode(iEp, agent, parameters, nStepEp, rec_traj=rec_traj, train_agent=train_agent)
+            rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
+            hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
+                do_episode(i_ep, agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
 
-            rodName = 'traj{}/rod'.format(iEp) # name of the dataset in the h5 file has to change for the trajectories
-            partName = 'traj{}/particles'.format(iEp)
+            rodName = 'traj{}/rod'.format(i_ep) # name of the dataset in the h5 file has to change for the trajectories
+            partName = 'traj{}/particles'.format(i_ep)
 
-            storFile.create_dataset(partName, compression='gzip', data=particles)
-            storFile.create_dataset(rodName, compression='gzip', data=rod)
+            store_file.create_dataset(partName, compression='gzip', data=particles)
+            store_file.create_dataset(rodName, compression='gzip', data=rod)
 
             # This is for looking at the hypothetical rods and performances, etc.
             if debugging:
 
-                hypRodsName = 'traj{}/hypRods'.format(iEp)          # hypothetical rods
-                hypPersName = 'traj{}/hypPers'.format(iEp)          # hypothetical performances
-                perfName = 'traj{}/perf'.format(iEp)                # performance
-                perfRodName = 'traj{}/perfRod'.format(iEp)   # rod, from which the performance was determined
+                hyp_rods_name = 'traj{}/hypRods'.format(i_ep)          # hypothetical rods
+                hyp_perf_name = 'traj{}/hypPers'.format(i_ep)          # hypothetical performances
+                perfs_name = 'traj{}/perf'.format(i_ep)                # performance
+                perf_rods_name = 'traj{}/perfRod'.format(i_ep)   # rod, from which the performance was determined
 
-                storFile.create_dataset(hypRodsName, compression='gzip', data=hypRodAng)
-                storFile.create_dataset(hypPersName, compression='gzip', data=hypPerformances)
-                storFile.create_dataset(perfName, compression='gzip', data=perf)
-                storFile.create_dataset(perfRodName, compression='gzip', data=perfRodAng)
+                store_file.create_dataset(hyp_rods_name, compression='gzip', data=hyp_rod_ang)
+                store_file.create_dataset(hyp_perf_name, compression='gzip', data=hyp_perf)
+                store_file.create_dataset(perfs_name, compression='gzip', data=perf)
+                store_file.create_dataset(perf_rods_name, compression='gzip', data=perf_rod_ang)
 
         else:
-            rewards[iEp,:], rodOr[iEp,:], rodCM[iEp,:,:], entropies[iEp,:], values[iEp,:], target = \
-                do_episode(iEp, agent, parameters, nStepEp, rec_traj=rec_traj, train_agent=train_agent)
+            rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target = \
+                do_episode(i_ep, agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
-                targetName = 'traj{}/target'.format(iEp)
-                storFile.create_dataset(targetName, compression='gzip', data=target)
+                tar_name = 'traj{}/target'.format(i_ep)
+                store_file.create_dataset(tar_name, compression='gzip', data=target)
 
-    storFile.close()
+    store_file.close()
 
 
 
-def do_episode(iEp, agent, parameters, nStepEp, *, rec_traj=False, train_agent=False):
+def do_episode(i_ep, agent, parameters, n_step_ep, *, rec_traj=False, train_agent=False):
 
     # Initializing the data arrays
-    meanRew = np.zeros((nStepEp), dtype='f4')
-    rodOr = np.zeros((nStepEp), dtype='f4')
-    rodCM = np.zeros((1,nStepEp,2), dtype='f4')
-    meanEntr = np.zeros((nStepEp), dtype='f4')
-    meanVal = np.zeros((nStepEp), dtype='f4')
+    mean_rew = np.zeros((n_step_ep), dtype='f4')
+    rod_or = np.zeros((n_step_ep), dtype='f4')
+    rod_cm = np.zeros((1,n_step_ep,2), dtype='f4')
+    mean_ent = np.zeros((n_step_ep), dtype='f4')
+    mean_val = np.zeros((n_step_ep), dtype='f4')
 
     if rec_traj:
         # Making arrays for the rod-particle positions and the particle data
-        particles = np.full((nStepEp, 5, parameters['N']), fill_value=np.nan) # order: X, Y, Theta, actions, rewards
-        rod = np.full((nStepEp, 2, parameters['n_rod']), fill_value=np.nan) # order: X, Y
+        particles = np.full((n_step_ep, 5, parameters['N']), fill_value=np.nan) # order: X, Y, Theta, actions, rewards
+        rod = np.full((n_step_ep, 2, parameters['n_rod']), fill_value=np.nan) # order: X, Y
 
         # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
         # the performance was determined are saved, too
-        hypRodAng = np.zeros((parameters['N'], nStepEp), dtype='f4') # just the angle is saved (self.N x nStepEp values)
-        hypPerformances = np.zeros((parameters['N'], nStepEp), dtype='f4') # (self.N x nStepEp values)
-        perf = np.zeros((nStepEp), dtype='f4') # the overall performance in one timestep
-        perfRodAng = np.zeros((nStepEp), dtype='f4') # the rod, from which perf was determined
+        hyp_rod_ang = np.zeros((parameters['N'], n_step_ep), dtype='f4') # just the angle is saved (self.N x n_step_ep values)
+        hyp_perf = np.zeros((parameters['N'], n_step_ep), dtype='f4') # (self.N x n_step_ep values)
+        perf = np.zeros((n_step_ep), dtype='f4') # the overall performance in one timestep
+        perf_rod_ang = np.zeros((n_step_ep), dtype='f4') # the rod, from which perf was determined
 
     # Initialize the environment
     environment = MD_ROD(**parameters)
-    obs, rewards = environment.get_obs_rewards(iEp) # gets first obs and rewards
+    obs, rewards = environment.get_obs_rewards(i_ep) # gets first obs and rewards
 
     # Initialize the agent
     agent.initialize(obs)
 
     # Real simulation loop
-    for step in range(nStepEp):
+    for step in range(n_step_ep):
 
         # ZZZ Just for debugging
         if step > 1:
@@ -255,12 +252,12 @@ def do_episode(iEp, agent, parameters, nStepEp, *, rec_traj=False, train_agent=F
         actions, logp = agent.get_actions()
 
         # The environment is updated according to the selected actions
-        obs, rewards, rodTheta, rodCoM = environment.evolve_MD(iEp, actions)
+        obs, rewards, rod_theta, rod_com = environment.evolve_MD(i_ep, actions)
 
         # ZZZ For debugging: if the rewards flicker too much, there is a hold point
         new_rewards = rewards
         if step > 500:
-            if  iEp > 3: # (abs(sum(new_rewards) - sum(old_rewards)) > 7) and
+            if  i_ep > 3: # (abs(sum(new_rewards) - sum(old_rewards)) > 7) and
                 zzz = 1
 
         # Add the environment response to the knowledge od the agent
@@ -272,11 +269,11 @@ def do_episode(iEp, agent, parameters, nStepEp, *, rec_traj=False, train_agent=F
             agent.initialize(obs)
 
         # Save the important information in the h5 file
-        meanRew[step] = np.mean(rewards)
-        rodOr[step] = rodTheta
-        rodCM[0,step,:] = rodCoM
-        meanEntr[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
-        meanVal[step] = np.mean(values)
+        mean_rew[step] = np.mean(rewards)
+        rod_or[step] = rod_theta
+        rod_cm[0,step,:] = rod_com
+        mean_ent[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
+        mean_val[step] = np.mean(values)
 
         if rec_traj:
             # Save the particle positions, actions and rewards and the rod-particle poositions
@@ -287,10 +284,10 @@ def do_episode(iEp, agent, parameters, nStepEp, *, rec_traj=False, train_agent=F
 
             # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
             # the performance was determined are saved, too
-            hypRodAng[:,step] = environment.hypRodAng
-            hypPerformances[:,step] = environment.hypPerformances
+            hyp_rod_ang[:,step] = environment.hyp_rod_ang
+            hyp_perf[:,step] = environment.hyp_perf
             perf[step] = environment.performance
-            perfRodAng[step] = environment.perfRodAng
+            perf_rod_ang[step] = environment.perf_rod_ang
 
 
     agent.finish_episode()
@@ -298,9 +295,9 @@ def do_episode(iEp, agent, parameters, nStepEp, *, rec_traj=False, train_agent=F
         agent.reset_memory()
 
     if rec_traj:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target, particles, rod, hypRodAng, hypPerformances, perf, perfRodAng
+        return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod, hyp_rod_ang, hyp_perf, perf, perf_rod_ang
     else:
-        return meanRew, rodOr, rodCM, meanEntr, meanVal, environment.target
+        return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target
 
 
 
