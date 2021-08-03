@@ -73,16 +73,16 @@ class MD_ROD():
         self.l_rod = l_rod
         self.n_rod = n_rod
         self.dist_rod = l_rod / (n_rod -1)
-        self.fr_rod = fr_rod # total mass of object
-        self.inert_rod = inert_rod # ratio of equivalent rigid body inertia, NOT true inertia
+        self.fr_rod = fr_rod                            # total mass of object
+        self.inert_rod = inert_rod                      # ratio of equivalent rigid body inertia, NOT true inertia
         self.ext_rod = ext_rod
         self.cen_rod = cen_rod
-        self.part_size_rod =part_size_rod #if initialized to 0, it is automatically calculated in evolve_fortran_rod subroutine
+        self.part_size_rod =part_size_rod               #if initialized to 0, it is automatically calculated in evolve_fortran_rod subroutine
         self.part_size=part_size
-        self.mu_K = mu_K # kinetic friction - like along rod.
-        self.close_pen = close_pen # factor for penalizing closenes (nearest neighbor)
-        self.prox_rew = prox_rew # factor for reward for being close to the rod
-        self.flag_fix_or = flag_fix_or # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
+        self.mu_K = mu_K                                # kinetic friction - like along rod.
+        self.close_pen = close_pen                      # factor for penalizing closenes (nearest neighbor)
+        self.prox_rew = prox_rew                        # factor for reward for being close to the rod
+        self.flag_fix_or = flag_fix_or                  # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
 
         # type of task.
         # determines reward function, and observation space.
@@ -100,22 +100,23 @@ class MD_ROD():
         if (self.mode == 7): #transport rod to target
             self.n_obs += 5
 
-        self.r_rew_fact = r_rew_fact # These are factors for the implementation of rewards based on forces
+        self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
-        self.rew_mode = rew_mode # 'forces' or 'classic'
-        self.rew_cutoff = rew_cutoff # for primitive rewards: the max distance to the rod that still gets rewarded
-        self.start_conf = start_conf # which configuration to start with
-        self.WLU_prefact = WLU_prefact # prefactor for the differential reward
-        self.trans_dist = trans_dist # distance over which to transpport the rod in mode 7 (transportation)
-        self.WLU_mode = WLU_mode # non-existing ('non_ex') or 'passive' particles in det_hypPerformance
-        self.n_ep = train_ep # is needed in WLU_mode == 'switch'
-        self.WLU_noise = WLU_noise # noise in determination of performance and hypPerformance for diff Rews
-        self.sparse_rew = sparse_rew # gives only one, random particle a reward every step
-        self.last_rew_part = [] # needed for first step in sparse_rew
-        self.n_rew_frames = n_rew_frames # number of frames a particle is rewarded in the sparse_rew==true case
+        self.rew_mode = rew_mode                        # 'forces' or 'classic'
+        self.rew_cutoff = rew_cutoff                    # for primitive rewards: the max distance to the rod that still gets rewarded
+        self.start_conf = start_conf                    # which configuration to start with
+        self.WLU_prefact = WLU_prefact                  # prefactor for the differential reward
+        self.trans_dist = trans_dist                    # distance over which to transpport the rod in mode 7 (transportation)
+        self.WLU_mode = WLU_mode                        # non-existing ('non_ex') or 'passive' particles in det_hypPerformance
+        self.n_ep = train_ep                            # is needed in WLU_mode == 'switch'
+        self.WLU_noise = WLU_noise                      # noise in determination of performance and hypPerformance for diff Rews
+        self.sparse_rew = sparse_rew                    # gives only one, random particle a reward every step
+        self.last_rew_part = []                         # needed for first step in sparse_rew
+        self.n_rew_frames = n_rew_frames                # number of frames a particle is rewarded in the sparse_rew==true case
+        self.lost = []                                  # no particles lost as default
 
         # parameters of dynamics
-        self.int_steps = int_steps # number of integration steps done in every simulation step
+        self.int_steps = int_steps                      # number of integration steps done in every simulation step
         self.dt = dt
         self.Dt = Dt # 0.014
         self.Dr = Dr # 1.0 / 350.0
@@ -123,7 +124,7 @@ class MD_ROD():
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
         self.vel_tor = vel_tor
-        self.torque = 1.0 / 350.0 * torque # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+        self.torque = 1.0 / 350.0 * torque              # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
 
         # target is always initialized to have something for the arguments in get_o_r
         self.target = np.zeros((self.n_rod, 2))
@@ -444,12 +445,12 @@ class MD_ROD():
         p = self.particles
 
         # Determining the distances to the rod (for every mode)
-        pCompl = np.array(p[:,0] + 1j * p[:,1], ndmin=2)
-        rCompl = np.array(r[:,0] + 1j * r[:,1], ndmin=2)
+        p_comp = np.array(p[:,0] + 1j * p[:,1], ndmin=2)
+        r_comp = np.array(r[:,0] + 1j * r[:,1], ndmin=2)
 
-        dist = np.transpose(abs(pCompl - np.transpose(rCompl))) # Particles are in rows with their distances to the rod in columns
+        dist = np.transpose(abs(p_comp - np.transpose(r_comp))) # Particles are in rows with their distances to the rod in columns
         min_dist = np.transpose(np.amin(dist, axis=1))
-        closeEnough = min_dist <= self.rew_cutoff # Only the particles within the cutoff distance to the rod get rewarded
+        close_enough = min_dist <= self.rew_cutoff # Only the particles within the cutoff distance to the rod get rewarded
 
         performance = self.det_performance(self.rod)
 
@@ -459,7 +460,7 @@ class MD_ROD():
             ref_prefactor = self.p_rew_fact
 
         if prim_rew_mode == 'close':
-                rewards = closeEnough * performance * ref_prefactor # The direction of rotation does not matter.
+                rewards = close_enough * performance * ref_prefactor # The direction of rotation does not matter.
         elif prim_rew_mode == 'touch':
             rewards = self.touch * performance * ref_prefactor # The direction of rotation does not matter.
 
@@ -529,7 +530,7 @@ class MD_ROD():
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         # Wolpert and Tumer (2001) do not multiply the performance here.
-        rewards = self.WLU_prefact * contrib * performance
+        rewards = self.WLU_prefact * contrib # * performance
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
