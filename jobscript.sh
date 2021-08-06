@@ -7,11 +7,7 @@
 
 ## Logfile configuration
 #$ -j y
-#$ -o /data/scc/veit-lorenz.heuthe/Logs/$JOB_NAME.$JOB_ID-$TASK_ID.log
-
-## Send email on abort
-#$ -m a
-#$ -M veit-lorenz.heuthe@uni-konstanz.de
+#$ -o /data/scc/$USER/Logs/$JOB_NAME.$JOB_ID-$TASK_ID.log
 
 ## Queue
 ## (don't use old, our libaries are compiled with modern math instructions)
@@ -19,6 +15,10 @@
 
 ## Exclude node scc131 (to old for math instruction set)
 #$ -l h='!=scc131'
+
+PROJECT=$(git status --branch --porcelain=v2 | grep '^# branch.head' | cut -d ' ' -f 3)
+
+date --iso-8601=seconds
 
 make -C fortran
 
@@ -33,12 +33,15 @@ tensorflow.config.threading.set_intra_op_parallelism_threads(2)
 # --- Parse parameters and start simulation ---
 
 import os
-import learning_rod
+import learning_$PROJECT as learning
 
 task_id = int($SGE_TASK_ID)
 
 job_dir = os.path.abspath('$JOB_DIR')
 
-learning_rod.do_array_task(task_id, job_dir)
+learning.do_array_task(task_id, job_dir)
 
 ENDOFPYTHON
+
+date --iso-8601=seconds
+
