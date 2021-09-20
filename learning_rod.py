@@ -236,7 +236,7 @@ def do_episode(i_ep, agent, parameters, n_step_ep, *, rec_traj=False, train_agen
 
     # Initialize the environment
     environment = MD_ROD(**parameters)
-    obs, rewards = environment.get_obs_rewards(i_ep) # gets first obs and rewards
+    obs, rewards = environment.get_obs_rewards() # gets first obs and rewards
 
     # Initialize the agent
     agent.initialize(obs)
@@ -244,21 +244,11 @@ def do_episode(i_ep, agent, parameters, n_step_ep, *, rec_traj=False, train_agen
     # Real simulation loop
     for step in range(n_step_ep):
 
-        # ZZZ Just for debugging
-        if step > 1:
-            old_rewards = new_rewards
-
         # Agent decides actions from the observables
         actions, logp = agent.get_actions()
 
         # The environment is updated according to the selected actions
-        obs, rewards, rod_theta, rod_com = environment.evolve_MD(i_ep, actions)
-
-        # ZZZ For debugging: if the rewards flicker too much, there is a hold point
-        new_rewards = rewards
-        if step > 500:
-            if  i_ep > 3: # (abs(sum(new_rewards) - sum(old_rewards)) > 7) and
-                zzz = 1
+        obs, rewards, rod_theta, rod_com = environment.evolve_MD(actions)
 
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response(environment.lost, obs, rewards)

@@ -149,6 +149,20 @@ class MD_ROD():
         self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
         self.rod_dist = np.zeros((self.particles.size))
 
+
+    def update(self, particles, actions, rod):
+
+        # Compute observables and rewards from particles and rod
+        obs, rewards = self.get_obs_rewards(particles, rod)
+
+        # Update the environment
+        self.old_rod = rod
+        self.old_part = particles
+        self.old_actions = actions
+
+        return obs, rewards
+
+
 # --------------------------
 # INITIALIZE RANDOMLY X,Y IN A SQUARE LATTICE AND THETA [-pi, pi]
     def reinitialize_random_for_MD(self, swirl=False):
@@ -254,7 +268,7 @@ class MD_ROD():
 
 
 
-    def evolve_MD(self, i_ep, action, rot_dir=0, old_rot_dir=0):
+    def evolve_MD(self, action, rot_dir=0, old_rot_dir=0):
         '''
         Evolves the particle and rod situation one simulation step (=int_steps times one dt time-step)
         '''
@@ -292,7 +306,7 @@ class MD_ROD():
                                     self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                     noise_flag, self.N, self.n_rod, self.int_steps)
 
-        obs, rewards = self.get_obs_rewards(i_ep, rot_dir, old_rot_dir)
+        obs, rewards = self.get_obs_rewards(self.particles, self.rod, rot_dir, old_rot_dir)
 
         # Calculating the rod orientation and CoM for saving it to the stats file
         rod_theta = np.angle(complex(self.rod[-1,0] - self.rod[0,0], self.rod[-1,1] - self.rod[0,1]))
@@ -306,12 +320,12 @@ class MD_ROD():
 
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_obs_rewards(self, i_ep, rot_dir=0, old_rot_dir=0, flag_side=0, obs_type=1):
+    def get_obs_rewards(self, particles, rod, rot_dir=0, old_rot_dir=0, flag_side=0, obs_type=1):
 
         # Determining the performance P of each particle (this is the important part)
-        r = self.rod
+        r = rod
         olr = self.old_rod
-        p = self.particles
+        p = particles
         tar = self.target
         if (self.mode == 4):
             assert rot_dir in [-1,1]
@@ -358,7 +372,7 @@ class MD_ROD():
 
             # Determines the reward according to what would have happened if particle i would not have been there.
             # (Wonderful Life Utility, WLU)
-            rewards = self.get_WLU(i_ep)
+            rewards = self.get_WLU()
 
         # Check if there are any NaNs in the rewards (this trains NaN weights in the networks)
         assert not np.isnan(rewards).any(), 'NaNs in rewards'
@@ -467,7 +481,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_WLU(self, i_ep):
+    def get_WLU(self):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).
@@ -522,7 +536,7 @@ class MD_ROD():
         performance = self.det_performance(perf_rod)
 
         # The hyp_perf are the hypothetical performances that would have been achieved in the absence of particle i
-        hyp_perf, hyp_rod_ang = self.det_hyp_perf(performance, i_ep)
+        hyp_perf, hyp_rod_ang = self.det_hyp_perf(performance)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
@@ -606,28 +620,13 @@ class MD_ROD():
         return performance
 
 
-    def det_hyp_perf(self, performance, i_ep):
+    def det_hyp_perf(self, performance):
         '''
         This determines for every particle, how the performance would have been in
         the absence of this particle. It needs the old particle and rod positions
         as well as the old actions.
         For every particle, it evolves the environment one step without this particle.
         '''
-
-        # In the case of WLU_mode == 'switch', the WLU_mode is switched from 'passive'
-        # to 'non_ex' after the first third of the episodes in order to utilize the robust
-        # learning of the 'passive' mode in the beginning and the higher performance of the
-        # 'non_ex' in the end.
-        if self.WLU_mode == 'switch':
-
-            if i_ep <= self.n_ep / 3:
-                WLU_mode = 'passive'
-
-            if i_ep > self.n_ep / 3:
-                WLU_mode = 'non_ex'
-
-        else:
-            WLU_mode = self.WLU_mode
 
         # Set the noise for determining the hypothetical performances:
         # 'on':    noise in determining performance and hypPerf
@@ -671,7 +670,7 @@ class MD_ROD():
 
             if (distances[i] <= self.rew_cutoff) or touch[i] :
 
-                if WLU_mode == 'non_ex':
+                if self.WLU_mode == 'non_ex':
                     # Make particle i non-existing
 
                     # Leave out particle i
@@ -690,7 +689,7 @@ class MD_ROD():
 
                     N = self.N - 1 # Don't forget the particle number
 
-                elif WLU_mode == 'passive':
+                elif self.WLU_mode == 'passive':
                     # Make particle i passive
 
                     X = self.old_part[:,0]

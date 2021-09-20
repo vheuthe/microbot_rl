@@ -44,4 +44,3 @@ learning.do_array_task(task_id, job_dir)
 ENDOFPYTHON
 
 date --iso-8601=seconds
-
