@@ -45,7 +45,7 @@ default_parameters = {
     # for diff Reward
     'WLU_prefact': 10000,       # Prefactor for WLU rewards (1e4 is good for rotation)
     'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
-    'WLU_noise' : 'ideal',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
+    'WLU_noise' : 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
 
     # Particles
     'vel_act': 0.45,            # 0.35,

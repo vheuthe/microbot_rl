@@ -144,21 +144,52 @@ class MD_ROD():
         self.old_rod[:] = self.rod[:]
         self.old_part = np.zeros(self.particles.shape)
         self.old_part = self.particles
+        self.actions = np.zeros(self.particles.shape[0])
         self.old_actions = np.zeros(self.particles.shape[0])
         self.part_perf = np.zeros((self.particles.shape[0], 1))
         self.part_rod_forces = np.zeros((self.particles.shape[0], 3))
         self.rod_dist = np.zeros((self.particles.size))
 
 
-    def update(self, particles, actions, rod):
+    def update(self, particles, actions, rod, lost, update):
+
+        # Deal with new particles: since they do not have an old position,
+        # they get a zero reward the first time they appear. That's why
+        # they are not assigned to self.particles in the beginning
+        # (found particles are always at the end)
+
+        if update == 1:
+            # In the very first update, only observables are calculated
+            # and care must be taken to not have missmatching array shapes
+            self.old_part = np.full_like(self.particles, 0)
+            self.actions = np.full_like(self.particles, 0)
+            self.old_actions = np.full_like(self.particles, 0)
+
+        found = np.full_like(lost, False)
+        found[self.old_part.shape[0]:particles.shape[0]] = True
+
+        self.rod = rod
+        self.particles = particles[~lost[~found],:]
+
+        # In the case of lost particles, leave them out of the reward calculation
+        self.old_part = self.old_part[~lost[~found],:]
+        self.old_actions = self.old_actions[~lost[~found]]
+
+        # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
+        rewards = np.nan((particles.shape[0]))
+        obs = np.nan((particles.shape[0]))
 
         # Compute observables and rewards from particles and rod
-        obs, rewards = self.get_obs_rewards(particles, rod)
+        obs[~lost[~found]], rewards[~lost[~found]] = self.get_obs_rewards()
 
-        # Update the environment
+        # In the first update, rewards are zero, since there are no old positions, etc.
+        if update == 1:
+            rewards = np.nan((particles.shape[0]))
+
+        # Update the environment (found particles are included now)
         self.old_rod = rod
-        self.old_part = particles
-        self.old_actions = actions
+        self.old_part = particles[~lost,:]
+        self.old_actions = actions[~lost,:]
 
         return obs, rewards
 
@@ -268,7 +299,7 @@ class MD_ROD():
 
 
 
-    def evolve_MD(self, action, rot_dir=0, old_rot_dir=0):
+    def evolve_MD(self, actions, rot_dir=0, old_rot_dir=0):
         '''
         Evolves the particle and rod situation one simulation step (=int_steps times one dt time-step)
         '''
@@ -280,9 +311,6 @@ class MD_ROD():
         y_rod = self.rod[:,1]
         fr_rod = self.fr_rod
         inert_rod = self.inert_rod
-        self.old_rod[:] = self.rod[:]
-        self.old_part[:] = self.particles[:]
-        self.old_actions[:] = action[:]
 
         # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
         reproduction = False
@@ -300,13 +328,13 @@ class MD_ROD():
         self.particles, self.rod, self.part_rod_forces, \
         self.old_ther_noise, self.old_vel_noise, self.old_tor_noise = evolve.evolve_md_rod(fr_rod, inert_rod,
                                     X, Y, T, old_ther_noise, old_vel_noise, old_tor_noise,
-                                    x_rod, y_rod, self.dist_rod, action,
+                                    x_rod, y_rod, self.dist_rod, actions,
                                     self.Rm, self.Rr, self.dt,
                                     self.torque, self.vel_act, self.vel_tor,
                                     self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                     noise_flag, self.N, self.n_rod, self.int_steps)
 
-        obs, rewards = self.get_obs_rewards(self.particles, self.rod, rot_dir, old_rot_dir)
+        obs, rewards = self.get_obs_rewards(rot_dir, old_rot_dir)
 
         # Calculating the rod orientation and CoM for saving it to the stats file
         rod_theta = np.angle(complex(self.rod[-1,0] - self.rod[0,0], self.rod[-1,1] - self.rod[0,1]))
@@ -315,17 +343,22 @@ class MD_ROD():
         rod_cm[0,0,0] = np.mean(self.rod[:,0])
         rod_cm[0,0,1] = np.mean(self.rod[:,1])
 
+        # Assign the old quantities
+        self.old_rod[:] = self.rod[:]
+        self.old_part[:] = self.particles[:]
+        self.old_actions[:] = actions[:]
+
         return obs, rewards, rod_theta, rod_cm
 
 
 
   # CALLS THE FORTRAN SUBROUTINE FOR OBS AND REWARDS IN PRESENCE OF A ROD
-    def get_obs_rewards(self, particles, rod, rot_dir=0, old_rot_dir=0, flag_side=0, obs_type=1):
+    def get_obs_rewards(self, rot_dir=0, old_rot_dir=0, flag_side=0, obs_type=1):
 
         # Determining the performance P of each particle (this is the important part)
-        r = rod
+        p = self.particles
+        r = self.rod
         olr = self.old_rod
-        p = particles
         tar = self.target
         if (self.mode == 4):
             assert rot_dir in [-1,1]

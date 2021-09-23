@@ -9,8 +9,8 @@ import numpy as np
 import random
 
 from firstrl import AgentActiveMatter
-from environments.food import AbstractFood
-import learning_food
+from environments.rod import MD_ROD
+import learning_rod
 
 
 def serve_experiment():
@@ -24,7 +24,7 @@ def serve_experiment():
         with open(exp_parameters['load_models'][:-5] + "parameters.json") as paramfile:
             parameters = json.load(paramfile)
     else:
-        parameters = learning_food.default_parameters
+        parameters = learning_rod.default_parameters
 
     # specific experimental parameters have higher precedence
     parameters.update(exp_parameters)
@@ -36,7 +36,7 @@ def serve_experiment():
     # --------------------------------------------------------------------------
 
     agent = AgentActiveMatter(**parameters)
-    environment = AbstractFood(**parameters)
+    environment = MD_ROD(**parameters)
 
     # create TCP socket for communication
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -60,56 +60,53 @@ def serve_experiment():
                 # cast bytestream to double array and reshape to [x y theta state]
                 data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 4))
 
-                # where x is NaN
-                lost = np.isnan(data[:,0])
+                # There are maybe trailing zeros in both particles and rod
+                particles = np.nan_to_num(data[np.logical_and(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0, data[:,3] != 0), 0:3])
+                rod = np.nan_to_num(data[np.logical_and(data[:,4] != 0, data[:,5] != 0), 0:3])
+
+                # where x is NaN, particles are lost
+                lost = np.isnan(data[np.logical_and(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0, data[:,3] != 0), 0:3])
 
                 # where state is negative
-                inboundary = (data[:,3] < 0)
-
-                # "observable calculation save" xyθ
-                particles = np.nan_to_num(data[:,0:3])
+                inboundary = (particles[:,3] < 0)
 
                 # debug
                 print("Received data for action {:>4}: {:>3} particles, {:>3} lost, {:>3} in boundary condition, {:>3} valid."
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
-                # calculate observables and reward
-                observables, reward = environment.update(particles[~lost,:])
+                # calculate observables and rewards
+                observables, rewards = environment.update(particles, environment.actions, rod, lost, update)
 
                 # remove invalid observables
                 observables = observables[~inboundary[~lost],:]
-                reward = reward[~inboundary[~lost]]
+                rewards = rewards[~inboundary[~lost]]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
                 # feed data to RL network
                 if update == 0:
                     agent.initialize(observables)
-                    values = np.zeros(len(reward))
-                elif update % parameters['training_frequency'] == 0:
-                    values = agent.add_environment_response(invalid, observables, reward)
+                    values = np.zeros(len(rewards))
+                elif update % parameters['train_pause'] == 0:
+                    values = agent.add_environment_response(invalid, observables, rewards)
                     agent.train_step(parameters['training_epochs'])
                     agent.initialize(observables)
                     print("Training network ...")
                 else:
-                    values = agent.add_environment_response(invalid, observables, reward)
+                    values = agent.add_environment_response(invalid, observables, rewards)
 
                 # get actions and probabilitoes
-                actions, logp = agent.get_actions()
+                environment.actions, logp = agent.get_actions()
                 # ensure that actions is column vector
-                actions = np.array(actions).reshape((-1,1))
+                environment.actions = np.array(environment.actions).reshape((-1,1))
                 # check number of actions
                 if agent.n_actions == 3:
-                    actions = actions + 1
-                    logp = np.append(np.full(actions.shape, -np.inf), logp, axis=1)
+                    environment.actions = environment.actions + 1
+                    logp = np.append(np.full(environment.actions.shape, -np.inf), logp, axis=1)
                 elif agent.n_actions != 4:
                     raise NotImplementedError('Unsupported n_actions')
 
-                # add food info as first row and flatten in 'Fortran' style
-                data = np.append(
-                    [[environment.food[0,0], environment.food[0,1], environment.food[0,2], environment.food[0,3], environment.food[0,4], 0, 0]],
-                    np.concatenate((actions, logp, np.array(reward).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1),
-                    axis=0
-                ).flatten('F')
+                # Flatten data in 'Fortran' style
+                data = np.concatenate((environment.actions, logp, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
 
                 # and send them (as bytestream)
                 connection.sendall(struct.pack(str(len(data))+"d", *data))
