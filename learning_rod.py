@@ -34,7 +34,7 @@ default_parameters = {
     'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'primitive', 'primitive_touch', 'WLU' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
-    'r_rew_fact': 2,            # Reward prefactor for rotation rewards for rewards based on forces
+    'r_rew_fact': 0,            # Reward prefactor for rotation rewards for rewards based on forces
     'p_rew_fact': 5,            # Reward prefactor for pushing in long difection
     'rew_cutoff': 60,           # Cutoff for the primitive/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
@@ -59,18 +59,19 @@ default_parameters = {
     'flag_side': False,
     'flag_LOS': False,
     'start_conf': 'standard',   # 'standard' or 'biased' or 'test_friction' or 'transportation'
+    'skew': False,              # Flag for if the initialization positions are all on one side
     'Dt': 0.014,                # translational diffusion coefficient
     'Dr': 1.0 / 350.0,          # rotational diffusion coefficient
 
     # Rod
-    'n_rod': 60,                 # must be even!
+    'n_rod': 60,                # must be even!
     'part_size_rod': 0.01,
     'mu_K': 1.8,
     'l_rod': 96,                # length of the rod
     # 'distRod': 1.6,           # is calculated in environments/rod.py from the size and the number of rod particles
     'ext_rod': 1.,
     'cen_rod': 1.,
-    'fr_rod': 1,                # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
+    'fr_rod': 10,               # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD part of the simulation
     'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
@@ -81,8 +82,7 @@ default_parameters = {
     'train_pause': 128,         # number of simulation frames, after which there is one step of training
 
     'int_steps': 20,            # number of times, the integration is performed in each simulation step
-    'dt': 0.1,                  # time step of integration in simulations
-    'skew': False               # Flag for if the initialization positions are all on one side
+    'dt': 0.1                   # time step of integration in simulations
 }
 
 

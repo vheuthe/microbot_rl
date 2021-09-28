@@ -30,15 +30,15 @@ from fortran import evolve_rod_rigid as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=10, size=10, skew=False,
+    def __init__(self, index=0, N=30, size=10, skew=False,
                 int_steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
                 fr_rod=10., inert_rod=1., l_rod=100, n_rod=60, ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
-                data_path=None, rew_mode='classic', WLU_mode = 'non_ex', sparse_rew = False,
-                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10, WLU_noise='mixed',
-                rew_cutoff=8, start_conf='standard', trans_dist=100,
+                data_path=None, rew_mode='WLU', WLU_mode = 'non_ex', sparse_rew = False,
+                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed',
+                rew_cutoff=60, start_conf='standard', trans_dist=100,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
         # path for writing the trajectories
@@ -151,7 +151,7 @@ class MD_ROD():
         self.rod_dist = np.zeros((self.particles.size))
 
 
-    def update(self, particles, actions, rod, lost, update):
+    def update(self, particles, actions, rod, lost, N, update):
 
         # Deal with new particles: since they do not have an old position,
         # they get a zero reward the first time they appear. That's why
@@ -174,6 +174,9 @@ class MD_ROD():
         # In the case of lost particles, leave them out of the reward calculation
         self.old_part = self.old_part[~lost[~found],:]
         self.old_actions = self.old_actions[~lost[~found]]
+
+        # The number of particles has to be adjusted every time (for fortran)
+        self.N = sum(~lost[~found])
 
         # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
         rewards = np.nan((particles.shape[0]))
