@@ -31,7 +31,7 @@ default_parameters = {
 
     # For Rewards
     'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'primitive', 'primitive_touch', 'WLU' or 'classic')
+    'rew_mode': 'approx_diff',  # Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 0,            # Reward prefactor for rotation rewards for rewards based on forces
@@ -41,6 +41,9 @@ default_parameters = {
     'trans_dist': 100,          # distance, over which the rod should be transportet in mode 7
     'sparse_rew': False,        # gives only one, random particle a reward every step
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
+
+    # for primitive reward
+    'prim_rew_mode': 'close',   # 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
 
     # for diff Reward
     'WLU_prefact': 10000,       # Prefactor for WLU rewards (1e4 is good for rotation)
@@ -141,6 +144,9 @@ def do_task(selected_params, data_dir):
         parameters['start_conf'] = 'transportation'
         parameters['rew_mode'] = 'WLU'
 
+    if parameters['rew_mode'] == 'approx_diff':
+        parameters['approx_flag'] = True
+
     # Initializing the agent. It's the same agent throughout all the batches in one task.
     agent = AgentActiveMatter(**parameters)
     agent.save_models(os.path.join(data_dir, 'model'))
@@ -179,7 +185,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
         if rec_traj:
             rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
             hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
-                do_episode(i_ep, agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
+                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
 
             rodName = 'traj{}/rod'.format(i_ep) # name of the dataset in the h5 file has to change for the trajectories
             partName = 'traj{}/particles'.format(i_ep)
@@ -202,7 +208,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
         else:
             rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target = \
-                do_episode(i_ep, agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
+                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
@@ -213,7 +219,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
 
 
-def do_episode(i_ep, agent, parameters, n_step_ep, *, rec_traj=False, train_agent=False):
+def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=False):
 
     # Initializing the data arrays
     mean_rew = np.zeros((n_step_ep), dtype='f4')
@@ -238,6 +244,11 @@ def do_episode(i_ep, agent, parameters, n_step_ep, *, rec_traj=False, train_agen
     environment = MD_ROD(**parameters)
     obs, rewards = environment.get_obs_rewards() # gets first obs and rewards
 
+    # In the case of rew_mode == 'approx_diff', the approximated reward for all
+    # paricles is subtracted
+    if parameters['rew_mode'] == 'approx_diff':
+        rewards = rewards - agent.approx(obs).numpy().reshape(-1)
+
     # Initialize the agent
     agent.initialize(obs)
 
@@ -249,6 +260,11 @@ def do_episode(i_ep, agent, parameters, n_step_ep, *, rec_traj=False, train_agen
 
         # The environment is updated according to the selected actions
         obs, rewards, rod_theta, rod_com = environment.evolve_MD(actions)
+
+        # In the case of rew_mode == 'approx_diff', the approximated reward for all
+        # paricles is subtracted
+        if parameters['rew_mode'] == 'approx_diff':
+            rewards = rewards - agent.approx(obs).numpy().reshape(-1)
 
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response(environment.lost, obs, rewards)

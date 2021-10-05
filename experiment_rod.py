@@ -104,7 +104,7 @@ def serve_experiment():
                     raise NotImplementedError('Unsupported n_actions')
 
                 # Flatten data in 'Fortran' style
-                data = np.concatenate((environment.actions, logp, observables, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
+                data = np.concatenate((environment.actions, logp, np.array(observables).reshape((-1,1)), np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
 
                 # and send them (as bytestream)
                 connection.sendall(struct.pack(str(len(data))+"d", *data))

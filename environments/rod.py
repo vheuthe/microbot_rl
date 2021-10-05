@@ -36,7 +36,7 @@ class MD_ROD():
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
-                data_path=None, rew_mode='WLU', WLU_mode = 'non_ex', sparse_rew = False,
+                data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed',
                 rew_cutoff=60, start_conf='standard', trans_dist=100,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
@@ -103,6 +103,7 @@ class MD_ROD():
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
         self.rew_mode = rew_mode                        # 'forces' or 'classic'
+        self.prim_rew_mode = prim_rew_mode              # 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
         self.rew_cutoff = rew_cutoff                    # for primitive rewards: the max distance to the rod that still gets rewarded
         self.start_conf = start_conf                    # which configuration to start with
         self.WLU_prefact = WLU_prefact                  # prefactor for the differential reward
@@ -151,7 +152,7 @@ class MD_ROD():
         self.rod_dist = np.zeros((self.particles.size))
 
 
-    def update(self, particles, actions, rod, lost, N, update):
+    def update(self, particles, actions, rod, lost, update):
 
         # Deal with new particles: since they do not have an old position,
         # they get a zero reward the first time they appear. That's why
@@ -315,6 +316,11 @@ class MD_ROD():
         fr_rod = self.fr_rod
         inert_rod = self.inert_rod
 
+        # Assign the old quantities
+        self.old_rod[:] = self.rod[:]
+        self.old_part[:] = self.particles[:]
+        self.old_actions[:] = actions[:]
+
         # these are necessary due to the possibility to reproduce a step with the old noise and reproduction == True
         reproduction = False
         old_ther_noise = np.zeros((self.N, 3 * self.int_steps))
@@ -345,11 +351,6 @@ class MD_ROD():
         rod_cm = np.zeros((1,1,2)) # rod_cm[0,0,0] is x-component and rod_cm[0,0,1] is y-component
         rod_cm[0,0,0] = np.mean(self.rod[:,0])
         rod_cm[0,0,1] = np.mean(self.rod[:,1])
-
-        # Assign the old quantities
-        self.old_rod[:] = self.rod[:]
-        self.old_part[:] = self.particles[:]
-        self.old_actions[:] = actions[:]
 
         return obs, rewards, rod_theta, rod_cm
 
@@ -393,16 +394,13 @@ class MD_ROD():
             # Determines the rewards according to the forces and te current mode
             rewards = self.get_forces_rewards(flag_abs=True)
 
-        elif self.rew_mode == 'primitive':
+        elif self.rew_mode == 'primitive' or self.rew_mode == 'approx_diff':
 
             # Determines rewards in primitive way (close? rotated?) So far only for rot.
-            # the prim_rew_mode specifies if touching or closeness are decisive
-            rewards = self.get_primitive_rewards(prim_rew_mode='close')
-
-        elif self.rew_mode == 'primitive_touch':
-
-            # Determines rewards in primitive way (close? rotated?) So far only for rot.
-            rewards = self.get_primitive_rewards(prim_rew_mode='touch')
+            # the prim_rew_mode specifies if touching or closeness are decisive.
+            # In the case of approx_diff, an reward estimation during passive actions
+            # is subtracted in learning_rod for approximating difference rewards.
+            rewards = self.get_primitive_rewards(prim_rew_mode=self.prim_rew_mode)
 
         elif self.rew_mode == 'WLU':
 
@@ -676,7 +674,7 @@ class MD_ROD():
             noise_flag = 0
 
 
-        # in the WLU_mode 'ideal', the same noise as in the last step is used to determine the hypPerfs
+        # in the WLU_noise 'ideal', the same noise as in the last step is used to determine the hypPerfs
         if self.WLU_noise == 'ideal':
             reproduction = True
             old_ther_noise = self.old_ther_noise

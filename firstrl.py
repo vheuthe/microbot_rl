@@ -70,7 +70,7 @@ class AgentActiveMatter():
 
 
   def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
-               n_actions, load_models, model_structure,
+               n_actions, load_models, model_structure, approx_flag=False,
                **unused_parameters):
     '''
     Constructs a new RL Agent.
@@ -90,6 +90,7 @@ class AgentActiveMatter():
     self.en_coeff = en_coeff                                # entropy coefficient
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.particles = []
+    self.approx_flag = approx_flag
 
     # ------------------------------------------
     if (load_models):
@@ -137,6 +138,21 @@ class AgentActiveMatter():
       # The critic layer is optimized with a default algorithm, so it can be compiled for speed
       self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
 
+      # Approximator Neural Network
+      self.approx = tf.keras.Sequential(
+        [
+          # Input mask
+          tf.keras.Input(shape=(self.n_obs,)),
+          # Hidden Layers
+          *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
+          # Output Layer defining value of state
+          tf.keras.layers.Dense(1, activation='linear')
+        ]
+      )
+
+      # The approx layer is optimized with a default algorithm, so it can be compiled for speed
+      self.approx.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
+
 
   def save_models(self, path):
     '''
@@ -162,6 +178,8 @@ class AgentActiveMatter():
     self.advantage = np.empty((0))
     self.estimated_return = np.empty((0))
     self.actions = np.empty((0), dtype=np.int8)
+    self.pass_obs = np.empty((0,self.n_obs))
+    self.pass_rew = np.empty((0))
 
 
   def initialize(self, observables):
@@ -287,6 +305,11 @@ class AgentActiveMatter():
     # compute estimated return as target for the value function
     self.estimated_return = np.append(self.estimated_return, discount_cumsum(rews, self.gamma)[:-1])
 
+    # Append the observables and rewards for all states from which a passive action was chosen
+    # in order to train the reward approximater to that data
+    self.pass_obs = np.append(self.pass_obs, np.array(traj.obs[0:-1])[np.array(traj.act) == 0, :], axis=0)
+    self.pass_rew = np.append(self.pass_rew, np.array(traj.rew)[np.array(traj.act) == 0], axis=0)
+
 
   def finish_episode(self):
     '''Finishes all trajectories.'''
@@ -360,6 +383,13 @@ class AgentActiveMatter():
 
     # -- CRITIC FITTING --
     self.critic.fit(x=self.observables, y=self.estimated_return, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
+
+    # -- APPROXIMATOR FITTING --
+    # Number of epochs is chosen lower than for the critic,
+    # since there is less data with passive actions only.
+    # Fitting is only done, when the approximator is actually used.
+    if self.approx_flag:
+      self.approx.fit(x=self.pass_obs, y=self.pass_rew, epochs=epochs*10, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # clean up
     self.reset_memory()
