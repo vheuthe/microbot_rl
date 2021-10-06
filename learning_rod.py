@@ -187,7 +187,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
         if rec_traj:
             rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
             hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
-                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
+                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
             rodName = 'traj{}/rod'.format(i_ep) # name of the dataset in the h5 file has to change for the trajectories
             partName = 'traj{}/particles'.format(i_ep)
@@ -210,7 +210,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
         else:
             rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target = \
-                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent)
+                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
@@ -221,7 +221,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
 
 
-def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=False):
+def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
 
     # Initializing the data arrays
     mean_rew = np.zeros((n_step_ep), dtype='f4')
@@ -235,12 +235,13 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
         particles = np.full((n_step_ep, 5, parameters['N']), fill_value=np.nan) # order: X, Y, Theta, actions, rewards
         rod = np.full((n_step_ep, 2, parameters['n_rod']), fill_value=np.nan) # order: X, Y
 
-        # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
-        # the performance was determined are saved, too
-        hyp_rod_ang = np.zeros((parameters['N'], n_step_ep), dtype='f4') # just the angle is saved (self.N x n_step_ep values)
-        hyp_perf = np.zeros((parameters['N'], n_step_ep), dtype='f4') # (self.N x n_step_ep values)
-        perf = np.zeros((n_step_ep), dtype='f4') # the overall performance in one timestep
-        perf_rod_ang = np.zeros((n_step_ep), dtype='f4') # the rod, from which perf was determined
+        if debugging:
+            # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
+            # the performance was determined are saved, too
+            hyp_rod_ang = np.zeros((parameters['N'], n_step_ep), dtype='f4') # just the angle is saved (self.N x n_step_ep values)
+            hyp_perf = np.zeros((parameters['N'], n_step_ep), dtype='f4') # (self.N x n_step_ep values)
+            perf = np.zeros((n_step_ep), dtype='f4') # the overall performance in one timestep
+            perf_rod_ang = np.zeros((n_step_ep), dtype='f4') # the rod, from which perf was determined
 
     # Initialize the environment
     environment = MD_ROD(**parameters)
@@ -275,12 +276,13 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
             particles[step, 4, :] = rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1)
             rod[step, :, :] = environment.rod.transpose()
 
-            # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
-            # the performance was determined are saved, too
-            hyp_rod_ang[:,step] = environment.hyp_rod_ang
-            hyp_perf[:,step] = environment.hyp_perf
-            perf[step] = environment.performance
-            perf_rod_ang[step] = environment.perf_rod_ang
+            if debugging:
+                # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
+                # the performance was determined are saved, too
+                hyp_rod_ang[:,step] = environment.hyp_rod_ang
+                hyp_perf[:,step] = environment.hyp_perf
+                perf[step] = environment.performance
+                perf_rod_ang[step] = environment.perf_rod_ang
 
         # Train the agent
         if train_agent and (step+1) % parameters['train_pause'] == 0:
@@ -293,7 +295,10 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
         agent.reset_memory()
 
     if rec_traj:
-        return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod, hyp_rod_ang, hyp_perf, perf, perf_rod_ang
+        if debugging:
+            return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod, hyp_rod_ang, hyp_perf, perf, perf_rod_ang
+        else:
+            return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod
     else:
         return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target
 
