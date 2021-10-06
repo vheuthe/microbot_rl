@@ -295,9 +295,13 @@ class AgentActiveMatter():
     rews = np.append(traj.rew, traj.val[-1])
     vals = np.array(traj.val)
 
+    # In the case off approx. diff. rewards, the approximated rewards are subtracted here
+    # Since this does not change traj.rew, self.pass_rew contains the raw rewards in the end
+    if self.approx_flag:
+      rews = rews - self.approx(np.array(traj.obs)).numpy().reshape(-1)
+
     # compute Generalized Advantage Estimate to train policy
     # (for details, see https://arxiv.org/abs/1506.02438v6)
-
     deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
 
     self.advantage = np.append(self.advantage, discount_cumsum(deltas, self.gamma * self.lam))

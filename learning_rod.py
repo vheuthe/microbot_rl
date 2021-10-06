@@ -146,6 +146,8 @@ def do_task(selected_params, data_dir):
 
     if parameters['rew_mode'] == 'approx_diff':
         parameters['approx_flag'] = True
+    else:
+        parameters['approx_flag'] = False
 
     # Initializing the agent. It's the same agent throughout all the batches in one task.
     agent = AgentActiveMatter(**parameters)
@@ -244,11 +246,6 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
     environment = MD_ROD(**parameters)
     obs, rewards = environment.get_obs_rewards() # gets first obs and rewards
 
-    # In the case of rew_mode == 'approx_diff', the approximated reward for all
-    # paricles is subtracted
-    if parameters['rew_mode'] == 'approx_diff':
-        rewards = rewards - agent.approx(obs).numpy().reshape(-1)
-
     # Initialize the agent
     agent.initialize(obs)
 
@@ -261,21 +258,11 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
         # The environment is updated according to the selected actions
         obs, rewards, rod_theta, rod_com = environment.evolve_MD(actions)
 
-        # In the case of rew_mode == 'approx_diff', the approximated reward for all
-        # paricles is subtracted
-        if parameters['rew_mode'] == 'approx_diff':
-            rewards = rewards - agent.approx(obs).numpy().reshape(-1)
-
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response(environment.lost, obs, rewards)
 
-        # Train the agent
-        if train_agent and (step+1) % parameters['train_pause'] == 0:
-            agent.train_step(epochs=parameters['training_epochs'])
-            agent.initialize(obs)
-
         # Save the important information in the h5 file
-        mean_rew[step] = np.mean(rewards)
+        mean_rew[step] = np.mean(rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1))
         rod_or[step] = rod_theta
         rod_cm[0,step,:] = rod_com
         mean_ent[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
@@ -285,7 +272,7 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
             # Save the particle positions, actions and rewards and the rod-particle poositions
             particles[step, 3, :] = actions
             particles[step, 0:3, :] = environment.particles.transpose()
-            particles[step, 4, :] = rewards
+            particles[step, 4, :] = rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1)
             rod[step, :, :] = environment.rod.transpose()
 
             # for debugging the hypothetical performance, hyp. rods, performace and the rod, from which
@@ -294,6 +281,11 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
             hyp_perf[:,step] = environment.hyp_perf
             perf[step] = environment.performance
             perf_rod_ang[step] = environment.perf_rod_ang
+
+        # Train the agent
+        if train_agent and (step+1) % parameters['train_pause'] == 0:
+            agent.train_step(epochs=parameters['training_epochs'])
+            agent.initialize(obs)
 
 
     agent.finish_episode()
