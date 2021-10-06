@@ -389,6 +389,11 @@ class AgentActiveMatter():
     # since there is less data with passive actions only.
     # Fitting is only done, when the approximator is actually used.
     if self.approx_flag:
+
+      # Since the approx. should not be trained on the reward its own output
+      # is subtracted from, the reward estimates are added again here
+      self.pass_rew = self.pass_rew + self.approx(self.pass_obs).numpy().reshape(-1)
+
       self.approx.fit(x=self.pass_obs, y=self.pass_rew, epochs=epochs*10, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # clean up

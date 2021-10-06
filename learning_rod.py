@@ -162,7 +162,7 @@ def do_task(selected_params, data_dir):
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # And then evaluation for eval_ep episodes (evaluation batch)
-    do_episode_batch(agent, parameters, data_dir, 'evaluation', parameters['eval_ep'], parameters['eval_frames'], rec_traj=True, train_agent=False, debugging=True)
+    do_episode_batch(agent, parameters, data_dir, 'evaluation', parameters['eval_ep'], parameters['eval_frames'], rec_traj=True, train_agent=False, debugging=False)
 
 
 

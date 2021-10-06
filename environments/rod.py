@@ -489,16 +489,6 @@ class MD_ROD():
         This simply rewards every particle that is present within a certain
         area around the rod if the rod has moved or rotated, etc.
         '''
-        r = self.rod
-        p = self.particles
-
-        # Determining the distances to the rod (for every mode)
-        p_comp = np.array(p[:,0] + 1j * p[:,1], ndmin=2)
-        r_comp = np.array(r[:,0] + 1j * r[:,1], ndmin=2)
-
-        dist = np.transpose(abs(p_comp - np.transpose(r_comp))) # Particles are in rows with their distances to the rod in columns
-        min_dist = np.transpose(np.amin(dist, axis=1))
-        close_enough = min_dist <= self.rew_cutoff # Only the particles within the cutoff distance to the rod get rewarded
 
         performance = self.det_performance(self.rod)
 
@@ -508,8 +498,21 @@ class MD_ROD():
             ref_prefactor = self.p_rew_fact
 
         if prim_rew_mode == 'close':
-                rewards = close_enough * performance * ref_prefactor # The direction of rotation does not matter.
+            r = self.rod
+            p = self.particles
+
+            # Determining the distances to the rod (for every mode)
+            p_comp = np.array(p[:,0] + 1j * p[:,1], ndmin=2)
+            r_comp = np.array(r[:,0] + 1j * r[:,1], ndmin=2)
+
+            dist = np.transpose(abs(p_comp - np.transpose(r_comp))) # Particles are in rows with their distances to the rod in columns
+            min_dist = np.transpose(np.amin(dist, axis=1))
+            close_enough = min_dist <= self.rew_cutoff # Only the particles within the cutoff distance to the rod get rewarded
+
+            rewards = close_enough * performance * ref_prefactor # The direction of rotation does not matter.
+
         elif prim_rew_mode == 'touch':
+
             rewards = self.touch * performance * ref_prefactor # The direction of rotation does not matter.
 
         return rewards
