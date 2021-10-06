@@ -80,7 +80,7 @@ default_parameters = {
     'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 3,               # number of evaluation episodes doen in the end without further training
 
-    'train_frames': 1000,       # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
+    'train_frames': 1024,       # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
     'train_pause': 128,         # number of simulation frames, after which there is one step of training
 
@@ -185,9 +185,13 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
     for i_ep in range(0, n_episodes):
 
         if rec_traj:
-            rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
-            hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
-                do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+            if debugging:
+                rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
+                hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
+                    do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+            else:
+                rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod = \
+                    do_episode(agent, parameters, n_step_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
             rodName = 'traj{}/rod'.format(i_ep) # name of the dataset in the h5 file has to change for the trajectories
             partName = 'traj{}/particles'.format(i_ep)
