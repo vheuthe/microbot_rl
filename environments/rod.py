@@ -170,25 +170,25 @@ class MD_ROD():
         found[self.old_part.shape[0]:particles.shape[0]] = True
 
         self.rod = rod
-        self.particles = particles[~lost[~found],:]
+        self.particles = particles[np.logical_and(~found, ~lost),:]
 
         # In the case of lost particles, leave them out of the reward calculation
         self.old_part = self.old_part[~lost[~found],:]
         self.old_actions = self.old_actions[~lost[~found]]
 
         # The number of particles has to be adjusted every time (for fortran)
-        self.N = sum(~lost[~found])
+        self.N = sum(np.logical_and(~found, ~lost))
 
         # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
         rewards = np.full_like(particles[:,0], np.nan)
         obs = np.full((particles.shape[0], 10), np.nan)
 
         # Compute observables and rewards from particles and rod
-        obs[~lost[~found], :], rewards[~lost[~found]] = self.get_obs_rewards()
+        obs[np.logical_and(~found, ~lost), :], rewards[np.logical_and(~found, ~lost)] = self.get_obs_rewards()
 
         # In the first update, rewards are zero, since there are no old positions, etc.
         if update == 0:
-            rewards[~lost[~found]] = 0
+            rewards[np.logical_and(~found, ~lost)] = 0
 
         # Update the environment (found particles are included now)
         self.old_rod = rod

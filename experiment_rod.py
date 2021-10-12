@@ -77,8 +77,8 @@ def serve_experiment():
                 observables, rewards = environment.update(particles, actions, rod, lost, update)
 
                 # remove invalid observables
-                observables = observables[~inboundary[~lost],:]
-                rewards = rewards[~inboundary[~lost]]
+                observables = observables[np.logical_and(~inboundary, ~lost),:]
+                rewards = rewards[np.logical_and(~inboundary, ~lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
                 # feed data to RL network
