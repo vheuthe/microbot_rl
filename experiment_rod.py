@@ -52,28 +52,29 @@ def serve_experiment():
         for update in itertools.count():
 
             # wait for matlab to send data
-            data = connection.recv(8 * 4 * parameters['max_particles'])
+            data = connection.recv(8 * 6 * parameters['max_particles'])
 
             if data:
                 # cast bytestream to double array and reshape to [x y theta state]
-                data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 4))
+                data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6))
 
                 # There are maybe trailing zeros in both particles and rod
-                particles = np.nan_to_num(data[np.logical_and(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0, data[:,3] != 0), 0:3])
-                rod = np.nan_to_num(data[np.logical_and(data[:,4] != 0, data[:,5] != 0), 0:3])
+                particles = np.nan_to_num(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3])
+                rod = np.nan_to_num(data[np.logical_or(data[:,4] != 0, data[:,5] != 0), 4:6])
+                actions = np.nan_to_num(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 3])
 
                 # where x is NaN, particles are lost
-                lost = np.isnan(data[np.logical_and(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0, data[:,3] != 0), 0:3])
+                lost = np.any(np.isnan(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3]), axis=1)
 
                 # where state is negative
-                inboundary = (particles[:,3] < 0)
+                inboundary = actions < 0
 
                 # debug
                 print("Received data for action {:>4}: {:>3} particles, {:>3} lost, {:>3} in boundary condition, {:>3} valid."
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
                 # calculate observables and rewards
-                observables, rewards = environment.update(particles, environment.actions, rod, lost, update)
+                observables, rewards = environment.update(particles, actions, rod, lost, update)
 
                 # remove invalid observables
                 observables = observables[~inboundary[~lost],:]
@@ -93,18 +94,18 @@ def serve_experiment():
                     values = agent.add_environment_response(invalid, observables, rewards)
 
                 # get actions and probabilitoes
-                environment.actions, logp = agent.get_actions()
+                actions, logp = agent.get_actions()
                 # ensure that actions is column vector
-                environment.actions = np.array(environment.actions).reshape((-1,1))
+                actions = np.array(actions).reshape((-1,1))
                 # check number of actions
                 if agent.n_actions == 3:
-                    environment.actions = environment.actions + 1
-                    logp = np.append(np.full(environment.actions.shape, -np.inf), logp, axis=1)
+                    actions = actions + 1
+                    logp = np.append(np.full(actions.shape, -np.inf), logp, axis=1)
                 elif agent.n_actions != 4:
                     raise NotImplementedError('Unsupported n_actions')
 
                 # Flatten data in 'Fortran' style
-                data = np.concatenate((environment.actions, logp, np.array(observables).reshape((-1,1)), np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
+                data = np.concatenate((actions, logp, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
 
                 # and send them (as bytestream)
                 connection.sendall(struct.pack(str(len(data))+"d", *data))

@@ -159,12 +159,12 @@ class MD_ROD():
         # they are not assigned to self.particles in the beginning
         # (found particles are always at the end)
 
-        if update == 1:
+        if update == 0:
             # In the very first update, only observables are calculated
             # and care must be taken to not have missmatching array shapes
-            self.old_part = np.full_like(self.particles, 0)
-            self.actions = np.full_like(self.particles, 0)
-            self.old_actions = np.full_like(self.particles, 0)
+            self.old_part = particles
+            self.old_actions = actions
+            self.old_rod = rod
 
         found = np.full_like(lost, False)
         found[self.old_part.shape[0]:particles.shape[0]] = True
@@ -180,20 +180,20 @@ class MD_ROD():
         self.N = sum(~lost[~found])
 
         # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
-        rewards = np.nan((particles.shape[0]))
-        obs = np.nan((particles.shape[0]))
+        rewards = np.full_like(particles[:,0], np.nan)
+        obs = np.full((particles.shape[0], 10), np.nan)
 
         # Compute observables and rewards from particles and rod
-        obs[~lost[~found]], rewards[~lost[~found]] = self.get_obs_rewards()
+        obs[~lost[~found], :], rewards[~lost[~found]] = self.get_obs_rewards()
 
         # In the first update, rewards are zero, since there are no old positions, etc.
-        if update == 1:
-            rewards = np.nan((particles.shape[0]))
+        if update == 0:
+            rewards[~lost[~found]] = 0
 
         # Update the environment (found particles are included now)
         self.old_rod = rod
         self.old_part = particles[~lost,:]
-        self.old_actions = actions[~lost,:]
+        self.old_actions = actions[~lost]
 
         return obs, rewards
 
