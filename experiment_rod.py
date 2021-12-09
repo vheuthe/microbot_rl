@@ -65,6 +65,7 @@ def serve_experiment():
 
                 # where x is NaN, particles are lost
                 lost = np.any(np.isnan(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3]), axis=1)
+                print(sum(lost)) # ZZZ
 
                 # where state is negative
                 inboundary = actions < 0
@@ -74,22 +75,28 @@ def serve_experiment():
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
                 # calculate observables and rewards
-                observables, rewards = environment.update(particles, actions, rod, lost, update)
+                observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
 
                 # remove invalid observables
-                observables = observables[np.logical_and(~inboundary, ~lost),:]
-                rewards = rewards[np.logical_and(~inboundary, ~lost)]
+                observables = observables_raw[~(inboundary | lost),:]
+                rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
-                # feed data to RL network
+                if np.isnan(observables).any() or np.isnan(rewards).any():
+                    ZZZ = 1
+
+                # feed data to RL network (ZZZ this presumably contains NaNs)
                 if update == 0:
                     agent.initialize(observables)
                     values = np.zeros(len(rewards))
                 elif update % parameters['train_pause'] == 0:
+                    
                     values = agent.add_environment_response(invalid, observables, rewards)
                     agent.train_step(parameters['training_epochs'])
                     agent.initialize(observables)
+
                     print("Training network ...")
+
                 else:
                     values = agent.add_environment_response(invalid, observables, rewards)
 
@@ -109,6 +116,7 @@ def serve_experiment():
 
                 # and send them (as bytestream)
                 connection.sendall(struct.pack(str(len(data))+"d", *data))
+                print("Sent data for update {} with length {}".format(update, data.shape[0]))
 
             else:
                 print("System call interrupted, stopping server, saving models")
