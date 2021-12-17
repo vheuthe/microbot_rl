@@ -52,10 +52,15 @@ def serve_experiment():
         for update in itertools.count():
 
             # wait for matlab to send data
-            data = connection.recv(8 * 6 * parameters['max_particles'])
+            data = connection.recv(8)
+            if data:
+                n_data = struct.unpack('I', data)[0]
+                data = connection.recv(8 * n_data)
+                while data and len(data) < 8 * n_data:
+                    data.extend(connection.recv(8 * n_data))
 
             if data:
-                # cast bytestream to double array and reshape to [x y theta state]
+                    # cast bytestream to double array and reshape to [x y theta state]
                 data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6))
 
                 # There are maybe trailing zeros in both particles and rod
@@ -65,7 +70,6 @@ def serve_experiment():
 
                 # where x is NaN, particles are lost
                 lost = np.any(np.isnan(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3]), axis=1)
-                print(sum(lost)) # ZZZ
 
                 # where state is negative
                 inboundary = actions < 0
@@ -82,10 +86,7 @@ def serve_experiment():
                 rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
-                if np.isnan(observables).any() or np.isnan(rewards).any():
-                    ZZZ = 1
-
-                # feed data to RL network (ZZZ this presumably contains NaNs)
+                # feed data to RL network
                 if update == 0:
                     agent.initialize(observables)
                     values = np.zeros(len(rewards))

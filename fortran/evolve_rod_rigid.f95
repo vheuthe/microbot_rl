@@ -702,21 +702,37 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
+            ! if (isnan(r)) then
+            !     print*, 'Nan in r', r, i, j ! ZZZ
+            ! endif
             if (r < near2(i)) near2(i) = r
 
+            ! if (r < 0.01) then
+            !     print*, 'very small r', r, i, j !ZZZ
+            ! endif
+
             dtheta = atan2(dy,dx)
+            ! if (isnan(dtheta)) then
+            !     print*, 'Nan in dtheta', dtheta, i, j ! ZZZ
+            ! endif
             ! particle sees rod
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI
             sp_th = atan(ssrod, r)/2.
+            ! if (isnan(sp_th)) then
+            !     print*, 'Nan in sp_th', sp_th, ssrod, i, j ! ZZZ
+            ! endif
             ! -----------------------------
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then
-                val = (true_ssrod)/r*fact(i)
+                val = (true_ssrod)/r*fact(j)
+                if (isnan(val)) then
+                    print*, 'Nan in val', val, r, fact(j), true_ssrod, i, j, size(fact) ! ZZZ
+                endif
             else if (obs_type == 2) then
-                val = (true_ssrod/r**2)*fact(i)
+                val = (true_ssrod/r**2)*fact(j)
             else
                 print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                 STOP
@@ -791,9 +807,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
                 if (obs_type == 1) then
-                    val = (true_ssrod)/r*fact(i)
+                    val = (true_ssrod)/r*fact(j)
                 else if (obs_type == 2) then
-                    val = (true_ssrod/r**2)*fact(i)
+                    val = (true_ssrod/r**2)*fact(j)
                 else
                     print*, 'ERROR NO OBS_TYPE IS DEFINED!'
                     STOP
