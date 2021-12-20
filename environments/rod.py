@@ -185,6 +185,8 @@ class MD_ROD():
 
         # Compute observables and rewards from particles and rod
         obs[np.logical_and(~found, ~lost), :], rewards[np.logical_and(~found, ~lost)] = self.get_obs_rewards()
+        obs[found, :] = 0
+        rewards[found] = 0
 
         # In the first update, rewards are zero, since there are no old positions, etc.
         if update == 0:
@@ -195,7 +197,7 @@ class MD_ROD():
         self.old_part = particles[~lost,:]
         self.old_actions = actions[~lost]
 
-        return obs, rewards
+        return obs, rewards, found
 
 
 # --------------------------

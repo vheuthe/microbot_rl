@@ -52,10 +52,15 @@ def serve_experiment():
         for update in itertools.count():
 
             # wait for matlab to send data
-            data = connection.recv(8 * 6 * parameters['max_particles'])
+            data = connection.recv(8)
+            if data:
+                n_data = struct.unpack('I', data)[0]
+                data = connection.recv(8 * n_data)
+                while data and len(data) < 8 * n_data:
+                    data.extend(connection.recv(8 * n_data))
 
             if data:
-                # cast bytestream to double array and reshape to [x y theta state]
+                    # cast bytestream to double array and reshape to [x y theta state]
                 data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6))
 
                 # There are maybe trailing zeros in both particles and rod
@@ -74,11 +79,11 @@ def serve_experiment():
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
                 # calculate observables and rewards
-                observables, rewards = environment.update(particles, actions, rod, lost, update)
+                observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
 
                 # remove invalid observables
-                observables = observables[np.logical_and(~inboundary, ~lost),:]
-                rewards = rewards[np.logical_and(~inboundary, ~lost)]
+                observables = observables_raw[~(inboundary | lost),:]
+                rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
                 # feed data to RL network
@@ -86,10 +91,13 @@ def serve_experiment():
                     agent.initialize(observables)
                     values = np.zeros(len(rewards))
                 elif update % parameters['train_pause'] == 0:
+                    
                     values = agent.add_environment_response(invalid, observables, rewards)
                     agent.train_step(parameters['training_epochs'])
                     agent.initialize(observables)
+
                     print("Training network ...")
+
                 else:
                     values = agent.add_environment_response(invalid, observables, rewards)
 
@@ -109,6 +117,7 @@ def serve_experiment():
 
                 # and send them (as bytestream)
                 connection.sendall(struct.pack(str(len(data))+"d", *data))
+                print("Sent data for update {} with length {}".format(update, data.shape[0]))
 
             else:
                 print("System call interrupted, stopping server, saving models")
