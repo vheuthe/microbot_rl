@@ -86,6 +86,9 @@ def serve_experiment():
                 rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
+                if np.isnan(observables).any() or np.isnan(rewards).any():
+                    ZZZ = 1
+
                 # feed data to RL network
                 if update == 0:
                     agent.initialize(observables)

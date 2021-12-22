@@ -381,6 +381,10 @@ class MD_ROD():
                                           self.cones, self.cone_angle, self.close_pen, self.prox_rew, self.flag_fix_or,
                                           self.n_obs, self.N, self.n_rod)
 
+        # For debugging
+        if np.isnan(obs).any() or np.isnan(rew_classic).any():
+            ZZZ = 1
+
         if self.rew_mode == 'classic':
 
             # Rewards based on position along and orientation with respect to the rod
