@@ -5,6 +5,7 @@ import traceback
 import struct
 import itertools
 import numpy as np
+from tensorflow.python.ops.gen_math_ops import inv
 
 from firstrl import AgentActiveMatter
 from environments.rod import MD_ROD
@@ -86,8 +87,12 @@ def serve_experiment():
                 rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
-                if np.isnan(observables).any() or np.isnan(rewards).any():
+                if np.isnan(observables).any() or np.isnan(rewards).any() or np.isnan(invalid).any():
                     ZZZ = 1
+
+                # This is a bad fix, but no time to find the bug (22.12.)
+                observables[np.isnan(observables)] = 0
+                rewards[np.isnan(rewards)] = 0
 
                 # feed data to RL network
                 if update == 0:

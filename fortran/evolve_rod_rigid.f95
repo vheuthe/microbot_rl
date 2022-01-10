@@ -702,19 +702,19 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
             r = sqrt(dx*dx + dy*dy)
-            ! if (isnan(r)) then
-            !     print*, 'Nan in r', r, i, j ! ZZZ
-            ! endif
+            if (isnan(r)) then
+                print*, 'Nan in r', r, i, j ! ZZZ
+            endif
             if (r < near2(i)) near2(i) = r
 
-            ! if (r < 0.01) then
-            !     print*, 'very small r', r, i, j !ZZZ
-            ! endif
+            if (r < 0.01) then
+                print*, 'very small r', r, i, j !ZZZ
+            endif
 
             dtheta = atan2(dy,dx)
-            ! if (isnan(dtheta)) then
-            !     print*, 'Nan in dtheta', dtheta, i, j ! ZZZ
-            ! endif
+            if (isnan(dtheta)) then
+                print*, 'Nan in dtheta', dtheta, i, j ! ZZZ
+            endif
             ! particle sees rod
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI
@@ -894,6 +894,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
         dy = cmRod(2) - Y(i)
         r = sqrt(dx*dx + dy*dy)
         torque = cos(a)*dy - sin(a)*dx
+        if (isnan(torque)) then
+            print*, 'NaN in torque', torque, dx, dy, a ! ZZZ
+        endif
 
 
         ! different reward functions to choose from
@@ -912,6 +915,9 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
                                ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
                     Rew(i) = reward_rotate(rotRod, torque, touch(i), 0.0)
+                    if (isnan(Rew(i))) then
+                        print*, 'Nan in Rew', Rew(i), rotRod, torque, touch(i) ! ZZZ
+                    endif
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                 endif

@@ -198,10 +198,16 @@ class AgentActiveMatter():
     # current observables of all particles
     observables = np.array([par.obs[-1] for par in self.particles])
 
+    if np.isnan(observables).any():
+      ZZZ = 1
+
     # print(observables)
 
     # action preference `h` is defined on interval (-Inf, Inf)
     preferences = self.policy(observables)
+
+    if np.isnan(preferences).any():
+      ZZZ = 1
 
     # print(preferences)
 
@@ -209,6 +215,8 @@ class AgentActiveMatter():
 
     # draw random actions from the provided distributions
     actions = np.array([np.random.choice(self.n_actions, p=p) for p in np.exp(logp)])
+
+    actions[np.isnan(actions)] = 0
 
     # save for training
     for par, a, dist in zip(self.particles, actions, logp):
@@ -229,6 +237,9 @@ class AgentActiveMatter():
 
     # check inputs
     assert observables.shape[0] == rewards.shape[0], 'Inconsistent input of Obs and Rewards'
+
+    if np.isnan(rewards).any() or np.isnan(observables).any():
+      ZZZ = 1
 
     # finish lost particles in reverse order to not mess up indices
     for ID_lost in sorted(lost, reverse=True):
