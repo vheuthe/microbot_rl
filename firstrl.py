@@ -198,23 +198,22 @@ class AgentActiveMatter():
     # current observables of all particles
     observables = np.array([par.obs[-1] for par in self.particles])
 
-    if np.isnan(observables).any():
-      ZZZ = 1
-
-    # print(observables)
-
     # action preference `h` is defined on interval (-Inf, Inf)
     preferences = self.policy(observables)
-
-    if np.isnan(preferences).any():
-      ZZZ = 1
-
-    # print(preferences)
 
     logp = tf.nn.log_softmax(preferences).numpy()
 
     # draw random actions from the provided distributions
-    actions = np.array([np.random.choice(self.n_actions, p=p) for p in np.exp(logp)])
+    try:
+      actions = np.array([np.random.choice(self.n_actions, p=p) for p in np.exp(logp)])
+    except ValueError:
+      print('Nans in observables:')
+      print(observables[np.argwhere(np.isnan(observables))])
+      print('NaNs in logp:')
+      print(logp[np.argwhere(np.isnan(logp))])
+
+      logp[np.argwhere(np.isnan(logp))] = 0.25
+      actions = np.array([np.random.choice(self.n_actions, p=p) for p in np.exp(logp)])
 
     actions[np.isnan(actions)] = 0
 

@@ -554,7 +554,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
                 dx = X(j)-X(i)
                 dy = Y(j)-Y(i)
-                r = sqrt(dx*dx + dy*dy)
+                r = sqrt(dx*dx + dy*dy) + 0.0000000001
                 ! check for adjajency and rewards
                 if (r < ss_touch*1.25) then
                     adj(i,j) = 1
@@ -701,7 +701,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
-            r = sqrt(dx*dx + dy*dy)
+            r = sqrt(dx*dx + dy*dy) + 0.0000000001
             if (isnan(r)) then
                 print*, 'Nan in r', r, i, j ! ZZZ
             endif
@@ -795,7 +795,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
                 dx = tar_X(j)-X(i)
                 dy = tar_Y(j)-Y(i)
-                r = sqrt(dx*dx + dy*dy)
+                r = sqrt(dx*dx + dy*dy) + 0.0000000001
 
                 dtheta = atan2(dy,dx)
                 ! particle sees rod
