@@ -57,12 +57,13 @@ def serve_experiment():
             if data:
                 n_data = struct.unpack('I', data)[0]
                 data = connection.recv(8 * n_data)
-                while data and len(data) < 8 * n_data:
-                    data.extend(connection.recv(8 * n_data))
+                # cast bytestream to double array and reshape to [x y theta state]
+                data_unpacked = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6))
 
-            if data:
-                    # cast bytestream to double array and reshape to [x y theta state]
-                data = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6))
+                while data and len(data) < 8 * n_data:
+                    data = connection.recv(8 * n_data)
+                    data_unpacked = np.append(data_unpacked, \
+                        np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6)))
 
                 # There are maybe trailing zeros in both particles and rod
                 particles = np.nan_to_num(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3])
