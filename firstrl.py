@@ -396,6 +396,14 @@ class AgentActiveMatter():
         break
 
     # -- CRITIC FITTING --
+    if np.isnan(self.observables).any(): # ZZZ
+      print("NaNs in self.observables in critic fitting")
+      print(self.observables)
+      self.observables[np.isnan(self.observables)] = 0
+    if np.isnan(self.estimated_return).any():
+      print("NaNs in self.estimated_return in critic fitting")
+      print(self.estimated_return)
+      self.estimated_return[np.isnan(self.estimated_return)] = 0
     self.critic.fit(x=self.observables, y=self.estimated_return, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # -- APPROXIMATOR FITTING --

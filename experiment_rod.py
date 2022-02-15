@@ -100,7 +100,7 @@ def serve_experiment():
                     agent.initialize(observables)
                     values = np.zeros(len(rewards))
                 elif update % parameters['train_pause'] == 0:
-                    
+
                     values = agent.add_environment_response(invalid, observables, rewards)
                     agent.train_step(parameters['training_epochs'])
                     agent.initialize(observables)
