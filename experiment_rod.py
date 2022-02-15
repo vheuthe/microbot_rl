@@ -66,12 +66,12 @@ def serve_experiment():
                         np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6)))
 
                 # There are maybe trailing zeros in both particles and rod
-                particles = np.nan_to_num(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3])
-                rod = np.nan_to_num(data[np.logical_or(data[:,4] != 0, data[:,5] != 0), 4:6])
-                actions = np.nan_to_num(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 3])
+                particles = np.nan_to_num(data_unpacked[np.logical_or(data_unpacked[:,0] != 0, data_unpacked[:,1] != 0, data_unpacked[:,2] != 0), 0:3])
+                rod = np.nan_to_num(data_unpacked[np.logical_or(data_unpacked[:,4] != 0, data_unpacked[:,5] != 0), 4:6])
+                actions = np.nan_to_num(data_unpacked[np.logical_or(data_unpacked[:,0] != 0, data_unpacked[:,1] != 0, data_unpacked[:,2] != 0), 3])
 
                 # where x is NaN, particles are lost
-                lost = np.any(np.isnan(data[np.logical_or(data[:,0] != 0, data[:,1] != 0, data[:,2] != 0), 0:3]), axis=1)
+                lost = np.any(np.isnan(data_unpacked[np.logical_or(data_unpacked[:,0] != 0, data_unpacked[:,1] != 0, data_unpacked[:,2] != 0), 0:3]), axis=1)
 
                 # where state is negative
                 inboundary = actions < 0
@@ -91,7 +91,7 @@ def serve_experiment():
                 if np.isnan(observables).any() or np.isnan(rewards).any() or np.isnan(invalid).any():
                     ZZZ = 1
 
-                # This is a bad fix, but no time to find the bug (22.12.)
+                # This is a bad fix, but no time to find the bug (22.12.21)
                 observables[np.isnan(observables)] = 0
                 rewards[np.isnan(rewards)] = 0
 
@@ -122,11 +122,11 @@ def serve_experiment():
                     raise NotImplementedError('Unsupported n_actions')
 
                 # Flatten data in 'Fortran' style
-                data = np.concatenate((actions, logp, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
+                data_send = np.concatenate((actions, logp, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
 
                 # and send them (as bytestream)
-                connection.sendall(struct.pack(str(len(data))+"d", *data))
-                print("Sent data for update {} with length {}".format(update, data.shape[0]))
+                connection.sendall(struct.pack(str(len(data_send))+"d", *data_send))
+                print("Sent data for update {} with length {}".format(update, data_send.shape[0]))
 
             else:
                 print("System call interrupted, stopping server, saving models")

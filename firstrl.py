@@ -19,7 +19,14 @@ def discount_cumsum(x, discount):
     `[x0 + discount * x1 + discount^2 * x2, x1 + discount * x2, x2]`
     for an array-like input vector `x`.
     """
-    return scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
+    ret = scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[::-1]
+    if np.isnan(ret).any():
+      print("NaNs in discount_cummsum")
+      print(x)
+      print(discount)
+
+    ret[np.isnan(ret)] = 0
+    return 
 
 
 
@@ -237,9 +244,6 @@ class AgentActiveMatter():
     # check inputs
     assert observables.shape[0] == rewards.shape[0], 'Inconsistent input of Obs and Rewards'
 
-    if np.isnan(rewards).any() or np.isnan(observables).any():
-      ZZZ = 1
-
     # finish lost particles in reverse order to not mess up indices
     for ID_lost in sorted(lost, reverse=True):
       if ID_lost < len(self.particles):
@@ -247,6 +251,18 @@ class AgentActiveMatter():
 
     # Estimate value of new states
     values = self.critic(observables).numpy().reshape(-1)
+
+    # For debugging
+    if np.isnan(rewards).any() or np.isnan(observables).any() or np.isnan(values).any():
+      print("NaNs in add_environment_response")
+      print(observables)
+      print(rewards)
+      print(values)
+
+    # This is a bad fix, but no I don't know the real problem yet (15.02.22)
+    observables[np.isnan(observables)] = 0
+    rewards[np.isnan(rewards)] = 0
+    values[np.isnan(values)] = 0
 
     # Update particles list
     for i, (rew, obs, val) in enumerate(zip(rewards, observables, values)):
@@ -350,6 +366,12 @@ class AgentActiveMatter():
 
     if (adv_std > 0.1e-1):
         self.advantage = (self.advantage - np.mean(self.advantage)) / adv_std
+
+    # For debugging
+    if np.isnan(self.advantage).any():
+      print("NaNs in train_step in advantages")
+      print(self.advantages)
+      self.advantage[np.isnan(self.advantage)] = 0
 
 
     # -- POLICY FITTING --

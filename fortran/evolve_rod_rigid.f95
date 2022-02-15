@@ -131,7 +131,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
         FYrod = 0.d0
         torquerod = 0.d0
 
-        rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1))
+        rodtheta = atan2(new_XY_rod(Nrod,2)-new_XY_rod(1,2), new_XY_rod(Nrod,1)-new_XY_rod(1,1)) + 0.0000000001
 
         ! =============================
         ! thermal motion
@@ -460,8 +460,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
     min_dist = 1000
 
-    cmRod(1) = SUM(Xrod)/Nrod
-    cmRod(2) = SUM(Yrod)/Nrod
+    cmRod(1) = SUM(Xrod)/Nrod + 0.0000000001
+    cmRod(2) = SUM(Yrod)/Nrod + 0.0000000001
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
@@ -476,16 +476,16 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
         fact(Nrod+1-i) = fact(i)
     enddo
 
-    oldcmRod(1) = SUM(oldXrod)/Nrod
-    oldcmRod(2) = SUM(oldYrod)/Nrod
+    oldcmRod(1) = SUM(oldXrod)/Nrod + 0.0000000001
+    oldcmRod(2) = SUM(oldYrod)/Nrod + 0.0000000001
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
 
-    Rodtheta = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1))
-    dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1))
+    Rodtheta = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1)) + 0.0000000001
+    dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1)) + 0.0000000001
 
     rotRod = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1)) - &
-             atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1))
+             atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1)) + 0.0000000001
     rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
     ! cone_angle must be a positive angle in radiants
@@ -564,8 +564,8 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 ! find the distance to the closest particle
                 if (r < min_dist(i)) min_dist(i) = r
 
-                dtheta = atan2(dy,dx)
-                sp_th = atan(ss, r)/2.
+                dtheta = atan2(dy,dx) + 0.0000000001
+                sp_th = atan(ss, r)/2 + 0.0000000001
                 ! i to j
                 ! th goes from [-pi, pi]
                 th = (dtheta - Theta(i))/2./PI
@@ -600,10 +600,10 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
                             if (r2 > r) cycle !only closer particles can obscure
 
-                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = atan2(dy2,dx2) + 0.0000000001
                             dtheta2 = (dtheta2 - Theta(i))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                            dark = atan(ss, r2)/2 ! cone of shadow
+                            dark = atan(ss, r2)/2  + 0.0000000001 ! cone of shadow
 
 
                             if (abs(th-dtheta2) < dark + sp_th) then
@@ -651,10 +651,10 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                             dy2 = Y(k)-Y(j)
                             r2 = sqrt(dx2*dx2 + dy2*dy2)
                             if (r2 > r) cycle
-                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = atan2(dy2,dx2) + 0.0000000001
                             dtheta2 = (dtheta2 - Theta(j))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                            dark = atan(ss, r2)/2.
+                            dark = atan(ss, r2)/2. + 0.0000000001
 
                             ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                             if (abs(th-dtheta2) < dark+sp_th) then
@@ -711,14 +711,14 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 print*, 'very small r', r, i, j !ZZZ
             endif
 
-            dtheta = atan2(dy,dx)
+            dtheta = atan2(dy,dx) + 0.0000000001
             if (isnan(dtheta)) then
                 print*, 'Nan in dtheta', dtheta, i, j ! ZZZ
             endif
             ! particle sees rod
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI
-            sp_th = atan(ssrod, r)/2.
+            sp_th = atan(ssrod, r)/2. + 0.0000000001
             ! if (isnan(sp_th)) then
             !     print*, 'Nan in sp_th', sp_th, ssrod, i, j ! ZZZ
             ! endif
@@ -753,10 +753,10 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
                         if (r2 > r) cycle !only closer particles can obscure
 
-                        dtheta2 = atan2(dy2,dx2)
+                        dtheta2 = atan2(dy2,dx2) + 0.0000000001
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                        dark = atan(ss, r2)/2 ! cone of shadow
+                        dark = atan(ss, r2)/2  + 0.0000000001! cone of shadow
 
 
                         if (abs(th-dtheta2) < dark + sp_th) then
@@ -797,11 +797,11 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 dy = tar_Y(j)-Y(i)
                 r = sqrt(dx*dx + dy*dy) + 0.0000000001
 
-                dtheta = atan2(dy,dx)
+                dtheta = atan2(dy,dx) + 0.0000000001
                 ! particle sees rod
                 th = (dtheta - Theta(i))/2./PI
                 th = (th - floor(th + 0.5))*2*PI
-                sp_th = atan(ssrod, r)/2.
+                sp_th = atan(ssrod, r)/2. + 0.0000000001
                 ! -----------------------------
                 n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
                 ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
@@ -830,10 +830,10 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
                             if (r2 > r) cycle !only closer particles can obscure
 
-                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = atan2(dy2,dx2) + 0.0000000001
                             dtheta2 = (dtheta2 - Theta(i))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                            dark = atan(ss, r2)/2 ! cone of shadow
+                            dark = atan(ss, r2)/2  + 0.0000000001! cone of shadow
 
 
                             if (abs(th-dtheta2) < dark + sp_th) then
@@ -1029,7 +1029,7 @@ contains
     ! cos(rodtheta   -   orient) >= 0 means: particle is oriented less than perpendicular to the rod
 
     ! Orientation of the rod's position with respect to the origin:
-    cmRodTheta = atan(cmRod(1)/cmRod(2)) - 1.571 ! (subtract the initial 90°)
+    cmRodTheta = atan(cmRod(1)/cmRod(2)) - 1.571  + 0.0000000001! (subtract the initial 90°)
 
     if ((cos(Rodtheta - dRodtheta) >= 0) .and. (cos(Rodtheta - orient)>=0)) then
 
@@ -1093,8 +1093,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
     min_dist = 1000
 
-    cmRod(1) = SUM(Xrod)/r_Nrod
-    cmRod(2) = SUM(Yrod)/r_Nrod
+    cmRod(1) = SUM(Xrod)/r_Nrod + 0.0000000001
+    cmRod(2) = SUM(Yrod)/r_Nrod + 0.0000000001
 
     true_ss = 6.0
     true_ssrod = sqrt((Xrod(1)-Xrod(2))**2 + (Yrod(1)-Yrod(2))**2)
@@ -1103,16 +1103,16 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     ssrod = ssrod_ext
     if (ssrod==0) ssrod = true_ssrod
 
-    oldcmRod(1) = SUM(oldXrod)/r_Nrod
-    oldcmRod(2) = SUM(oldYrod)/r_Nrod
+    oldcmRod(1) = SUM(oldXrod)/r_Nrod + 0.0000000001
+    oldcmRod(2) = SUM(oldYrod)/r_Nrod + 0.0000000001
 
     dRod = sqrt((oldcmRod(2)-cmRod(2))**2 + (oldcmRod(1)-cmRod(1))**2 )
 
 
-    dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1))
+    dRodtheta = atan2(cmRod(2) - oldcmRod(2), cmRod(1) - oldcmRod(1)) + 0.0000000001
 
     rotRod = atan2(   Yrod(Nrod)-   Yrod(1),   Xrod(Nrod)-   Xrod(1)) - &
-             atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1))
+             atan2(oldYrod(Nrod)-oldYrod(1),oldXrod(Nrod)-oldXrod(1)) + 0.0000000001
     rotRod = rotRod / (2*PI) - floor(rotRod / (2*PI) + 0.5)
 
     ! cone_angle must be a positive angle in radiants
@@ -1169,7 +1169,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
                 dx = X(j)-X(i)
                 dy = Y(j)-Y(i)
-                r = sqrt(dx*dx + dy*dy)
+                r = sqrt(dx*dx + dy*dy) + 0.0000000001
                 ! check for adjajency and rewards
                 if (r < ss_touch*1.25) then
                     adj(i,j) = 1
@@ -1179,8 +1179,8 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                 ! find the distance to the closest particle
                 if (r < min_dist(i)) min_dist(i) = r
 
-                dtheta = atan2(dy,dx)
-                sp_th = atan(ss, r)/2.
+                dtheta = atan2(dy,dx) + 0.0000000001
+                sp_th = atan(ss, r)/2. + 0.0000000001
                 ! i to j
                 ! th goes from [-pi, pi]
                 th = (dtheta - Theta(i))/2./PI
@@ -1215,10 +1215,10 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
                             if (r2 > r) cycle !only closer particles can obscure
 
-                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = atan2(dy2,dx2) + 0.0000000001
                             dtheta2 = (dtheta2 - Theta(i))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                            dark = atan(ss, r2)/2 ! cone of shadow
+                            dark = atan(ss, r2)/2  + 0.0000000001! cone of shadow
 
 
                             if (abs(th-dtheta2) < dark + sp_th) then
@@ -1266,10 +1266,10 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
                             dy2 = Y(k)-Y(j)
                             r2 = sqrt(dx2*dx2 + dy2*dy2)
                             if (r2 > r) cycle
-                            dtheta2 = atan2(dy2,dx2)
+                            dtheta2 = atan2(dy2,dx2) + 0.0000000001
                             dtheta2 = (dtheta2 - Theta(j))/2./PI
                             dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                            dark = atan(ss, r2)/2.
+                            dark = atan(ss, r2)/2. + 0.0000000001
 
                             ! DTHETA AND DTHETA2 POSSIBLY NOT NORMALIZED
                             if (abs(th-dtheta2) < dark+sp_th) then
@@ -1316,14 +1316,14 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
         do j = 1, Nrod
             dx = Xrod(j)-X(i)
             dy = Yrod(j)-Y(i)
-            r = sqrt(dx*dx + dy*dy)
+            r = sqrt(dx*dx + dy*dy) + 0.0000000001
             if (r < near2(i)) near2(i) = r
 
-            dtheta = atan2(dy,dx)
+            dtheta = atan2(dy,dx) + 0.0000000001
             ! particle sees rod
             th = (dtheta - Theta(i))/2./PI
             th = (th - floor(th + 0.5))*2*PI
-            sp_th = atan(ssrod, r)/2.
+            sp_th = atan(ssrod, r)/2. + 0.0000000001
             ! -----------------------------
             n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
@@ -1352,10 +1352,10 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
 
                         if (r2 > r) cycle !only closer particles can obscure
 
-                        dtheta2 = atan2(dy2,dx2)
+                        dtheta2 = atan2(dy2,dx2) + 0.0000000001
                         dtheta2 = (dtheta2 - Theta(i))/2./PI
                         dtheta2 = (dtheta2 - floor(dtheta2 + 0.5))*2*PI
-                        dark = atan(ss, r2)/2 ! cone of shadow
+                        dark = atan(ss, r2)/2  + 0.0000000001 ! cone of shadow
 
 
                         if (abs(th-dtheta2) < dark + sp_th) then
