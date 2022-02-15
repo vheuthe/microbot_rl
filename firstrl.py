@@ -26,7 +26,7 @@ def discount_cumsum(x, discount):
       print(discount)
 
     ret[np.isnan(ret)] = 0
-    return 
+    return ret
 
 
 
