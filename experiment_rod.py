@@ -58,20 +58,25 @@ def serve_experiment():
                 n_data = struct.unpack('I', data)[0]
                 data = connection.recv(8 * n_data)
                 # cast bytestream to double array and reshape to [x y theta state]
-                data_unpacked = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6))
+                data_unpacked = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 1))
+                print(f"data_unpacked has the shape {data_unpacked.shape} after first receive")
 
                 while data and len(data) < 8 * n_data:
                     data = connection.recv(8 * n_data)
                     data_unpacked = np.append(data_unpacked, \
-                        np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 6)))
+                        np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 1)))
+                    print(f"data_unpacked has the shape {data_unpacked.shape} after second receive")
+
+                # When all the data is received, it is brought into the right shape
+                data_reshaped = data_unpacked.reshape((-1,6))
 
                 # There are maybe trailing zeros in both particles and rod
-                particles = np.nan_to_num(data_unpacked[np.logical_or(data_unpacked[:,0] != 0, data_unpacked[:,1] != 0, data_unpacked[:,2] != 0), 0:3])
-                rod = np.nan_to_num(data_unpacked[np.logical_or(data_unpacked[:,4] != 0, data_unpacked[:,5] != 0), 4:6])
-                actions = np.nan_to_num(data_unpacked[np.logical_or(data_unpacked[:,0] != 0, data_unpacked[:,1] != 0, data_unpacked[:,2] != 0), 3])
+                particles = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 0:3])
+                rod = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,4] != 0, data_reshaped[:,5] != 0), 4:6])
+                actions = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 3])
 
                 # where x is NaN, particles are lost
-                lost = np.any(np.isnan(data_unpacked[np.logical_or(data_unpacked[:,0] != 0, data_unpacked[:,1] != 0, data_unpacked[:,2] != 0), 0:3]), axis=1)
+                lost = np.any(np.isnan(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 0:3]), axis=1)
 
                 # where state is negative
                 inboundary = actions < 0
