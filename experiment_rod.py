@@ -110,6 +110,9 @@ def serve_experiment():
                     agent.train_step(parameters['training_epochs'])
                     agent.initialize(observables)
 
+                    # For post-training evaluation, the weights are saved after each update
+                    agent.save_weights('./model', update)
+
                     print("Training network ...")
 
                 else:
