@@ -55,17 +55,20 @@ def serve_experiment():
             # wait for matlab to send data
             data = connection.recv(8)
             if data:
+                receive_num = 1
                 n_data = struct.unpack('I', data)[0]
                 data = connection.recv(8 * n_data)
+                receive_num += 1
                 # cast bytestream to double array and reshape to [x y theta state]
                 data_unpacked = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 1))
-                print(f"data_unpacked has the shape {data_unpacked.shape} after first receive")
+                print(f"data_unpacked has the shape {data_unpacked.shape} after receive number {receive_num}")
 
-                while data and len(data) < 8 * n_data:
+                while len(data_unpacked) < n_data:
                     data = connection.recv(8 * n_data)
-                    data_unpacked = np.append(data_unpacked, \
+                    receive_num += 1
+                    data_unpacked = np.append(data_unpacked,
                         np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 1)))
-                    print(f"data_unpacked has the shape {data_unpacked.shape} after second receive")
+                    print(f"data_unpacked has the shape {data_unpacked.shape} after receive number {receive_num}")
 
                 # When all the data is received, it is brought into the right shape
                 data_reshaped = data_unpacked.reshape((-1,6))
