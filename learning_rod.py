@@ -31,7 +31,7 @@ default_parameters = {
 
     # For Rewards
     'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'approx_diff',  # Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
+    'rew_mode': 'approx_diff',  # Mode of rewards ('forces', 'abs_forces', 'primitive', 'primitive_or', 'primitive_or_, 'WLU', 'approx_diff' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 0,            # Reward prefactor for rotation rewards for rewards based on forces

@@ -153,6 +153,10 @@ class MD_ROD():
 
 
     def update(self, particles, actions, rod, lost, update):
+        '''
+        This is for communicating with the experiment. It mainly
+        deals with lost and found particles.
+        '''
 
         # Deal with new particles: since they do not have an old position,
         # they get a zero reward the first time they appear. That's why

@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import scipy.signal
 import copy
+import pickle
 
 tf.keras.backend.set_floatx('float32')
 
@@ -415,6 +416,16 @@ class AgentActiveMatter():
       approx_kl = tf.reduce_mean(self.logp - new_logp)
       if (approx_kl > 1.5 * self.target_kl):
         print('Stopping policy optimication after epoch {}, approx_kl: {}'.format(i, approx_kl))
+
+        # in this case, there is something wrong with the training data and I
+        # want to know what, so self.observables, self.advantage and
+        # self.estimated_return are saved for examination
+        with open("./nan_dump/observables.pickle", "wb") as obs_file:
+          pickle.dumb(self.observables, obs_file, protocol=pickle.HIGHEST_PROTOCOL)
+        with open("./nan_dump/advantage.pickle", "wb") as adv_file:
+          pickle.dumb(self.advantage, adv_file, protocol=pickle.HIGHEST_PROTOCOL)
+        with open("./nan_dump/estimated_return.pickle", "wb") as est_ret_file:
+          pickle.dumb(self.estimated_return, est_ret_file, protocol=pickle.HIGHEST_PROTOCOL)
         break
 
     # -- CRITIC FITTING --

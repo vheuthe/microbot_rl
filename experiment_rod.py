@@ -109,14 +109,14 @@ def serve_experiment():
                     values = np.zeros(len(rewards))
                 elif update % parameters['train_pause'] == 0:
 
+                    print("Training network ...")
+
                     values = agent.add_environment_response(invalid, observables, rewards)
                     agent.train_step(parameters['training_epochs'])
                     agent.initialize(observables)
 
                     # For post-training evaluation, the weights are saved after each update
                     agent.save_weights('./model', update)
-
-                    print("Training network ...")
 
                 else:
                     values = agent.add_environment_response(invalid, observables, rewards)
