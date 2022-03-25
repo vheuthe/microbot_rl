@@ -82,7 +82,7 @@ default_parameters = {
 
     'train_frames': 1024,       # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
-    'train_pause': 128,         # number of simulation frames, after which there is one step of training
+    'train_pause': 70,         # number of simulation frames, after which there is one step of training
 
     'int_steps': 60,            # number of times, the integration is performed in each simulation step
     'dt': 0.015                   # time step of integration in simulations
