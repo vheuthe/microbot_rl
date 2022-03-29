@@ -1,9 +1,12 @@
 import socket
 import sys
+import os
 import json
 import traceback
 import struct
 import itertools
+from grpc import Compression
+import h5py
 import numpy as np
 from tensorflow.python.ops.gen_math_ops import inv
 
@@ -31,6 +34,9 @@ def serve_experiment():
     # dump final configuration
     with open("./parameters.json", 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4)
+
+    # Set up the data storage file in h5 format for storing the re-simulated data
+    store_file = h5py.File('./resimulated_data.h5', 'w')
 
     # --------------------------------------------------------------------------
 
@@ -89,12 +95,24 @@ def serve_experiment():
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
                 # calculate observables and rewards
-                observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
+                observables_raw, rewards_raw, found, hyp_rod_raw, hyp_parts_raw = environment.update(particles, actions, rod, lost, update)
 
                 # remove invalid observables
                 observables = observables_raw[~(inboundary | lost),:]
                 rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
+
+                # Remove the invalid information from hyp_rod and hyp_parts, too
+                # (there, the particles are in axis 3) and store them in h5
+                hyp_rod = hyp_rod_raw[:,:,~(inboundary | lost)]
+                hyp_parts = hyp_parts_raw[:,:,~(inboundary | lost)]
+                rod_name = f"update{update}/hyp_rod"
+                parts_name = f"update{update}/hyp_parts"
+                store_file.create_dataset(rod_name, compression='gzip', data=hyp_rod)
+                store_file.create_dataset(parts_name, compression='gzip', data=hyp_parts)
+
+                # Save the resimulated steps, too for making sure they
+                # match the experiment
 
                 if np.isnan(observables).any() or np.isnan(rewards).any() or np.isnan(invalid).any():
                     ZZZ = 1
@@ -142,6 +160,7 @@ def serve_experiment():
             else:
                 print("System call interrupted, stopping server, saving models")
                 agent.save_models('./model')
+                store_file.close()
                 break
 
     finally:

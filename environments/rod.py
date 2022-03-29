@@ -201,7 +201,7 @@ class MD_ROD():
         self.old_part = particles[~lost,:]
         self.old_actions = actions[~lost]
 
-        return obs, rewards, found
+        return obs, rewards, found, self.hyp_rod, self.hyp_parts
 
 
 # --------------------------
@@ -583,7 +583,7 @@ class MD_ROD():
         performance = self.det_performance(perf_rod)
 
         # The hyp_perf are the hypothetical performances that would have been achieved in the absence of particle i
-        hyp_perf, hyp_rod_ang = self.det_hyp_perf(performance)
+        hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(performance)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
@@ -602,6 +602,8 @@ class MD_ROD():
         self.hyp_perf = hyp_perf
         self.performance = performance
         self.perf_rod_ang = perf_rod_ang
+        self.hyp_rod = hyp_rod
+        self.hyp_parts = hyp_parts
 
         return rewards
 
@@ -701,6 +703,10 @@ class MD_ROD():
 
         hyp_perf = np.zeros(self.particles.shape[0])
         hyp_rod_ang = np.zeros(self.particles.shape[0]) # this is just the angle
+        # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
+        hyp_rod = np.zeros((self.particles.shape[0], self.particles.shape[1], self.particles.shape[0]))
+        # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
+        hyp_parts = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
 
         # Define the starting configuretion
         x_rod = self.old_rod[:,0]
@@ -751,7 +757,7 @@ class MD_ROD():
                     old_v_n = old_vel_noise
                     old_tor_n = old_tor_noise
 
-                _, hyp_rod, _, _, _, _ = evolve.evolve_md_rod(fr_rod, inert_rod,
+                hyp_parts[:,:,i], hyp_rod[:,:,i], _, _, _, _ = evolve.evolve_md_rod(fr_rod, inert_rod,
                                                 X, Y, T, old_th_n, old_v_n, old_tor_n,
                                                 x_rod, y_rod, self.dist_rod, action,
                                                 self.Rm, self.Rr, self.dt,
@@ -760,20 +766,18 @@ class MD_ROD():
                                                 noise_flag, N, self.n_rod, self.int_steps)
 
                 # Now the hypPerformance in the absence of particle i is determined
-                hyp_perf[i] = self.det_performance(hyp_rod)
+                hyp_perf[i] = self.det_performance(hyp_rod[:,:,i])
 
             else:
                 # If the particle is too far away to have an effect (distance > rew_cutoff),
                 # the performance without this particle should be the same as with it.
                 hyp_perf[i] = performance
-                hyp_rod = self.rod # needed for debugging
+                hyp_rod[:,:,i] = self.rod # needed for debugging
 
             # for debugging, the hypothetical rod angles are also returned
-            hyp_theta = np.angle(complex(hyp_rod[-1,0] - hyp_rod[0,0], hyp_rod[-1,1] - hyp_rod[0,1]))
+            hyp_rod_ang[i] = np.angle(complex(hyp_rod[-1,0,i] - hyp_rod[0,0,i], hyp_rod[-1,1,i] - hyp_rod[0,1,i]))
 
-            hyp_rod_ang[i] = hyp_theta
-
-        return hyp_perf, hyp_rod_ang
+        return hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts
 
 #
 # ------------------------------------
