@@ -95,21 +95,24 @@ def serve_experiment():
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
                 # calculate observables and rewards
-                observables_raw, rewards_raw, found, hyp_rod_raw, hyp_parts_raw = environment.update(particles, actions, rod, lost, update)
+                if parameters["rew_mode"] == "WLU":
+                    observables_raw, rewards_raw, found, hyp_rod_raw, hyp_parts_raw = environment.update(particles, actions, rod, lost, update)
+
+                    # Remove the invalid information from hyp_rod and hyp_parts
+                    # (the particles are in axis 3) and store them in h5
+                    hyp_rod = hyp_rod_raw[:,:,~(inboundary | lost)]
+                    hyp_parts = hyp_parts_raw[:,:,~(inboundary | lost)]
+                    rod_name = f"update{update}/hyp_rod"
+                    parts_name = f"update{update}/hyp_parts"
+                    store_file.create_dataset(rod_name, compression='gzip', data=hyp_rod)
+                    store_file.create_dataset(parts_name, compression='gzip', data=hyp_parts)
+                else:
+                    observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
 
                 # remove invalid observables
                 observables = observables_raw[~(inboundary | lost),:]
                 rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
-
-                # Remove the invalid information from hyp_rod and hyp_parts, too
-                # (there, the particles are in axis 3) and store them in h5
-                hyp_rod = hyp_rod_raw[:,:,~(inboundary | lost)]
-                hyp_parts = hyp_parts_raw[:,:,~(inboundary | lost)]
-                rod_name = f"update{update}/hyp_rod"
-                parts_name = f"update{update}/hyp_parts"
-                store_file.create_dataset(rod_name, compression='gzip', data=hyp_rod)
-                store_file.create_dataset(parts_name, compression='gzip', data=hyp_parts)
 
                 # Save the resimulated steps, too for making sure they
                 # match the experiment

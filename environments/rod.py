@@ -201,7 +201,10 @@ class MD_ROD():
         self.old_part = particles[~lost,:]
         self.old_actions = actions[~lost]
 
-        return obs, rewards, found, self.hyp_rod, self.hyp_parts
+        if self.rew_mode == "WLU":
+            return obs, rewards, found, self.hyp_rod, self.hyp_parts
+        else:
+            return obs, rewards, found
 
 
 # --------------------------
@@ -540,6 +543,15 @@ class MD_ROD():
         # In the initialization, determining this type of reward is not possible
         if not sum(self.old_actions):
             rewards = np.zeros(self.particles.shape[0])
+
+            # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
+            hyp_rod = np.zeros((self.particles.shape[0], self.particles.shape[1], self.particles.shape[0]))
+            # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
+            hyp_parts = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
+
+            # This is needed for having a consistent output from .update
+            self.hyp_rod = hyp_rod
+            self.hyp_parts = hyp_parts
 
             return rewards
 
