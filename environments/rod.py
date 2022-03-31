@@ -197,14 +197,11 @@ class MD_ROD():
             rewards[np.logical_and(~found, ~lost)] = 0
 
         # Update the environment (found particles are included now)
-        self.old_rod = rod
+        self.old_rod = rod 
         self.old_part = particles[~lost,:]
         self.old_actions = actions[~lost]
-
-        if self.rew_mode == "WLU":
-            return obs, rewards, found, self.hyp_rod, self.hyp_parts
-        else:
-            return obs, rewards, found
+        
+        return obs, rewards, found
 
 
 # --------------------------
@@ -716,9 +713,12 @@ class MD_ROD():
         hyp_perf = np.zeros(self.particles.shape[0])
         hyp_rod_ang = np.zeros(self.particles.shape[0]) # this is just the angle
         # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
-        hyp_rod = np.zeros((self.particles.shape[0], self.particles.shape[1], self.particles.shape[0]))
+        hyp_rod = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
         # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
-        hyp_parts = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
+        if self.WLU_mode == 'non_ex':
+            hyp_parts = np.zeros((self.old_part.shape[0] - 1, self.old_part.shape[1], self.particles.shape[0]))
+        else:
+            hyp_parts = np.zeros((self.old_part.shape[0], self.old_part.shape[1], self.particles.shape[0]))
 
         # Define the starting configuretion
         x_rod = self.old_rod[:,0]
