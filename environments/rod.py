@@ -778,7 +778,7 @@ class MD_ROD():
                                                 noise_flag, N, self.n_rod, self.int_steps)
 
                 if self.WLU_mode == "non_ex":
-                    hyp_parts[i,:,i] = self.particles[i,:]
+                    hyp_parts[i,:,i] = self.old_part[i,:]
 
                 # Now the hypPerformance in the absence of particle i is determined
                 hyp_perf[i] = self.det_performance(hyp_rod[:,:,i])
@@ -789,7 +789,7 @@ class MD_ROD():
                 hyp_perf[i] = performance
                 # the hypothetical particles and rod must still be written
                 hyp_rod[:,:,i] = self.rod
-                hyp_parts[:,:,i] = self.particles
+                hyp_parts[:,:,i] = self.old_part
 
             # for debugging, the hypothetical rod angles are also returned
             hyp_rod_ang[i] = np.angle(complex(hyp_rod[-1,0,i] - hyp_rod[0,0,i], hyp_rod[-1,1,i] - hyp_rod[0,1,i]))
