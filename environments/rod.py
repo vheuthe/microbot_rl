@@ -541,17 +541,14 @@ class MD_ROD():
         if not sum(self.old_actions):
             rewards = np.zeros(self.particles.shape[0])
 
-            # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
-            hyp_rod = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
             # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
-            if self.WLU_mode == 'non_ex':
-                hyp_parts = np.zeros((self.old_part.shape[0] - 1, self.old_part.shape[1], self.particles.shape[0]))
-            else:
-                hyp_parts = np.zeros((self.old_part.shape[0], self.old_part.shape[1], self.particles.shape[0]))
+            hyp_rod = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
+            # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
+            hyp_parts = np.zeros((self.old_part.shape[0], self.old_part.shape[1], self.particles.shape[0]))
 
-                # This is needed for having a consistent output from .update
-                self.hyp_rod = hyp_rod
-                self.hyp_parts = hyp_parts
+            # This is needed for having a consistent output from .update
+            self.hyp_rod = hyp_rod
+            self.hyp_parts = hyp_parts
 
             return rewards
 
@@ -715,13 +712,10 @@ class MD_ROD():
 
         hyp_perf = np.zeros(self.particles.shape[0])
         hyp_rod_ang = np.zeros(self.particles.shape[0]) # this is just the angle
-        # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
-        hyp_rod = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
         # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
-        if self.WLU_mode == 'non_ex':
-            hyp_parts = np.zeros((self.old_part.shape[0] - 1, self.old_part.shape[1], self.particles.shape[0]))
-        else:
-            hyp_parts = np.zeros((self.old_part.shape[0], self.old_part.shape[1], self.particles.shape[0]))
+        hyp_rod = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
+        # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
+        hyp_parts = np.zeros((self.old_part.shape[0], self.old_part.shape[1], self.particles.shape[0]))
 
         # Define the starting configuretion
         x_rod = self.old_rod[:,0]
@@ -772,13 +766,19 @@ class MD_ROD():
                     old_v_n = old_vel_noise
                     old_tor_n = old_tor_noise
 
-                hyp_parts[:,:,i], hyp_rod[:,:,i], _, _, _, _ = evolve.evolve_md_rod(fr_rod, inert_rod,
+                    # So the equivalent of the mask is all ones
+                    mask = np.ones(self.old_part.shape[0], dtype=bool)
+
+                hyp_parts[mask,:,i], hyp_rod[:,:,i], _, _, _, _ = evolve.evolve_md_rod(fr_rod, inert_rod,
                                                 X, Y, T, old_th_n, old_v_n, old_tor_n,
                                                 x_rod, y_rod, self.dist_rod, action,
                                                 self.Rm, self.Rr, self.dt,
                                                 self.torque, self.vel_act, self.vel_tor,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 noise_flag, N, self.n_rod, self.int_steps)
+
+                if self.WLU_mode == "non_ex":
+                    hyp_parts[i,:,i] = self.particles[i,:]
 
                 # Now the hypPerformance in the absence of particle i is determined
                 hyp_perf[i] = self.det_performance(hyp_rod[:,:,i])
@@ -787,7 +787,9 @@ class MD_ROD():
                 # If the particle is too far away to have an effect (distance > rew_cutoff),
                 # the performance without this particle should be the same as with it.
                 hyp_perf[i] = performance
-                hyp_rod[:,:,i] = self.rod # needed for debugging
+                # the hypothetical particles and rod must still be written
+                hyp_rod[:,:,i] = self.rod
+                hyp_parts[:,:,i] = self.particles
 
             # for debugging, the hypothetical rod angles are also returned
             hyp_rod_ang[i] = np.angle(complex(hyp_rod[-1,0,i] - hyp_rod[0,0,i], hyp_rod[-1,1,i] - hyp_rod[0,1,i]))
