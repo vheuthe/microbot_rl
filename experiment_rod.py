@@ -94,6 +94,13 @@ def serve_experiment():
                 print("Received data for action {:>4}: {:>3} particles, {:>3} lost, {:>3} in boundary condition, {:>3} valid."
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
+                # Saving the old particles for later investigation
+                # (has to be done before environment.update, because
+                # old_part is already updated in there)
+                if parameters["rew_mode"] == "WLU":
+                    old_parts_name = f"update{update}/old_parts"
+                    store_file.create_dataset(old_parts_name, compression='gzip', data=environment.old_part)
+
                 # calculate observables and rewards
                 observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
 
@@ -148,15 +155,13 @@ def serve_experiment():
                 connection.sendall(struct.pack(str(len(data_send))+"d", *data_send))
                 print("Sent data for update {} with length {}".format(update, data_send.shape[0]))
 
-                # Saving the old particles, hypothetical particles and the hypothetical rod
-                # for later investigation
+                # Saving the hypothetical particles and the hypothetical rod
+                # for later investigation (has to be done after environment.update)
                 if parameters["rew_mode"] == "WLU":
                     rod_name = f"update{update}/hyp_rod"
                     parts_name = f"update{update}/hyp_parts"
-                    old_parts_name = f"update{update}/old_parts"
                     store_file.create_dataset(rod_name, compression='gzip', data=environment.hyp_rod)
                     store_file.create_dataset(parts_name, compression='gzip', data=environment.hyp_parts)
-                    store_file.create_dataset(old_parts_name, compression='gzip', data=environment.old_part)
 
             else:
                 print("System call interrupted, stopping server, saving models")
