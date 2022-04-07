@@ -51,8 +51,8 @@ default_parameters = {
     'WLU_noise' : 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
 
     # Particles
-    'vel_act': 6.75,            # Adjusted to optimize training time and match experiment
-    'vel_tor': 2.5,             # Velocity during rotation (particles do not stand still)
+    'vel_act': 7.3,            # Adjusted to optimize training time and match experiment
+    'vel_tor': 3.4,             # Velocity during rotation (particles do not stand still)
     'N': 30,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,
@@ -84,8 +84,8 @@ default_parameters = {
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
     'train_pause': 70,         # number of simulation frames, after which there is one step of training
 
-    'int_steps': 60,            # number of times, the integration is performed in each simulation step
-    'dt': 0.015                   # time step of integration in simulations
+    'int_steps': 300,            # number of times, the integration is performed in each simulation step
+    'dt': 0.003                   # time step of integration in simulations
 }
 
 
