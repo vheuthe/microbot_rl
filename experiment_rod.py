@@ -61,10 +61,9 @@ def serve_experiment():
             # wait for matlab to send data
             data = connection.recv(8)
             if data:
-                receive_num = 1
                 n_data = struct.unpack('I', data)[0]
                 data = connection.recv(8 * n_data)
-                receive_num += 1
+                receive_num = 1
                 # cast bytestream to double array and reshape to [x y theta state]
                 data_unpacked = np.array(struct.unpack(str(len(data)//8)+"d", data)).reshape((-1, 1))
                 print(f"data_unpacked has the shape {data_unpacked.shape} after receive number {receive_num}")
@@ -94,12 +93,10 @@ def serve_experiment():
                 print("Received data for action {:>4}: {:>3} particles, {:>3} lost, {:>3} in boundary condition, {:>3} valid."
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
-                # Saving the old particles for later investigation
-                # (has to be done before environment.update, because
-                # old_part is already updated in there)
-                if parameters["rew_mode"] == "WLU":
-                    old_parts_name = f"update{update}/old_parts"
-                    store_file.create_dataset(old_parts_name, compression='gzip', data=environment.old_part)
+                # Copy old_part so I can save them later
+                # (has to be done before environment.update,
+                # because it is altered there)
+                old_old_part = environment.old_part
 
                 # calculate observables and rewards
                 observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
@@ -160,8 +157,10 @@ def serve_experiment():
                 if parameters["rew_mode"] == "WLU":
                     rod_name = f"update{update}/hyp_rod"
                     parts_name = f"update{update}/hyp_parts"
+                    old_parts_name = f"update{update}/old_parts"
                     store_file.create_dataset(rod_name, compression='gzip', data=environment.hyp_rod)
                     store_file.create_dataset(parts_name, compression='gzip', data=environment.hyp_parts)
+                    store_file.create_dataset(old_parts_name, compression='gzip', data=old_old_part[~lost[~found],:])
 
             else:
                 print("System call interrupted, stopping server, saving models")
