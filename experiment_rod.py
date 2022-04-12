@@ -5,6 +5,7 @@ import json
 import traceback
 import struct
 import itertools
+import time
 from grpc import Compression
 import h5py
 import numpy as np
@@ -60,6 +61,10 @@ def serve_experiment():
 
             # wait for matlab to send data
             data = connection.recv(8)
+
+            # Time the execution of one iteration
+            time_beginning = time.perf_counter()
+
             if data:
                 n_data = struct.unpack('I', data)[0]
                 data = connection.recv(8 * n_data)
@@ -96,7 +101,8 @@ def serve_experiment():
                 # Copy old_part so I can save them later
                 # (has to be done before environment.update,
                 # because it is altered there)
-                old_old_part = environment.old_part
+                if not update == 0:
+                    old_old_part = environment.old_part
 
                 # calculate observables and rewards
                 observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
@@ -157,10 +163,13 @@ def serve_experiment():
                 if parameters["rew_mode"] == "WLU":
                     rod_name = f"update{update}/hyp_rod"
                     parts_name = f"update{update}/hyp_parts"
-                    old_parts_name = f"update{update}/old_parts"
                     store_file.create_dataset(rod_name, compression='gzip', data=environment.hyp_rod)
                     store_file.create_dataset(parts_name, compression='gzip', data=environment.hyp_parts)
-                    store_file.create_dataset(old_parts_name, compression='gzip', data=old_old_part[~lost[~found],:])
+                    if not update == 0:
+                        old_parts_name = f"update{update}/old_parts"
+                        store_file.create_dataset(old_parts_name, compression='gzip', data=old_old_part[~lost[~found],:])
+
+                print(f"Execution took {time.perf_counter() - time_beginning} seconds")
 
             else:
                 print("System call interrupted, stopping server, saving models")
