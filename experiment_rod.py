@@ -86,7 +86,7 @@ def serve_experiment():
                 # There are maybe trailing zeros in both particles and rod
                 particles = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 0:3])
                 rod = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,4] != 0, data_reshaped[:,5] != 0), 4:6])
-                actions = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 3])
+                actions = np.nan_to_num(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 3]) - 1
 
                 # where x is NaN, particles are lost
                 lost = np.any(np.isnan(data_reshaped[np.logical_or(data_reshaped[:,0] != 0, data_reshaped[:,1] != 0, data_reshaped[:,2] != 0), 0:3]), axis=1)
