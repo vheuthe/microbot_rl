@@ -51,7 +51,7 @@ default_parameters = {
     'WLU_noise' : 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
 
     # Particles
-    'vel_act': 7.3,            # Adjusted to optimize training time and match experiment
+    'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
     'vel_tor': 3.4,             # Velocity during rotation (particles do not stand still)
     'N': 30,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
@@ -70,7 +70,7 @@ default_parameters = {
     'n_rod': 60,                # must be even!
     'part_size_rod': 0.01,
     'mu_K': 1.8,
-    'l_rod': 96,               # length of the rod
+    'l_rod': 96,                # length of the rod
     # 'distRod': 1.6,           # is calculated in environments/rod.py from the size and the number of rod particles
     'ext_rod': 1.,
     'cen_rod': 1.,
@@ -82,10 +82,10 @@ default_parameters = {
 
     'train_frames': 1024,       # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
-    'train_pause': 70,         # number of simulation frames, after which there is one step of training
+    'train_pause': 70,          # number of simulation frames, after which there is one step of training
 
-    'int_steps': 300,            # number of times, the integration is performed in each simulation step
-    'dt': 0.003                   # time step of integration in simulations
+    'int_steps': 600,           # number of times, the integration is performed in each simulation step
+    'dt': 0.0015                 # time step of integration in simulations
 }
 
 
