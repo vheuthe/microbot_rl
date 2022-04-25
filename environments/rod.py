@@ -179,6 +179,7 @@ class MD_ROD():
         # In the case of lost particles, leave them out of the reward calculation
         self.old_part = self.old_part[~lost[~found],:]
         self.old_actions = self.old_actions[~lost[~found]]
+        self.old_actions_cleared = self.old_actions[~lost[~found]]
 
         # The number of particles has to be adjusted every time (for fortran)
         self.N = sum(np.logical_and(~found, ~lost))

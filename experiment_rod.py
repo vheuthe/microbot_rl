@@ -112,12 +112,6 @@ def serve_experiment():
                 rewards = rewards_raw[~(inboundary | lost)]
                 invalid = np.argwhere(lost | inboundary).flatten().tolist()
 
-                # Save the resimulated steps, too for making sure they
-                # match the experiment
-
-                if np.isnan(observables).any() or np.isnan(rewards).any() or np.isnan(invalid).any():
-                    ZZZ = 1
-
                 # This is a bad fix, but no time to find the bug (22.12.21)
                 observables[np.isnan(observables)] = 0
                 rewards[np.isnan(rewards)] = 0
@@ -167,7 +161,9 @@ def serve_experiment():
                     store_file.create_dataset(parts_name, compression='gzip', data=environment.hyp_parts)
                     if not update == 0:
                         old_parts_name = f"update{update}/old_parts"
+                        old_actions_name = f"update{update}/old_actions"
                         store_file.create_dataset(old_parts_name, compression='gzip', data=old_old_part[~lost[~found],:])
+                        store_file.create_dataset(old_actions_name, compression='gzip', data=old_old_part[~lost[~found],:])
 
                 print(f"Execution took {time.perf_counter() - time_beginning} seconds")
 
