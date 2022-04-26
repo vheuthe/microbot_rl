@@ -85,15 +85,15 @@ def serve_experiment():
 
                 # There are maybe trailing zeros in both particles and rod
                 is_particle_data = np.logical_or(
-                    data_reshaped[:,0] != 0, 
-                    data_reshaped[:,1] != 0, 
+                    data_reshaped[:,0] != 0,
+                    data_reshaped[:,1] != 0,
                     data_reshaped[:,2] != 0
                     )
                 is_rod_data = np.logical_or(
-                    data_reshaped[:,4] != 0, 
+                    data_reshaped[:,4] != 0,
                     data_reshaped[:,5] != 0
                     )
-                    
+
                 particles = np.nan_to_num(data_reshaped[is_particle_data, 0:3])
                 rod = np.nan_to_num(data_reshaped[is_rod_data, 4:6])
                 actions = np.nan_to_num(data_reshaped[is_particle_data, 3]) - 1
@@ -173,7 +173,7 @@ def serve_experiment():
                         old_parts_name = f"update{update}/old_parts"
                         old_actions_name = f"update{update}/old_actions"
                         store_file.create_dataset(old_parts_name, compression='gzip', data=old_old_part[~lost[~found],:])
-                        store_file.create_dataset(old_actions_name, compression='gzip', data=old_old_part[~lost[~found],:])
+                        store_file.create_dataset(old_actions_name, compression='gzip', data=environment.old_actions_cleared)
 
                 print(f"Execution took {time.perf_counter() - time_beginning} seconds")
 
