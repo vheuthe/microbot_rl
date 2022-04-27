@@ -180,7 +180,7 @@ class MD_ROD():
         self.old_part = self.old_part[~lost[~found],:]
 
         # Adjust old_actions according to old_part
-        self.old_actions = self.old_actions[np.logical_and(~found, ~lost)]
+        self.old_actions = old_actions[np.logical_and(~found, ~lost)]
 
         # The number of particles has to be adjusted every time, too (for fortran)
         self.N = sum(np.logical_and(~found, ~lost))
