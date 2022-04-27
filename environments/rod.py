@@ -152,13 +152,13 @@ class MD_ROD():
         self.rod_dist = np.zeros((self.particles.size))
 
 
-    def update(self, particles, actions, rod, lost, update):
+    def update(self, particles, old_actions, rod, lost, update):
         '''
         This is for communicating with the experiment. It mainly
         deals with lost and found particles.
         '''
 
-        # Deal with new particles: since they do not have an old position,
+        # Deal with new (found) particles: since they do not have an old position,
         # they get a zero reward the first time they appear. That's why
         # they are not assigned to self.particles in the beginning
         # (found particles are always at the end)
@@ -167,21 +167,22 @@ class MD_ROD():
             # In the very first update, only observables are calculated
             # and care must be taken to not have missmatching array shapes
             self.old_part = particles
-            self.old_actions = actions
             self.old_rod = rod
 
+        # Found particles are always in the end
         found = np.full_like(lost, False)
         found[self.old_part.shape[0]:particles.shape[0]] = True
 
         self.rod = rod
         self.particles = particles[np.logical_and(~found, ~lost),:]
 
-        # In the case of lost particles, leave them out of the reward calculation
+        # In the case of lost or particles, leave them out of the reward calculation
         self.old_part = self.old_part[~lost[~found],:]
-        self.old_actions = self.old_actions[~lost[~found]]
-        self.old_actions_cleared = self.old_actions
 
-        # The number of particles has to be adjusted every time (for fortran)
+        # Adjust old_actions according to old_part
+        self.old_actions = self.old_actions[np.logical_and(~found, ~lost)]
+
+        # The number of particles has to be adjusted every time, too (for fortran)
         self.N = sum(np.logical_and(~found, ~lost))
 
         # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
@@ -200,7 +201,6 @@ class MD_ROD():
         # Update the environment (found particles are included now)
         self.old_rod = rod
         self.old_part = particles[~lost,:]
-        self.old_actions = actions[~lost]
 
         return obs, rewards, found
 

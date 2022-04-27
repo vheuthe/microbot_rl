@@ -81,7 +81,7 @@ def serve_experiment():
                     print(f"data_unpacked has the shape {data_unpacked.shape} after receive number {receive_num}")
 
                 # When all the data is received, it is brought into the right shape
-                data_reshaped = data_unpacked.reshape((-1,6))
+                data_reshaped = data_unpacked.reshape((-1,7))
 
                 # There are maybe trailing zeros in both particles and rod
                 is_particle_data = np.logical_or(
@@ -93,29 +93,35 @@ def serve_experiment():
                     data_reshaped[:,4] != 0,
                     data_reshaped[:,5] != 0
                     )
+                is_frame_data = data_reshaped[:,6] != 0
 
+                # Take a look at the frame first to be able to tag all other data
+                frame = data_reshaped[is_frame_data, 6]
                 particles = np.nan_to_num(data_reshaped[is_particle_data, 0:3])
                 rod = np.nan_to_num(data_reshaped[is_rod_data, 4:6])
-                actions = np.nan_to_num(data_reshaped[is_particle_data, 3]) - 1
 
-                # where x is NaN, particles are lost
+                # The actions are already the old actions!
+                # (since the new actions are not known yet)
+                old_actions = np.nan_to_num(data_reshaped[is_particle_data, 3]) - 1
+
+                # Where x is NaN, particles are lost
                 lost = np.any(np.isnan(data_reshaped[is_particle_data, 0:3]), axis=1)
 
-                # where state is negative
-                inboundary = actions < 0
+                # Where state is negative, the particles are in the border-region
+                inboundary = old_actions < 0
 
-                # debug
+                # Debug
                 print("Received data for action {:>4}: {:>3} particles, {:>3} lost, {:>3} in boundary condition, {:>3} valid."
                     .format(update, particles.shape[0], np.sum(lost), np.sum(inboundary), sum(~np.logical_or(lost, inboundary))))
 
                 # Copy old_part so I can save them later
                 # (has to be done before environment.update,
-                # because it is altered there)
+                # because old_part is altered there already)
                 if not update == 0:
                     old_old_part = environment.old_part
 
                 # calculate observables and rewards
-                observables_raw, rewards_raw, found = environment.update(particles, actions, rod, lost, update)
+                observables_raw, rewards_raw, found = environment.update(particles, old_actions, rod, lost, update)
 
                 # remove invalid observables
                 observables = observables_raw[~(inboundary | lost),:]
@@ -162,18 +168,21 @@ def serve_experiment():
                 connection.sendall(struct.pack(str(len(data_send))+"d", *data_send))
                 print("Sent data for update {} with length {}".format(update, data_send.shape[0]))
 
-                # Saving the hypothetical particles and the hypothetical rod
-                # for later investigation (has to be done after environment.update)
+                # Saving the hypothetical particles, the hypothetical rod, the old
+                # actions, the old particles and the frame for later investigation
+                # (has to be done after environment.update)
                 if parameters["rew_mode"] == "WLU":
                     rod_name = f"update{update}/hyp_rod"
                     parts_name = f"update{update}/hyp_parts"
+                    frame_name = f"update{update}/frame"
                     store_file.create_dataset(rod_name, compression='gzip', data=environment.hyp_rod)
                     store_file.create_dataset(parts_name, compression='gzip', data=environment.hyp_parts)
+                    store_file.create_dataset(frame_name, compression='gzip', data=frame)
                     if not update == 0:
                         old_parts_name = f"update{update}/old_parts"
                         old_actions_name = f"update{update}/old_actions"
                         store_file.create_dataset(old_parts_name, compression='gzip', data=old_old_part[~lost[~found],:])
-                        store_file.create_dataset(old_actions_name, compression='gzip', data=environment.old_actions_cleared)
+                        store_file.create_dataset(old_actions_name, compression='gzip', data=environment.old_actions)
 
                 print(f"Execution took {time.perf_counter() - time_beginning} seconds")
 
