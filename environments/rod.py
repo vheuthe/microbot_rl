@@ -34,7 +34,7 @@ class MD_ROD():
                 int_steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
                 fr_rod=10., inert_rod=1., l_rod=100, n_rod=60, ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
                 Dt=0.014, Dr=1.0 / 350.0,
-                obs_type=1, cones=5, cone_angle=180., flag_side=True, flag_LOS=True,
+                obs_type='1overR', cones=5, cone_angle=180., flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed',

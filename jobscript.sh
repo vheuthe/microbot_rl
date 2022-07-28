@@ -20,9 +20,12 @@ PROJECT=$(git status --branch --porcelain=v2 | grep '^# branch.head' | cut -d ' 
 
 date --iso-8601=seconds
 
-make -C fortran
+module load conda
+source activate tensorflow2
 
-python3 <<ENDOFPYTHON
+make -C fortran || exit $?
+
+python3 << ENDOFPYTHON || exit $?
 
 # --- Impose Thread limitations to tensorflow ---
 
