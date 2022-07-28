@@ -161,8 +161,12 @@ def serve_experiment():
                 elif agent.n_actions != 4:
                     raise NotImplementedError('Unsupported n_actions')
 
+                # For debugging send back the current frame, too
+                frame_data = np.full_like(actions, 0)
+                frame_data[0] = frame
+
                 # Flatten data in 'Fortran' style
-                data_send = np.concatenate((actions, logp, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1))), axis=1).flatten('F')
+                data_send = np.concatenate((actions, logp, np.array(rewards).reshape((-1,1)), np.array(values).reshape((-1,1)), frame_data), axis=1).flatten('F')
 
                 # and send them (as bytestream)
                 connection.sendall(struct.pack(str(len(data_send))+"d", *data_send))
