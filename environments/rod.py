@@ -419,6 +419,13 @@ class MD_ROD():
             # (Wonderful Life Utility, WLU)
             rewards = self.get_WLU()
 
+        elif self.rew_mode == 'WLU_experiment':
+
+            # Determines the reward according to what would have happened if particle i would not have been there.
+            # (Wonderful Life Utility, WLU) It also uses a scaling that makes the experiment and the simulations
+            # more compatible
+            rewards = self.get_WLU_experiment()
+
         # Check if there are any NaNs in the rewards (this trains NaN weights in the networks)
         assert not np.isnan(rewards).any(), 'NaNs in rewards'
 
@@ -611,6 +618,98 @@ class MD_ROD():
         self.hyp_rod_ang = hyp_rod_ang
         self.hyp_perf = hyp_perf
         self.performance = performance
+        self.perf_rod_ang = perf_rod_ang
+        self.hyp_rod = hyp_rod
+        self.hyp_parts = hyp_parts
+
+        return rewards
+
+
+    def get_WLU_experiment(self):
+        '''
+        Determines the reward for particle i according to how the performance would have
+        changed if particle i would not have been present (hypPerformance).
+        This is as general as possible, while it is very simple,
+        since all forces are considered automaticaly.
+        Yes, this is computationally very expensive.
+        This version of it enforces the mixed noise mode
+        '''
+
+        # Because that's the only working noise mode for the experiment
+        self.WLU_noise = 'mixed'
+
+        # In the initialization, determining this type of reward is not possible
+        if not sum(self.old_actions):
+            rewards = np.zeros(self.particles.shape[0])
+
+            # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
+            hyp_rod = np.zeros((self.rod.shape[0], self.rod.shape[1], self.particles.shape[0]))
+            # For saving the hypothetical particle positions I need an N x particles.shape[1] x N array
+            hyp_parts = np.zeros((self.old_part.shape[0], self.old_part.shape[1], self.particles.shape[0]))
+
+            # This is needed for having a consistent output from .update
+            self.hyp_rod = hyp_rod
+            self.hyp_parts = hyp_parts
+
+            return rewards
+
+        # First up, the performance is determined according to the mode (translation, rotation, etc.)
+
+        # There are two different rods now: the experimental and the virtual one.
+        # We need both for scaling the rotations in the resimulation steps
+        experiment_rod = self.rod
+
+        # Get the virtual rod
+        # Redo the last simulation step without noise to get the virtual rod (without noise)
+        noise_flag = 0
+
+        X = self.old_part[:,0]
+        Y = self.old_part[:,1]
+        T = self.old_part[:,2]
+        action = self.old_actions[:]
+        N = self.N
+        x_rod = self.old_rod[:,0]
+        y_rod = self.old_rod[:,1]
+        fr_rod = self.fr_rod
+        inert_rod = self.inert_rod
+
+        # these are necessary due to the possibility to reproduce the last step with the old noise and reproduction == True
+        reproduction = False
+        old_ther_noise = np.zeros((self.N, 3 * self.int_steps))
+        old_vel_noise = np.zeros((self.N, self.int_steps))
+        old_tor_noise = np.zeros((self.N, self.int_steps))
+
+        _, virtual_rod, _, _, _, _ = evolve.evolve_md_rod(fr_rod, inert_rod,
+                                            X, Y, T, old_ther_noise, old_vel_noise, old_tor_noise,
+                                            x_rod, y_rod, self.dist_rod, action,
+                                            self.Rm, self.Rr, self.dt,
+                                            self.torque, self.vel_act, self.vel_tor,
+                                            self.ext_rod, self.cen_rod, self.mu_K, reproduction,
+                                            noise_flag, N, self.n_rod, self.int_steps)
+
+        virtual_performance = self.det_performance(virtual_rod)
+        experiment_performance = self.det_performance(experiment_rod)
+
+        # The hyp_perf are the hypothetical performances that would have been achieved in the absence of particle i
+        # the experiment performance is given here, because that is the baseline
+        hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(experiment_performance)
+
+        # The contribution of a particle is the difference between the actual performance
+        # and the hypothetical performance if it would not have been there,
+        # scaled such that if the effect of this particle tends to 0, the performance
+        # matches the experimental performance
+        contrib = (experiment_performance - hyp_perf * experiment_performance/virtual_performance)
+
+        # Wolpert and Tumer (2001) do not multiply the performance here.
+        rewards = self.WLU_prefact * contrib # * performance
+
+        # For debugging the performance and hyp_perf are saved together with the rod
+        # the performance was determined from and the hypothetical rods (just angles in for latter two)
+        perf_rod_ang = np.angle(complex(virtual_rod[-1,0] - virtual_rod[0,0], virtual_rod[-1,1] - virtual_rod[0,1]))
+
+        self.hyp_rod_ang = hyp_rod_ang
+        self.hyp_perf = hyp_perf
+        self.performance = experiment_performance
         self.perf_rod_ang = perf_rod_ang
         self.hyp_rod = hyp_rod
         self.hyp_parts = hyp_parts
