@@ -1,12 +1,10 @@
 import socket
 import sys
-import os
 import json
 import traceback
 import struct
 import itertools
 import time
-from grpc import Compression
 import h5py
 import numpy as np
 from tensorflow.python.ops.gen_math_ops import inv

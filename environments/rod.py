@@ -386,10 +386,6 @@ class MD_ROD():
                                           self.cones, self.cone_angle, self.close_pen, self.prox_rew, self.flag_fix_or,
                                           self.n_obs, self.N, self.n_rod)
 
-        # For debugging
-        if np.isnan(obs).any() or np.isnan(rew_classic).any():
-            ZZZ = 1
-
         if self.rew_mode == 'classic':
 
             # Rewards based on position along and orientation with respect to the rod
@@ -425,9 +421,6 @@ class MD_ROD():
             # (Wonderful Life Utility, WLU) It also uses a scaling that makes the experiment and the simulations
             # more compatible
             rewards = self.get_WLU_experiment()
-
-        # Check if there are any NaNs in the rewards (this trains NaN weights in the networks)
-        assert not np.isnan(rewards).any(), 'NaNs in rewards'
 
         # Gives only one, random particle a reward every step
         if self.sparse_rew:
@@ -692,13 +685,16 @@ class MD_ROD():
 
         # The hyp_perf are the hypothetical performances that would have been achieved in the absence of particle i
         # the experiment performance is given here, because that is the baseline
-        hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(experiment_performance)
+        hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(virtual_performance)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there,
-        # scaled such that if the effect of this particle tends to 0, the performance
+        # scaled such that if the effect of this particle tends to 0, the performance 
         # matches the experimental performance
-        contrib = (experiment_performance - hyp_perf * experiment_performance/virtual_performance)
+        if virtual_performance == 0 or np.any(abs(hyp_perf/virtual_performance) >= 10):
+            contrib = experiment_performance - hyp_perf
+        else:
+            contrib = experiment_performance - hyp_perf * experiment_performance/virtual_performance
 
         # Wolpert and Tumer (2001) do not multiply the performance here.
         rewards = self.WLU_prefact * contrib # * performance
