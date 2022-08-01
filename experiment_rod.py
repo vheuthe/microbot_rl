@@ -7,7 +7,6 @@ import itertools
 import time
 import h5py
 import numpy as np
-from tensorflow.python.ops.gen_math_ops import inv
 
 from firstrl import AgentActiveMatter
 from environments.rod import MD_ROD
