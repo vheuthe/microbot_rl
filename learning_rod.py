@@ -84,8 +84,8 @@ default_parameters = {
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
     'train_pause': 70,          # number of simulation frames, after which there is one step of training
 
-    'int_steps': 600,           # number of times, the integration is performed in each simulation step
-    'dt': 0.0015                 # time step of integration in simulations
+    'int_steps': 900,           # number of times, the integration is performed in each simulation step
+    'dt': 0.001                 # time step of integration in simulations
 }
 
 
