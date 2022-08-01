@@ -689,7 +689,7 @@ class MD_ROD():
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there,
-        # scaled such that if the effect of this particle tends to 0, the performance 
+        # scaled such that if the effect of this particle tends to 0, the performance
         # matches the experimental performance
         if virtual_performance == 0 or np.any(abs(hyp_perf/virtual_performance) >= 10):
             contrib = experiment_performance - hyp_perf
