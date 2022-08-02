@@ -172,7 +172,7 @@ def serve_experiment():
                 # Saving the hypothetical particles, the hypothetical rod, the old
                 # actions, the old particles and the frame for later investigation
                 # (has to be done after environment.update)
-                if parameters["rew_mode"] == "WLU":
+                if parameters["rew_mode"] == "WLU" or parameters["rew_mode"] == "WLU_experiment":
                     rod_name = f"update{update}/hyp_rod"
                     parts_name = f"update{update}/hyp_parts"
                     frame_name = f"update{update}/frame"
