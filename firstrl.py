@@ -196,8 +196,8 @@ class AgentActiveMatter():
     Saves the weights of critic and policy in TensorFlow checkpoint-format,
     the structure of the model has to be saved separately.
     '''
-    self.critic.save_weights(path + '_critic/checkpoints/' + str(ckpt_id))
-    self.policy.save_weights(path + '_policy/checkpoints/' + str(ckpt_id))
+    self.critic.save_weights(path + f'_critic/checkpoint_{ckpt_id}/' + str(ckpt_id))
+    self.policy.save_weights(path + f'_policy/checkpoint_{ckpt_id}/' + str(ckpt_id))
 
 
   def reset_memory(self):
