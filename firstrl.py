@@ -80,6 +80,7 @@ class AgentActiveMatter():
 
   def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
                n_actions, load_models, model_structure, approx_flag=False,
+               train_actor=True, reinitialize_critic=False,
                **unused_parameters):
     '''
     Constructs a new RL Agent.
@@ -100,6 +101,8 @@ class AgentActiveMatter():
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.particles = []
     self.approx_flag = approx_flag
+    self.train_actor = train_actor                          # Whether or not the actor should be trained
+    self.reinitialize_critic = reinitialize_critic          # Whether or not to reinitialize the critic 
 
     # ------------------------------------------
     if (load_models):
@@ -107,6 +110,23 @@ class AgentActiveMatter():
 
       self.critic = tf.keras.models.load_model(load_models + '_critic/')
       self.policy = tf.keras.models.load_model(load_models + '_policy/')
+
+      if self.reinitialize_critic:
+        # Initialize Critic Neural Network new
+        print('Reinitializing Critic')
+        self.critic = tf.keras.Sequential(
+          [
+            # Input mask
+            tf.keras.Input(shape=(n_obs,)),
+            # Hidden Layers
+            *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
+            # Output Layer defining value of state
+            tf.keras.layers.Dense(1, activation='linear')
+          ]
+        )
+        
+        # The critic layer is optimized with a default algorithm, so it can be compiled for speed
+        self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
 
       self.n_obs = self.critic.layers[0].input_shape[1]
       self.n_actions = self.policy.layers[-1].output_shape[1]
@@ -377,62 +397,63 @@ class AgentActiveMatter():
 
 
     # -- POLICY FITTING --
-    for i in range(epochs):
-      # TensorFlow GradientTape magic to do numeric derivatives
-      # (all operations in the `with` block are recorded somehow in the C++ backend)
-      with tf.GradientTape() as tape:
+    if self.train_actor:
+      for i in range(epochs):
+        # TensorFlow GradientTape magic to do numeric derivatives
+        # (all operations in the `with` block are recorded somehow in the C++ backend)
+        with tf.GradientTape() as tape:
 
-        # calculate loss function with clipped PPO:
-        #
-        # for details, see
-        # - https://arxiv.org/abs/1707.06347
-        # - https://spinningup.openai.com/en/latest/algorithms/ppo.html
-        #
-        # here:
-        # π_θ_k(a|s) == exp(self.logp)
-        # π_θ(a|s) == exp(new_logp)
-        # A^{π_θ_k}(s,a) == self.adv
-        # ε == self.eps_clip
-        new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
-        new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * (new_logp_dist), axis=1)
-        probability_ratio = tf.exp(new_logp - self.logp)
-        max_adv = np.where(self.advantage > 0, (1+self.eps_clip) * self.advantage, (1-self.eps_clip) * self.advantage)
-        loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
+          # calculate loss function with clipped PPO:
+          #
+          # for details, see
+          # - https://arxiv.org/abs/1707.06347
+          # - https://spinningup.openai.com/en/latest/algorithms/ppo.html
+          #
+          # here:
+          # π_θ_k(a|s) == exp(self.logp)
+          # π_θ(a|s) == exp(new_logp)
+          # A^{π_θ_k}(s,a) == self.adv
+          # ε == self.eps_clip
+          new_logp_dist = tf.nn.log_softmax(self.policy(self.observables))
+          new_logp = tf.reduce_sum(tf.one_hot(self.actions, depth=self.n_actions) * (new_logp_dist), axis=1)
+          probability_ratio = tf.exp(new_logp - self.logp)
+          max_adv = np.where(self.advantage > 0, (1+self.eps_clip) * self.advantage, (1-self.eps_clip) * self.advantage)
+          loss_ppo2 = -tf.reduce_mean(tf.minimum(probability_ratio * self.advantage, max_adv))
 
-        # additional loss function to keep finite entropy:
-        # DKL(P_uniform || P_new) = -log(P_new) calculates the Kullback-Leibler divergence
-        # between the current distribution and a uniform distribution. If en_coeff > 0 this
-        # term biases the loss function towards more entropy, to keep a minimum amount of
-        # explorative behavior in the policy
-        loss = loss_ppo2 - self.en_coeff * tf.reduce_mean(new_logp_dist)
+          # additional loss function to keep finite entropy:
+          # DKL(P_uniform || P_new) = -log(P_new) calculates the Kullback-Leibler divergence
+          # between the current distribution and a uniform distribution. If en_coeff > 0 this
+          # term biases the loss function towards more entropy, to keep a minimum amount of
+          # explorative behavior in the policy
+          loss = loss_ppo2 - self.en_coeff * tf.reduce_mean(new_logp_dist)
 
-      # calculate numerical derivative of the loss function in respect to the policy parameters θ
-      grads = tape.gradient(loss, self.policy.trainable_variables)
+        # calculate numerical derivative of the loss function in respect to the policy parameters θ
+        grads = tape.gradient(loss, self.policy.trainable_variables)
 
-      # optimize the policy along these gradients
-      self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
+        # optimize the policy along these gradients
+        self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 
-      # early stopping to prevent overfitting
-      # (should already be accomplished by the PPO algorithm (?))
-      approx_kl = tf.reduce_mean(self.logp - new_logp)
-      if (approx_kl > 1.5 * self.target_kl):
-        print('Stopping policy optimication after epoch {}, approx_kl: {}'.format(i, approx_kl))
+        # early stopping to prevent overfitting
+        # (should already be accomplished by the PPO algorithm (?))
+        approx_kl = tf.reduce_mean(self.logp - new_logp)
+        if (approx_kl > 1.5 * self.target_kl):
+          print('Stopping policy optimication after epoch {}, approx_kl: {}'.format(i, approx_kl))
 
-        # in this case, there is something wrong with the training data and I
-        # want to know what, so self.observables, self.advantage and
-        # self.estimated_return are saved for examination
-        print('Dumping observables, advantages and estimated returns')
-        if not os.path.isdir("./nan_dump"): os.mkdir("./nan_dump")
+          # in this case, there is something wrong with the training data and I
+          # want to know what, so self.observables, self.advantage and
+          # self.estimated_return are saved for examination
+          print('Dumping observables, advantages and estimated returns')
+          if not os.path.isdir("./nan_dump"): os.mkdir("./nan_dump")
 
-        with open("./nan_dump/observables.pickle", "wb") as obs_file:
-          pickle.dump(self.observables, obs_file, protocol=pickle.HIGHEST_PROTOCOL)
-        with open("./nan_dump/observables.pickle", "wb") as obs_file:
-          pickle.dump(self.observables, obs_file, protocol=pickle.HIGHEST_PROTOCOL)
-        with open("./nan_dump/advantage.pickle", "wb") as adv_file:
-          pickle.dump(self.advantage, adv_file, protocol=pickle.HIGHEST_PROTOCOL)
-        with open("./nan_dump/estimated_return.pickle", "wb") as est_ret_file:
-          pickle.dump(self.estimated_return, est_ret_file, protocol=pickle.HIGHEST_PROTOCOL)
-        break
+          with open("./nan_dump/observables.pickle", "wb") as obs_file:
+            pickle.dump(self.observables, obs_file, protocol=pickle.HIGHEST_PROTOCOL)
+          with open("./nan_dump/observables.pickle", "wb") as obs_file:
+            pickle.dump(self.observables, obs_file, protocol=pickle.HIGHEST_PROTOCOL)
+          with open("./nan_dump/advantage.pickle", "wb") as adv_file:
+            pickle.dump(self.advantage, adv_file, protocol=pickle.HIGHEST_PROTOCOL)
+          with open("./nan_dump/estimated_return.pickle", "wb") as est_ret_file:
+            pickle.dump(self.estimated_return, est_ret_file, protocol=pickle.HIGHEST_PROTOCOL)
+          break
 
     # -- CRITIC FITTING --
     if np.isnan(self.observables).any(): # ZZZ

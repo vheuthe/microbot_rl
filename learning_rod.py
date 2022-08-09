@@ -46,7 +46,7 @@ default_parameters = {
     'prim_rew_mode': 'close',   # 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
 
     # for diff Reward
-    'WLU_prefact': 10000,       # Prefactor for WLU rewards (1e4 is good for rotation)
+    'WLU_prefact': 10,          # Prefactor for WLU rewards (1e4 is good for rotation)
     'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
     'WLU_noise' : 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
 
@@ -76,13 +76,15 @@ default_parameters = {
     'cen_rod': 1.,
     'fr_rod': 10,               # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
-    # For the MD part of the simulation
+    # For the MD and training part of the simulation
     'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 3,               # number of evaluation episodes doen in the end without further training
 
     'train_frames': 1024,       # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
     'train_pause': 60,          # number of simulation frames, after which there is one step of training
+    'train_actor': True,        # Flag for whether or not to train the actor (useful for changing reward definitions while training)
+    'reinitialize_critic': False,
 
     'int_steps': 900,           # number of times, the integration is performed in each simulation step
     'dt': 0.001                 # time step of integration in simulations
