@@ -102,7 +102,7 @@ class AgentActiveMatter():
     self.particles = []
     self.approx_flag = approx_flag
     self.train_actor = train_actor                          # Whether or not the actor should be trained
-    self.reinitialize_critic = reinitialize_critic          # Whether or not to reinitialize the critic 
+    self.reinitialize_critic = reinitialize_critic          # Whether or not to reinitialize the critic
 
     # ------------------------------------------
     if (load_models):
@@ -124,7 +124,7 @@ class AgentActiveMatter():
             tf.keras.layers.Dense(1, activation='linear')
           ]
         )
-        
+
         # The critic layer is optimized with a default algorithm, so it can be compiled for speed
         self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
 
