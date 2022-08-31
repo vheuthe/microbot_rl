@@ -80,7 +80,8 @@ class AgentActiveMatter():
 
   def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
                n_actions, load_models, model_structure, approx_flag=False,
-               train_actor=True, reinitialize_critic=False,
+               train_actor=True, reinitialize_critic=False, actor_epochs = 10,
+               critic_epochs = 1,
                **unused_parameters):
     '''
     Constructs a new RL Agent.
@@ -103,6 +104,8 @@ class AgentActiveMatter():
     self.approx_flag = approx_flag
     self.train_actor = train_actor                          # Whether or not the actor should be trained
     self.reinitialize_critic = reinitialize_critic          # Whether or not to reinitialize the critic
+    self.critic_epochs = critic_epochs                      # How many epochs in training the critic
+    self.actor_epochs = actor_epochs                        # How many epochs in training the actor
 
     # ------------------------------------------
     if (load_models):
@@ -196,8 +199,8 @@ class AgentActiveMatter():
     Saves the weights of critic and policy in TensorFlow checkpoint-format,
     the structure of the model has to be saved separately.
     '''
-    self.critic.save_weights(path + f'_critic/checkpoint_{ckpt_id}/' + str(ckpt_id))
-    self.policy.save_weights(path + f'_policy/checkpoint_{ckpt_id}/' + str(ckpt_id))
+    self.critic.save_weights(path + f'_critic/checkpoints/' + str(ckpt_id))
+    self.policy.save_weights(path + f'_policy/checkpoints/' + str(ckpt_id))
 
 
   def reset_memory(self):
@@ -369,7 +372,7 @@ class AgentActiveMatter():
       self.finish_trajectory(self.particles.pop())
 
 
-  def train_step(self, epochs=10):
+  def train_step(self):
     '''
     Train the model with accumulated experience.
 
@@ -398,7 +401,7 @@ class AgentActiveMatter():
 
     # -- POLICY FITTING --
     if self.train_actor:
-      for i in range(epochs):
+      for i in range(self.actor_epochs):
         # TensorFlow GradientTape magic to do numeric derivatives
         # (all operations in the `with` block are recorded somehow in the C++ backend)
         with tf.GradientTape() as tape:
@@ -464,7 +467,7 @@ class AgentActiveMatter():
       print("NaNs in self.estimated_return in critic fitting")
       print(self.estimated_return)
       self.estimated_return[np.isnan(self.estimated_return)] = 0
-    self.critic.fit(x=self.observables, y=self.estimated_return, epochs=epochs*20, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
+    self.critic.fit(x=self.observables, y=self.estimated_return, epochs=self.critic_epochs, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # -- APPROXIMATOR FITTING --
     # Number of epochs is chosen lower than for the critic,

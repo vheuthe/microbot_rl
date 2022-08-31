@@ -14,6 +14,11 @@ import learning_rod
 
 
 def serve_experiment():
+    '''
+    This communicates with the experiment, computes rewards and
+    observables for it. It mainly uses environments/rod.update
+    for that.
+    '''
 
     # load parameters provided by matlab:
     with open("./parameters.json") as paramfile:
@@ -138,7 +143,7 @@ def serve_experiment():
                     print("Training network ...")
 
                     values = agent.add_environment_response(invalid, observables, rewards)
-                    agent.train_step(parameters['training_epochs'])
+                    agent.train_step()
                     agent.initialize(observables)
 
                     # For post-training evaluation, the weights are saved after each update

@@ -26,7 +26,8 @@ default_parameters = {
     'lr_v': 0.001,
     'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
-    'training_epochs': 50,
+    'actor_epochs': 50,
+    'critic_epochs': 1,
     'load_models': None,
 
     # For Rewards
@@ -292,8 +293,11 @@ def do_episode(agent, parameters, n_step_ep, *, rec_traj=False, train_agent=Fals
 
         # Train the agent
         if train_agent and (step+1) % parameters['train_pause'] == 0:
-            agent.train_step(epochs=parameters['training_epochs'])
+            agent.train_step()
             agent.initialize(obs)
+
+            # Save checkpoints of both actor and critic for evaluation
+            agent.save_weights('./model', step)
 
 
     agent.finish_episode()
