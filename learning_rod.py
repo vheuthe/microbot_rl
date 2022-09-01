@@ -192,10 +192,10 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
             if debugging:
                 rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
                 hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
-                    do_episode(agent, parameters, n_step_ep, data_dir, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+                    do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
             else:
                 rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod = \
-                    do_episode(agent, parameters, n_step_ep, data_dir, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+                    do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
             rodName = 'traj{}/rod'.format(i_ep) # name of the dataset in the h5 file has to change for the trajectories
             partName = 'traj{}/particles'.format(i_ep)
@@ -218,7 +218,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
         else:
             rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target = \
-                do_episode(agent, parameters, n_step_ep, data_dir, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+                do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
@@ -229,7 +229,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
 
 
-def do_episode(agent, parameters, n_step_ep, data_dir, *, rec_traj=False, train_agent=False, debugging=False):
+def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, train_agent=False, debugging=False):
 
     # Initializing the data arrays
     mean_rew = np.zeros((n_step_ep), dtype='f4')
@@ -298,7 +298,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, *, rec_traj=False, train_
             agent.initialize(obs)
 
             # Save checkpoints of both actor and critic for evaluation
-            agent.save_weights(os.path.join(data_dir, 'model'), step)
+            agent.save_weights(os.path.join(data_dir, 'model'), step+1 + i_ep * n_step_ep)
 
 
     agent.finish_episode()
