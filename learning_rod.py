@@ -104,16 +104,17 @@ def do_array_task(task_id, job_dir): # Copied from Robert
         job_parameters = json.load(reader)
 
     # choose one set out of all possible parameter combinations
-    # (task_id's start at 1 !!)
+    # (task_id's start at 1!!)
     selected_params = dict(zip(
         job_parameters.keys(),
         [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
     ))
 
     # Constructs the folder name for the task from the relevant parameters
+    # 8make sure to not use "load_models" for that, otherwise the paths get messed up)
     data_dir = os.path.join(
         job_dir,
-        '_'.join([key + str(val) for key, val in selected_params.items()])
+        '_'.join([key + str(val) for key, val in selected_params.items() if not key=="load_models"])
     )
 
     do_task(selected_params, data_dir)
