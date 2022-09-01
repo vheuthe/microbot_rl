@@ -135,6 +135,21 @@ class AgentActiveMatter():
       self.n_actions = self.policy.layers[-1].output_shape[1]
       self.reset_memory()
 
+      # Approximator Neural Network (does not get loaded so far, therefore needs iniitialization)
+      self.approx = tf.keras.Sequential(
+        [
+          # Input mask
+          tf.keras.Input(shape=(self.n_obs,)),
+          # Hidden Layers
+          *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
+          # Output Layer defining value of state
+          tf.keras.layers.Dense(1, activation='linear')
+        ]
+      )
+
+      # The approx layer is optimized with a default algorithm, so it can be compiled for speed
+      self.approx.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
+
     else:
       print('Starting new model')
       assert model_structure, 'model structure is not defined!'
