@@ -23,7 +23,7 @@ default_parameters = {
     'gamma': 0.95,
     'lam': 0.97,
     'lr_pi': 0.0005,
-    'lr_v': 0.001,
+    'lr_v': 0.0001,
     'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
     'actor_epochs': 50,
