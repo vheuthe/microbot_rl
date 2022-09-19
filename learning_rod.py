@@ -23,7 +23,7 @@ default_parameters = {
     'gamma': 0.95,
     'lam': 0.97,
     'lr_pi': 0.0005,
-    'lr_v': 0.0001,
+    'lr_v': 0.00004,
     'target_kl': 0.02,
     'model_structure': [(32, 'relu'),(16, 'relu'),(16, 'relu')],
     'actor_epochs': 50,
@@ -81,9 +81,9 @@ default_parameters = {
     'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 3,               # number of evaluation episodes doen in the end without further training
 
-    'train_frames': 1024,       # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
+    'train_frames': 250,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
-    'train_pause': 60,          # number of simulation frames, after which there is one step of training
+    'train_pause': 40,          # number of simulation frames, after which there is one step of training
     'train_actor': True,        # Flag for whether or not to train the actor (useful for changing reward definitions while training)
     'reinitialize_critic': False,
 
