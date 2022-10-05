@@ -20,7 +20,7 @@ default_parameters = {
     'n_actions': 4,
     'en_coeff': 0.01,
     'CL': 0.03,
-    'gamma': 0.997,
+    'gamma': 0.999,
     'lam': 0.97,
     'lr_pi': 0.0005,
     'lr_v': 0.00004,
@@ -32,7 +32,7 @@ default_parameters = {
 
     # For Rewards
     'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'classic',      # Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
+    'rew_mode': 'WLU_experiment',# Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 100,          # Reward prefactor for rotation rewards for rewards based on forces
@@ -54,7 +54,7 @@ default_parameters = {
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
     'vel_tor': 3.4,             # Velocity during rotation (particles do not stand still)
-    'N': 30,                    # Adjusted to optimize training time and match experiment
+    'N': 25,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,
     'obs_type': '1overR',
@@ -81,7 +81,7 @@ default_parameters = {
     'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 3,               # number of evaluation episodes doen in the end without further training
 
-    'train_frames': 250,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
+    'train_frames': 370,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
     'train_pause': 60,          # number of simulation frames, after which there is one step of training
     'train_actor': True,        # Flag for whether or not to train the actor (useful for changing reward definitions while training)
