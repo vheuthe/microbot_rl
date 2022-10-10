@@ -769,7 +769,8 @@ class MD_ROD():
             value_old = sum(1/dists_old)
 
             # determining the performance from the change in the value
-            performance = value_new - value_old
+            # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
+            performance = value_new # - value_old
 
         return performance
 
