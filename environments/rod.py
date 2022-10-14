@@ -127,6 +127,7 @@ class MD_ROD():
         elif (self.mode == 7): #transport rod to target
             self.n_obs += 5
             self.start_conf = 'transportation'
+            self.rew_mode = 'WLU'
 
         # target is always initialized to have something for the arguments in get_o_r
         self.target = np.zeros((self.n_rod, 2))
@@ -307,7 +308,6 @@ class MD_ROD():
         target[:,1] = np.imag(target_comp).transpose()
 
         return target
-
 
 
     def evolve_MD(self, actions, rot_dir=0, old_rot_dir=0):
@@ -601,7 +601,12 @@ class MD_ROD():
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         # Wolpert and Tumer (2001) do not multiply the performance here.
-        rewards = self.WLU_prefact * contrib # * performance
+        # In the case of the transportatioon problem, the rewards ar cummulated so they
+        # rise from 0 to a constant value upon completion of the task
+        if self.mode == 7:
+            rewards = self.rewards + contrib
+        else:
+            rewards = self.WLU_prefact * contrib
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
@@ -756,17 +761,18 @@ class MD_ROD():
             # The perfrmance is then determined by the change in the "value od the rod.
 
             # complex representations of everything (old and new rod and target)
-            t_c = t[:,0] + 1j *  t[:,1]
-            r_c = r[:,0] + 1j *  r[:,1]
-            olr_c = olr[:,0] + 1j *  olr[:,1]
+            tar_c = t[:,0] + 1j *  t[:,1]
+            rod_c = r[:,0] + 1j *  r[:,1]
+            # olr_c = olr[:,0] + 1j *  olr[:,1]
 
             # determining the distances
-            dists_new = abs(t_c - r_c)
-            dists_old = abs(t_c - olr_c)
+            dists_new = abs(tar_c - rod_c)
+            # dists_old = abs(tar_c - olr_c)
 
-            # determining the values
-            value_new = sum(1/dists_new)
-            value_old = sum(1/dists_old)
+            # The value is linearly decreasing from 100 to 0 over
+            # the distance (from 0 to its initial value):
+            value_new = 100 * (1 - np.mean(dists_new) / self.trans_dist)
+            # value_old = 100 * (1 - np.mean(dists_old) / self.trans_dist)
 
             # determining the performance from the change in the value
             # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
