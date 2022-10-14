@@ -84,22 +84,6 @@ class MD_ROD():
         self.prox_rew = prox_rew                        # factor for reward for being close to the rod
         self.flag_fix_or = flag_fix_or                  # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
 
-        # type of task.
-        # determines reward function, and observation space.
-        # 1 - move rod
-        # 2 - move rod along -x direction
-        # 3 - rotate rod
-        self.rewards = np.zeros(N)
-        self.mode = mode
-        if (self.mode == 2): #directional pushing
-            self.n_obs += 2
-        if (self.mode == 4): #rotation with direction s
-            self.n_obs += 1
-        if (self.mode == 6): #push along long direction
-            self.n_obs += 1
-        if (self.mode == 7): #transport rod to target
-            self.n_obs += 5
-
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
         self.rew_mode = rew_mode                        # 'forces' or 'classic'
@@ -126,6 +110,23 @@ class MD_ROD():
         self.vel_act = vel_act
         self.vel_tor = vel_tor
         self.torque = 1.0 / 350.0 * torque              # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
+
+        # type of task.
+        # determines reward function, and observation space.
+        # 1 - move rod
+        # 2 - move rod along -x direction
+        # 3 - rotate rod
+        self.rewards = np.zeros(N)
+        self.mode = mode
+        if (self.mode == 2): #directional pushing
+            self.n_obs += 2
+        elif (self.mode == 4): #rotation with direction s
+            self.n_obs += 1
+        elif (self.mode == 6): #push along long direction
+            self.n_obs += 1
+        elif (self.mode == 7): #transport rod to target
+            self.n_obs += 5
+            self.start_conf = 'transportation'
 
         # target is always initialized to have something for the arguments in get_o_r
         self.target = np.zeros((self.n_rod, 2))
@@ -291,14 +292,13 @@ class MD_ROD():
         '''
         This adds a target rod random angle and distance self.trans_dist to the origin
         '''
-        # Two random angles in the intervall [-2pi; pi] for the position and the orientation of the rod
+        # Two random angles in the intervall [-pi; pi] for the direction and the orientation of the rod
         pos_angle = 2 * np.pi * np.random.rand(1) - np.pi
         or_angle = 2 * np.pi * np.random.rand(1) - np.pi
 
         # making the position of the target complex
         cm_comp = self.trans_dist * e ** (1j * pos_angle)
         target_ends = np.array([cm_comp + self.l_rod/2 * e ** (1j*or_angle), cm_comp - self.l_rod/2 * e ** (1j*or_angle)])
-        target_comp = np.zeros((self.n_rod, 1))
         target_comp = np.linspace(target_ends[0], target_ends[1], self.n_rod)
 
         # making the position of the target real
