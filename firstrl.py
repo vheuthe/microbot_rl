@@ -80,8 +80,8 @@ class AgentActiveMatter():
 
   def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
                n_actions, load_models, model_structure, approx_flag=False,
-               train_actor=True, reinitialize_critic=False, actor_epochs = 10,
-               critic_epochs = 1,
+               train_actor=True, reinitialize_critic=False, actor_epochs=10,
+               critic_epochs=1, episodic=False,
                **unused_parameters):
     '''
     Constructs a new RL Agent.
@@ -106,6 +106,7 @@ class AgentActiveMatter():
     self.reinitialize_critic = reinitialize_critic          # Whether or not to reinitialize the critic
     self.critic_epochs = critic_epochs                      # How many epochs in training the critic
     self.actor_epochs = actor_epochs                        # How many epochs in training the actor
+    self.episodic = episodic                                # Whether or not the task is episodic
 
     # ------------------------------------------
     if (load_models):
@@ -349,17 +350,27 @@ class AgentActiveMatter():
     # just double check ...
     assert len(traj.obs) - 1 == len(traj.val) - 1 == len(traj.act) == len(traj.logp) == len(traj.rew)
 
-    # adds the states (except the last) and actions choosen for those states to the memory
-    self.observables = np.append(self.observables, np.array(traj.obs[:-1]), axis=0)
-    self.actions = np.append(self.actions, traj.act)
-    self.logp = np.append(self.logp, traj.logp)
-
     # as our episodes have infinite horizon, add the value of the last state as last reward
     # to bootstrap the estimate of the return. The true return can only be calculated if the
     # episode reaches a final state, which is not possible in this scenario.
     # (this additional reward is ignored in the calculation of GAE.)
-    rews = np.append(traj.rew, traj.val[-1])
-    vals = np.array(traj.val)
+    if not self.episodic:
+      rews = np.append(traj.rew, traj.val[-1])
+      vals = np.array(traj.val)
+
+      # adds the states (except the last) and actions choosen for those states to the memory
+      self.observables = np.append(self.observables, np.array(traj.obs[:-1]), axis=0)
+      self.actions = np.append(self.actions, traj.act)
+      self.logp = np.append(self.logp, traj.logp)
+    else:
+      # In the episodic case, everything is one state shorter
+      rews = np.array(traj.rew)
+      vals = np.array(traj.val[0:-1])
+
+      # adds the states (except the last) and actions choosen for those states to the memory
+      self.observables = np.append(self.observables, np.array(traj.obs[:-2]), axis=0)
+      self.actions = np.append(self.actions, traj.act[:-1])
+      self.logp = np.append(self.logp, traj.logp[:-1])
 
     # In the case off approx. diff. rewards, the approximated rewards are subtracted here
     # Since this does not change traj.rew, self.pass_rew contains the raw rewards in the end

@@ -38,7 +38,7 @@ class MD_ROD():
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed',
-                rew_cutoff=60, start_conf='standard', trans_dist=100,
+                rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
         # path for writing the trajectories
@@ -92,6 +92,7 @@ class MD_ROD():
         self.start_conf = start_conf                    # which configuration to start with
         self.WLU_prefact = WLU_prefact                  # prefactor for the differential reward
         self.trans_dist = trans_dist                    # distance over which to transpport the rod in mode 7 (transportation)
+        self.target_tol = target_tol                    # allowed residual cummulative distance between target and rod for completion of the task
         self.WLU_mode = WLU_mode                        # non-existing ('non_ex') or 'passive' particles in det_hypPerformance
         self.n_ep = train_ep                            # is needed in WLU_mode == 'switch'
         self.WLU_noise = WLU_noise                      # noise in determination of performance and hypPerformance for diff Rews
@@ -128,6 +129,7 @@ class MD_ROD():
             self.n_obs += 5
             self.start_conf = 'transportation'
             self.rew_mode = 'WLU'
+            self.task_achieved = False
 
         # target is always initialized to have something for the arguments in get_o_r
         self.target = np.zeros((self.n_rod, 2))
@@ -538,6 +540,31 @@ class MD_ROD():
         Yes, this is computationally very expensive.
         '''
 
+        # Mode 7 needs an exception here: If the rod reaches it's target
+        # (within certain limits defined by target_tol), all particles get a
+        # high reward and the episode is stopped.
+        if self.rew_mode == 7:
+
+            # Calculate the sum of the rod-target distances
+            r = self.rod
+            t = self.target
+            tar_c = t[:,0] + 1j *  t[:,1]
+            rod_c = r[:,0] + 1j *  r[:,1]
+            cumm_dists = sum(abs(tar_c - rod_c))
+
+            # The tolerance for success is a distance of one particle
+            # diameter between all rod and target "particles"
+            if cumm_dists < self.n_rod * 6:
+
+                # Particles all get a high reward (10)
+                rewards = np.full_like(self.particles[0], 10)
+
+                # Flag for task achieced
+                self.task_achieved = True
+
+            return rewards
+
+
         # In the initialization, determining this type of reward is not possible
         if not sum(self.old_actions):
             rewards = np.zeros(self.particles.shape[0])
@@ -755,28 +782,31 @@ class MD_ROD():
             performance = d_cm_lon_new * d_cm_lon_old
 
         elif self.mode == 7: # Transportation problem
-            # The "values" of a certain rod position is determined by
-            # sum_i (1/(d_i + 1))
-            # with all particles i and the distance to the corresponding target particle d_i.
-            # The perfrmance is then determined by the change in the "value od the rod.
+            # A "value" (in the form if a potential) is calculated
+            # from relative position of rod and target.
+            # The "values" of a certain rod position exponentially
+            # decreases from the target. The performance is then
+            # determined by the change in the "value" of the rod.
 
-            # complex representations of everything (old and new rod and target)
+            # complex representations of everything (target, rod and old rod)
             tar_c = t[:,0] + 1j *  t[:,1]
             rod_c = r[:,0] + 1j *  r[:,1]
-            # olr_c = olr[:,0] + 1j *  olr[:,1]
+            olr_c = olr[:,0] + 1j *  olr[:,1]
 
             # determining the distances
             dists_new = abs(tar_c - rod_c)
-            # dists_old = abs(tar_c - olr_c)
+            dists_old = abs(tar_c - olr_c)
 
-            # The value is linearly decreasing from 100 to 0 over
-            # the distance (from 0 to its initial value):
-            value_new = 100 * (1 - np.mean(dists_new) / self.trans_dist)
-            # value_old = 100 * (1 - np.mean(dists_old) / self.trans_dist)
+            # The value is exponentially decreasing with a constant
+            # that reflects the value of the rod being perpendicular
+            # to the target and touching it at one end (like an L)
+            exp_constant = np.sqrt(2) * self.l_rod * self.n_rod / 2
+            value_new = np.exp(-sum(dists_new) / exp_constant)
+            value_old = np.exp(-sum(dists_old) / exp_constant)
 
             # determining the performance from the change in the value
             # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
-            performance = value_new # - value_old
+            performance = value_new - value_old
 
         return performance
 

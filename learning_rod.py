@@ -40,6 +40,7 @@ default_parameters = {
     'rew_cutoff': 60,           # Cutoff for the primitive/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 100,          # distance, over which the rod should be transportet in mode 7
+    'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
     'sparse_rew': False,        # gives only one, random particle a reward every step
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
 
@@ -78,6 +79,7 @@ default_parameters = {
     'fr_rod': 10,               # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD and training part of the simulation
+    'episodic': False,          # flag for truely episodic training
     'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 3,               # number of evaluation episodes doen in the end without further training
 
@@ -147,6 +149,7 @@ def do_task(selected_params, data_dir):
         parameters['n_obs'] = 3 * parameters['cones']
         parameters['start_conf'] = 'transportation'
         parameters['rew_mode'] = 'WLU'
+        parameters['episodic'] = True
 
     if parameters['rew_mode'] == 'approx_diff':
         parameters['approx_flag'] = True
@@ -162,13 +165,25 @@ def do_task(selected_params, data_dir):
         json.dump(parameters, param_file, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     # Now there is training for train_ep episodes (training batch)
-    do_episode_batch(agent, parameters, data_dir, 'training', parameters['train_ep'], parameters['train_frames'], rec_traj=False, train_agent=True, debugging=False)
+    if not parameters["episodic"]:
+        do_episode_batch(
+            agent, parameters, data_dir, 'training',
+            parameters['train_ep'], parameters['train_frames'],
+            rec_traj=False, train_agent=True, debugging=False)
+    else:
+        do_episode_batch_episodic(
+            agent, parameters, data_dir, 'training',
+            parameters['train_ep'], parameters['train_frames'],
+            rec_traj=False, train_agent=True, debugging=False)
 
     # Training is done at this point
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # And then evaluation for eval_ep episodes (evaluation batch)
-    do_episode_batch(agent, parameters, data_dir, 'evaluation', parameters['eval_ep'], parameters['eval_frames'], rec_traj=True, train_agent=False, debugging=False)
+    do_episode_batch(
+        agent, parameters, data_dir, 'evaluation',
+        parameters['eval_ep'], parameters['eval_frames'],
+        rec_traj=True, train_agent=False, debugging=False)
 
 
 
@@ -219,6 +234,76 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
         else:
             rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target = \
                 do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+
+        # In the case of the transportation problem, the target is saved
+        if parameters['mode'] == 7:
+                tar_name = 'traj{}/target'.format(i_ep)
+                store_file.create_dataset(tar_name, compression='gzip', data=target)
+
+    store_file.close()
+
+
+def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
+    '''
+    In the episodic case there is no fixed episode length
+    but the episode stops with p = 1-gamma every step (same
+    as poisson distributed length with).
+    Therefore I need a different setup of the storefile
+    '''
+
+    # n_step_ep is the number of simulation steps (observables -> actions -> evolved environment) in one episode
+    # n_episodes is the number of episodes to be conducted in this batch
+
+    # Decide on the lengths of the episodes (poisson distribution of lengths)
+    poiss_distr_lengths = np.random.poisson(lam=np.round(1/(1-parameters["gamma"])), size=n_episodes)
+
+    # Set up the data storage file in h5 format
+    store_file = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
+
+    for i_ep in range(0, n_episodes):
+
+        # Select the right episode length
+        n_step_ep = poiss_distr_lengths[i_ep]
+
+        if rec_traj:
+            if debugging:
+                # This is for looking at the hypothetical rods and performances, etc.
+                # Execute the episode
+                rewards, rod_or, rod_cm, entropies, values, target, particles, \
+                rod, hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
+                    do_episode(
+                        agent, parameters, n_step_ep, data_dir, i_ep,
+                        rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+
+                # Things that are saved only if rec_traj and debugging
+                store_file.create_dataset('traj{}/hypRods'.format(i_ep), compression='gzip', data=hyp_rod_ang) # hypothetical rods
+                store_file.create_dataset('traj{}/hypPers'.format(i_ep), compression='gzip', data=hyp_perf) # hypothetical performances
+                store_file.create_dataset('traj{}/perf'.format(i_ep), compression='gzip', data=perf) # performance
+                store_file.create_dataset('traj{}/perfRod'.format(i_ep), compression='gzip', data=perf_rod_ang) # rod, from which the performance was determined
+            else:
+                # Execute the episode
+                rewards, rod_or, rod_cm, entropies, values, target, particles, rod = \
+                    do_episode(
+                        agent, parameters, n_step_ep, data_dir, i_ep,
+                        rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+
+            # Things that are saved only if rec_traj
+            store_file.create_dataset('traj{}/rod'.format(i_ep), compression='gzip', data=particles)
+            store_file.create_dataset('traj{}/particles'.format(i_ep), compression='gzip', data=rod)
+
+        else:
+            # Execute the episode
+            rewards, rod_or, rod_cm, entropies, values, target = \
+                do_episode(
+                    agent, parameters, n_step_ep, data_dir, i_ep,
+                    rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+
+        # Things that are saved in every episode whatsoever
+        store_file.create_dataset('traj{}/rewards'.format(i_ep), compression='gzip', data=rewards)
+        store_file.create_dataset('traj{}/rod_or'.format(i_ep), compression='gzip', data=rod_or)
+        store_file.create_dataset('traj{}/rod_cm'.format(i_ep), compression='gzip', data=rod_cm)
+        store_file.create_dataset('traj{}/entropies'.format(i_ep), compression='gzip', data=entropies)
+        store_file.create_dataset('traj{}/values'.format(i_ep), compression='gzip', data=values)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
@@ -300,6 +385,11 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
             # Save checkpoints of both actor and critic for evaluation
             agent.save_weights(os.path.join(data_dir, 'model'), step+1 + i_ep * n_step_ep)
 
+        # In the case of truly episodic tasks, check whether the aim is achieved
+        # and if so, train one last step end the episode early
+        if parameters['episodic'] and environment.task_achieved:
+            agent.train_step()
+            break
 
     agent.finish_episode()
     if not train_agent:
