@@ -336,7 +336,7 @@ class AgentActiveMatter():
     for timesteps beyond the arbitrary episode horizon (or epoch cutoff).
     '''
 
-    if len(traj.obs) < 2:
+    if len(traj.obs) < 2 or (self.episodic and len(traj.obs) < 3):
       # particle seen only for one frame
       # not sufficient to add (s, a, r, s')
       return
