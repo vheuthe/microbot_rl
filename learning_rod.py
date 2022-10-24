@@ -1,12 +1,11 @@
 # Reworked analogous to Robert's learning_food.py, where
 # executing an episode, step, etc. are all functions.
 # TEST WITH MD
+import os
+import json
 import numpy as np
 import scipy
 import h5py
-import os
-import json
-from scipy.stats import entropy as entropy
 
 from environments.rod import MD_ROD
 from firstrl import AgentActiveMatter

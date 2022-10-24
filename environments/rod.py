@@ -1,11 +1,7 @@
 # ---------------------------------------
 import numpy as np
 import math
-import sys
-from scipy.spatial.distance import cdist
-from scipy.stats import entropy
 from math import e
-import time
 import random
 from fortran import evolve_rod_rigid as evolve
 # ---------------------------------------
@@ -541,7 +537,7 @@ class MD_ROD():
         '''
 
         # Mode 7 needs an exception here: If the rod reaches it's target
-        # (within certain limits defined by target_tol), all particles get a
+        # (within certain limits), all particles get a
         # high reward and the episode is stopped.
         if self.rew_mode == 7:
 
@@ -550,7 +546,7 @@ class MD_ROD():
             t = self.target
             tar_c = t[:,0] + 1j *  t[:,1]
             rod_c = r[:,0] + 1j *  r[:,1]
-            cumm_dists = sum(abs(tar_c - rod_c))
+            cumm_dists = min(sum(abs(tar_c - rod_c)), sum(abs(tar_c - np.flip(rod_c))))
 
             # The tolerance for success is a distance of one particle
             # diameter between all rod and target "particles"
@@ -628,12 +624,7 @@ class MD_ROD():
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         # Wolpert and Tumer (2001) do not multiply the performance here.
-        # In the case of the transportatioon problem, the rewards ar cummulated so they
-        # rise from 0 to a constant value upon completion of the task
-        if self.mode == 7:
-            rewards = self.rewards + contrib
-        else:
-            rewards = self.WLU_prefact * contrib
+        rewards = self.WLU_prefact * contrib
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
@@ -788,21 +779,29 @@ class MD_ROD():
             # decreases from the target. The performance is then
             # determined by the change in the "value" of the rod.
 
-            # complex representations of everything (target, rod and old rod)
+            # Complex representations of everything (target, rod and old rod)
             tar_c = t[:,0] + 1j *  t[:,1]
             rod_c = r[:,0] + 1j *  r[:,1]
             olr_c = olr[:,0] + 1j *  olr[:,1]
 
-            # determining the distances
-            dists_new = abs(tar_c - rod_c)
-            dists_old = abs(tar_c - olr_c)
+            # Determining the distances between rod and target particles.
+            # This can be done PARallel or ANTIparallel and the version
+            # with the smaller distances is chosen (further down)
+            dists_new_par = abs(tar_c - rod_c)
+            dists_new_anti = abs(tar_c - np.flip(rod_c))
+            dists_old_par = abs(tar_c - olr_c)
+            dists_old_anti = abs(tar_c - np.flip(olr_c))
 
             # The value is exponentially decreasing with a constant
             # that reflects the value of the rod being perpendicular
             # to the target and touching it at one end (like an L)
-            exp_constant = np.sqrt(2) * self.l_rod * self.n_rod / 2
-            value_new = np.exp(-sum(dists_new) / exp_constant)
-            value_old = np.exp(-sum(dists_old) / exp_constant)
+            exp_constant = self.n_rod
+            value_new = max(
+                sum(np.exp(-dists_new_par / exp_constant)),
+                sum(np.exp(-dists_new_anti / exp_constant)))
+            value_old = max(
+                sum(np.exp(-dists_old_par / exp_constant)),
+                sum(np.exp(-dists_old_anti / exp_constant)))
 
             # determining the performance from the change in the value
             # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
