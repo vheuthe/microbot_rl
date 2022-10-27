@@ -140,6 +140,42 @@ def make_scenario(number):
         # The old rod is the rod rotated by 90 deg
         rod = old_rod * np.exp(1j * np.pi/2)
 
+    elif number == 11:
+        # Rod is rotated around one of its ends
+
+        # The old rod is horizontal and ends at (0|0)
+        old_rod = np.linspace(-environment.l_rod, 0, environment.n_rod)
+
+        # The target is a little further down
+        target = old_rod - 1j * 50
+
+        # The rod is the old rod rotated around its right end away from the target
+        rod = old_rod * np.exp(1j * -np.pi/20)
+
+    elif number == 12:
+        # Rod is rotated around one of its ends (but starting tilted)
+
+        # The rod is horizontal and ends at (0|0)
+        rod = np.linspace(-environment.l_rod, 0, environment.n_rod)
+
+        # The target is a little further down
+        target = rod - 1j * 50
+
+        # The old rod is the rod rotated around its right end away from the target
+        old_rod = rod * np.exp(1j * np.pi/20)
+
+    elif number == 13:
+        # Rod is far from the target, starts parallel and is rotated
+
+        # The old rod is horizontal at (0|0)
+        old_rod = np.linspace(-environment.l_rod/2, environment.l_rod/2, environment.n_rod)
+
+        # The target is further down
+        target = old_rod - 1j * 100
+
+        # The rod is the old rod rotated a little bit
+        rod = old_rod * np.exp(1j * np.pi/20)
+
     # Give everything to the environment
     environment.rod = np.concatenate((np.real(rod).reshape((-1,1)), np.imag(rod).reshape((-1,1))), axis=1)
     environment.target = np.concatenate((np.real(target).reshape((-1,1)), np.imag(target).reshape((-1,1))), axis=1)
@@ -180,4 +216,4 @@ def test_performance(numbers):
 
 
 if __name__ == "__main__":
-    test_performance([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    test_performance([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])

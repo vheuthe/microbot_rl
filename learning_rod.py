@@ -44,12 +44,13 @@ default_parameters = {
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
 
     # for primitive reward
-    'prim_rew_mode': 'close',   # 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
+    'prim_rew_mode': 'close',   # 'primitive', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
 
     # for diff Reward
     'WLU_prefact': 10,          # Prefactor for WLU rewards (1e4 is good for rotation)
     'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
-    'WLU_noise' : 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
+    'WLU_noise': 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
+    'WLU_rew_mode': 'touch',    # which particles are even considered ("touch"/"close")
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment

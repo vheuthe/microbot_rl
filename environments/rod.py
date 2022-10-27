@@ -33,7 +33,7 @@ class MD_ROD():
                 obs_type='1overR', cones=5, cone_angle=180., flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
-                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed',
+                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
@@ -92,6 +92,7 @@ class MD_ROD():
         self.WLU_mode = WLU_mode                        # non-existing ('non_ex') or 'passive' particles in det_hypPerformance
         self.n_ep = train_ep                            # is needed in WLU_mode == 'switch'
         self.WLU_noise = WLU_noise                      # noise in determination of performance and hypPerformance for diff Rews
+        self.WLU_rew_mode = WLU_rew_mode                # which particles are considered for WLU
         self.sparse_rew = sparse_rew                    # gives only one, random particle a reward every step
         self.last_rew_part = []                         # needed for first step in sparse_rew
         self.n_rew_frames = n_rew_frames                # number of frames a particle is rewarded in the sparse_rew==true case
@@ -524,6 +525,10 @@ class MD_ROD():
 
             rewards = self.touch * performance * ref_prefactor # The direction of rotation does not matter.
 
+        elif prim_rew_mode == 'primitive':
+
+            rewards = performance * ref_prefactor # Really all particles get rewarded
+
         return rewards
 
 
@@ -792,20 +797,21 @@ class MD_ROD():
             dists_old_par = abs(tar_c - olr_c)
             dists_old_anti = abs(tar_c - np.flip(olr_c))
 
-            # The value is exponentially decreasing with a constant
-            # that reflects the value of the rod being perpendicular
-            # to the target and touching it at one end (like an L)
-            exp_constant = self.n_rod
+            # The value is linearly decreasing from the target.
             value_new = max(
-                sum(np.exp(-dists_new_par / exp_constant)),
-                sum(np.exp(-dists_new_anti / exp_constant)))
+                sum(-dists_new_par),
+                sum(-dists_new_anti))
             value_old = max(
-                sum(np.exp(-dists_old_par / exp_constant)),
-                sum(np.exp(-dists_old_anti / exp_constant)))
+                sum(-dists_old_par),
+                sum(-dists_old_anti))
+
+            # The values get normalized by a constant,
+            # such that the performance gives proper rewards
+            norm_constant = self.n_rod
 
             # determining the performance from the change in the value
             # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
-            performance = value_new - value_old
+            performance = (value_new - value_old) / norm_constant
 
         return performance
 
@@ -862,7 +868,7 @@ class MD_ROD():
         # or make it passive (WLU_mode = 'passive') and simulate one step.
         for i in range(self.particles.shape[0]):
 
-            if (distances[i] <= self.rew_cutoff) or touch[i] :
+            if (self.WLU_rew_mode == 'close' and (distances[i] <= self.rew_cutoff)) or (self.WLU_rew_mode == 'touch' and touch[i]):
 
                 if self.WLU_mode == 'non_ex':
                     # Make particle i non-existing
