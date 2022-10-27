@@ -527,7 +527,7 @@ class MD_ROD():
 
         elif prim_rew_mode == 'primitive':
 
-            rewards = performance * ref_prefactor # Really all particles get rewarded
+            rewards = np.full_like(self.touch, performance * ref_prefactor) # Really all particles get rewarded
 
         return rewards
 
@@ -630,6 +630,12 @@ class MD_ROD():
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         # Wolpert and Tumer (2001) do not multiply the performance here.
         rewards = self.WLU_prefact * contrib
+
+        # Exception for mode 7:
+        # To encourage particles to interact with the rods,
+        # all negative rewards are only counted half
+        if self.mode == 7:
+            rewards[rewards < 0] = rewards[rewards < 0] / 2
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
