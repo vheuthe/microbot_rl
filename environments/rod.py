@@ -631,6 +631,13 @@ class MD_ROD():
         # Wolpert and Tumer (2001) do not multiply the performance here.
         rewards = self.WLU_prefact * contrib
 
+        # To encourage particles to interact with the rods,
+        # all particles touching the rod get a small reward
+        # (should be much smaller than the rewards generated
+        # by pushing the rod to the target, 0.1 should be fine)
+        if self.mode == 7:
+            rewards[self.touch] = rewards[self.touch] + 0.1
+
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
 
@@ -731,7 +738,8 @@ class MD_ROD():
         # all particles touching the rod get a small reward
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
-        rewards[self.touch] = rewards[self.touch] + 0.1
+        if self.mode == 7:
+            rewards[self.touch] = rewards[self.touch] + 0.1
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for latter two)
