@@ -725,7 +725,13 @@ class MD_ROD():
             contrib = experiment_performance - hyp_perf * experiment_performance/virtual_performance
 
         # Wolpert and Tumer (2001) do not multiply the performance here.
-        rewards = self.WLU_prefact * contrib # * performance
+        rewards = self.WLU_prefact * contrib
+
+        # To encourage particles to interact with the rods,
+        # all particles touching the rod get a small reward
+        # (should be much smaller than the rewards generated
+        # by pushing the rod to the target, 0.1 should be fine)
+        rewards[self.touch] = rewards[self.touch] + 0.1
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for latter two)
@@ -812,12 +818,6 @@ class MD_ROD():
             # determining the performance from the change in the value
             # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
             performance = (value_new - value_old) / norm_constant
-
-            # To encourage particles to interact with the rods,
-            # all particles touching the rod get a small reward
-            # (should be much smaller than the rewards generated
-            # by pushing the rod to the target, 0.1 should be fine)
-            performance[self.touch] = performance[self.touch] + 0.1 / self.WLU_prefact
 
         return performance
 
