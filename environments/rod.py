@@ -631,12 +631,6 @@ class MD_ROD():
         # Wolpert and Tumer (2001) do not multiply the performance here.
         rewards = self.WLU_prefact * contrib
 
-        # Exception for mode 7:
-        # To encourage particles to interact with the rods,
-        # all negative rewards are only counted half
-        if self.mode == 7:
-            rewards[rewards < 0] = rewards[rewards < 0] / 2
-
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
 
@@ -818,6 +812,12 @@ class MD_ROD():
             # determining the performance from the change in the value
             # (without subtracting the old value, since this would give a reward of 0 when the particles have achieved their goal)
             performance = (value_new - value_old) / norm_constant
+
+            # To encourage particles to interact with the rods,
+            # all particles touching the rod get a small reward
+            # (should be much smaller than the rewards generated
+            # by pushing the rod to the target, 0.1 should be fine)
+            performance[self.touch] = performance[self.touch] + 0.1 / self.WLU_prefact
 
         return performance
 
