@@ -15,7 +15,6 @@ from firstrl import AgentActiveMatter
 default_parameters = {
 
     # RL Agent
-    'n_obs': 10,
     'n_actions': 4,
     'en_coeff': 0.01,
     'CL': 0.03,
@@ -28,6 +27,13 @@ default_parameters = {
     'actor_epochs': 50,
     'critic_epochs': 1,
     'load_models': None,
+
+    # Vision
+    'obs_type': '1overR',
+    'cones': 5,
+    'cone_angle': 180,
+    'flag_side': True,
+    'flag_LOS': False,
 
     # For Rewards
     'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
@@ -58,11 +64,6 @@ default_parameters = {
     'N': 25,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,
-    'obs_type': '1overR',
-    'cones': 5,
-    'cone_angle': 180,
-    'flag_side': False,
-    'flag_LOS': False,
     'start_conf': 'standard',   # 'standard' or 'biased' or 'test_friction' or 'transportation'
     'skew': False,              # Flag for if the initialization positions are all on one side
     'Dt': 0.014,                # translational diffusion coefficient
