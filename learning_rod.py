@@ -31,8 +31,8 @@ default_parameters = {
     # Vision
     'obs_type': '1overR',
     'cones': 5,
-    'cone_angle': 180,
-    'flag_side': True,
+    'cone_angle': np.pi,
+    'flag_side': False,
     'flag_LOS': False,
 
     # For Rewards

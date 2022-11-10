@@ -12,6 +12,7 @@ def make_scenario(number):
     '''
     Making different scenarios in which to test the reward function
     '''
+
     # Import the parameters first
     with open('./files_for_testing/parameters.json', 'r') as reader:
         parameters = json.load(reader)
