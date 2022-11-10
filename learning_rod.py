@@ -18,7 +18,7 @@ default_parameters = {
     'n_actions': 4,
     'en_coeff': 0.01,
     'CL': 0.03,
-    'gamma': 0.999,
+    'gamma': 0.997,
     'lam': 0.97,
     'lr_pi': 0.0005,
     'lr_v': 0.00004,

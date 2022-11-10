@@ -739,7 +739,7 @@ class MD_ROD():
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
         if self.mode == 7:
-            rewards[self.touch] = rewards[self.touch] + 0.1
+            rewards[self.touch == 1] = rewards[self.touch == 1] + 0.1
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for latter two)
