@@ -3,7 +3,6 @@ import numpy as np
 import math
 from math import e
 import random
-import matplotlib.pyplot as plt
 from fortran import evolve_rod_rigid as evolve
 # ---------------------------------------
 
@@ -885,11 +884,6 @@ class MD_ROD():
         for i in range(self.particles.shape[0]):
 
             if (self.WLU_rew_mode == 'close' and (distances[i] <= self.rew_cutoff)) or (self.WLU_rew_mode == 'touch' and touch[i]):
-
-                ax = plt.axes()
-                ax.scatter(self.old_part[:,0], self.old_part[:,1], color="blue")
-                ax.scatter(self.old_part[np.where(touch),0], self.old_part[np.where(touch),1], color="red")
-
 
                 if self.WLU_mode == 'non_ex':
                     # Make particle i non-existing
