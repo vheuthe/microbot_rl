@@ -52,6 +52,8 @@ def get_environment():
     with open('./files_for_testing/parameters.json', 'r') as reader:
         parameters = json.load(reader)
     parameters['mode'] = 7
+    parameters['cones'] = 10
+    parameters['cone_angle'] = 2 * np.pi
 
     # Initialize the environment
     env = MD_ROD(**parameters)
@@ -78,7 +80,7 @@ def make_configuration(env):
     target = rod + 30
 
     # There are two particles looking toward both rod and target from the left
-    particles = np.array([[-40, 30, -np.pi/8], [-40, -30, np.pi/4]])
+    particles = np.array([[-40, 30, np.pi * 7/8], [-40, -30, np.pi * 3/4]])
 
     # Give everything to the environment
     env.rod = np.concatenate((np.real(rod).reshape((-1,1)), np.imag(rod).reshape((-1,1))), axis=1)

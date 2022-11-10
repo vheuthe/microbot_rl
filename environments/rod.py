@@ -31,7 +31,7 @@ class MD_ROD():
                 int_steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
                 fr_rod=10., inert_rod=1., l_rod=100, n_rod=60, ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
                 Dt=0.014, Dr=1.0 / 350.0,
-                obs_type='1overR', n_obs = 5, cones=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
+                obs_type='1overR', cones=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
@@ -59,7 +59,6 @@ class MD_ROD():
         self.cone_angle = cone_angle
         self.flag_side = int(flag_side)
         self.flag_LOS = int(flag_LOS)
-        self.n_obs = n_obs
         #print('AT _INIT_ n_obs = {}'.format(self.n_obs))
 
         assert (not (flag_side and flag_LOS)), 'Having LOS and view across rod together makes no sense.'
@@ -118,15 +117,15 @@ class MD_ROD():
         self.rewards = np.zeros(N)
         self.mode = mode
         if (self.mode == 2): #directional pushing
-            self.n_obs += 2
+            self.n_obs = 2 * cones
         elif (self.mode == 3):
-            self.n_obs += 5
+            self.n_obs = 2 * cones
         elif (self.mode == 4): #rotation with direction s
-            self.n_obs += 1
+            self.n_obs = 2 * cones + 1
         elif (self.mode == 6): #push along long direction
             self.n_obs += 1
         elif (self.mode == 7): #transport rod to target
-            self.n_obs += 10
+            self.n_obs = 3 * cones
             self.start_conf = 'transportation'
             self.rew_mode = 'WLU'
             self.task_achieved = False
