@@ -727,7 +727,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
             ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then
-                val = min((true_ssrod)/r*fact(j),1.0)
+                val = min((true_ssrod)/r*fact(j), 1.0)
                 if (isnan(val)) then
                     print*, 'Nan in val', val, r, fact(j), true_ssrod, i, j, size(fact) ! ZZZ
                 endif

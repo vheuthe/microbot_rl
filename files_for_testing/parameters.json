@@ -1,5 +1,4 @@
 {
-    "n_obs": 10,
     "n_actions": 4,
     "en_coeff": 0.01,
     "CL": 0.03,
@@ -46,7 +45,7 @@
     "part_size": 0.01,
     "obs_type": "1overR",
     "cones": 5,
-    "cone_angle": 180,
+    "cone_angle": 3.1415926,
     "flag_side": false,
     "flag_LOS": false,
     "start_conf": "standard",
