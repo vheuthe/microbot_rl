@@ -506,6 +506,13 @@ class MD_ROD():
 
         performance = self.det_performance(self.rod)
 
+        # r = self.rod
+        # olr = self.old_rod
+        # rod_theta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
+        # d_theta_uncorr = rod_theta - np.angle(complex(olr[-1,0] - olr[0,0], olr[-1,1] - olr[0,1])) # Still can have jumps
+        # d_theta = d_theta_uncorr - np.floor(d_theta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
+        # performance = abs(d_theta)
+
         if self.mode == 3: # Rotation
             ref_prefactor = self.r_rew_fact
         elif self.mode == 6: # Long. Trans.
@@ -531,7 +538,7 @@ class MD_ROD():
 
         elif prim_rew_mode == 'primitive':
 
-            rewards = np.full_like(self.touch, performance * ref_prefactor) # Really all particles get rewarded
+            rewards = np.full_like(self.touch, performance * ref_prefactor, dtype=np.double) # Really all particles get rewarded
 
         return rewards
 
