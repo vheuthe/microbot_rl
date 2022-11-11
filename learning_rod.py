@@ -11,7 +11,6 @@ from environments.rod import MD_ROD
 from firstrl import AgentActiveMatter
 
 
-
 default_parameters = {
 
     # RL Agent
@@ -95,7 +94,6 @@ default_parameters = {
 }
 
 
-
 def do_array_task(task_id, job_dir): # Copied from Robert
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
@@ -121,7 +119,6 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     )
 
     do_task(selected_params, data_dir)
-
 
 
 def do_task(selected_params, data_dir):
@@ -185,7 +182,6 @@ def do_task(selected_params, data_dir):
         agent, parameters, data_dir, 'evaluation',
         parameters['eval_ep'], parameters['eval_frames'],
         rec_traj=True, train_agent=False, debugging=False)
-
 
 
 def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
@@ -289,8 +285,8 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, n_s
                         rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
             # Things that are saved only if rec_traj
-            store_file.create_dataset('traj{}/rod'.format(i_ep), compression='gzip', data=particles)
-            store_file.create_dataset('traj{}/particles'.format(i_ep), compression='gzip', data=rod)
+            store_file.create_dataset('traj{}/particles'.format(i_ep), compression='gzip', data=particles)
+            store_file.create_dataset('traj{}/rod'.format(i_ep), compression='gzip', data=rod)
 
         else:
             # Execute the episode
@@ -312,7 +308,6 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, n_s
                 store_file.create_dataset(tar_name, compression='gzip', data=target)
 
     store_file.close()
-
 
 
 def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, train_agent=False, debugging=False):
@@ -353,8 +348,11 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
         # The environment is updated according to the selected actions
         obs, rewards, rod_theta, rod_com = environment.evolve_MD(actions)
 
+        # Determine if the episode should end
+        final = environment.task_achieved or step == n_step_ep
+
         # Add the environment response to the knowledge od the agent
-        values = agent.add_environment_response(environment.lost, obs, rewards)
+        values = agent.add_environment_response(environment.lost, obs, rewards, final=final)
 
         # Save the important information in the h5 file
         mean_rew[step] = np.mean(rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1))
@@ -379,7 +377,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
                 perf_rod_ang[step] = environment.perf_rod_ang
 
         # Train the agent
-        if train_agent and (step+1) % parameters['train_pause'] == 0:
+        if train_agent and ((step+1) % parameters['train_pause'] == 0 or final):
             agent.train_step()
             agent.initialize(obs)
 
@@ -387,9 +385,8 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
             agent.save_weights(os.path.join(data_dir, 'model'), step+1 + i_ep * n_step_ep)
 
         # In the case of truly episodic tasks, check whether the aim is achieved
-        # and if so, train one last step end the episode early
-        if parameters['episodic'] and environment.task_achieved:
-            agent.train_step()
+        # and if so, end the episode early
+        if final:
             break
 
     agent.finish_episode()

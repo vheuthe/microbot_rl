@@ -37,6 +37,10 @@ class MD_ROD():
                 rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
+        # The task is always not achieved in the beginning
+        # (whether or not it can be achieved)
+        self.task_achieved = False
+
         # path for writing the trajectories
         self.data_path = data_path
         # internal knowledge of system
@@ -127,7 +131,6 @@ class MD_ROD():
             self.n_obs = 3 * cones
             self.start_conf = 'transportation'
             self.rew_mode = 'WLU'
-            self.task_achieved = False
 
         # target is always initialized to have something for the arguments in get_o_r
         self.target = np.zeros((self.n_rod, 2))
@@ -545,7 +548,7 @@ class MD_ROD():
         # Mode 7 needs an exception here: If the rod reaches it's target
         # (within certain limits), all particles get a
         # high reward and the episode is stopped.
-        if self.rew_mode == 7:
+        if self.mode == 7:
 
             # Calculate the sum of the rod-target distances
             r = self.rod
@@ -559,13 +562,11 @@ class MD_ROD():
             if cumm_dists < self.n_rod * 6:
 
                 # Particles all get a high reward (10)
-                rewards = np.full_like(self.particles[0], 10)
+                rewards = np.full_like(self.rewards, 10)
 
-                # Flag for task achieced
+                # End the episode
                 self.task_achieved = True
-
-            return rewards
-
+                return rewards
 
         # In the initialization, determining this type of reward is not possible
         if not sum(self.old_actions):

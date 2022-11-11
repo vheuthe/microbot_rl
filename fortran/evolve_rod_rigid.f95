@@ -448,7 +448,7 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
     real, intent(in) :: ss,  ssrod_ext, mR, ext_rod, cen_rod
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
     real :: dRodtheta, dRod, Rodtheta
-    real :: rotRod, cone_angle_reduced, cone_slice, fact(Nrod)
+    real :: rotRod, cone_slice, fact(Nrod)
     real, allocatable :: edge(:)
     real :: a, b, torque, rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
@@ -723,8 +723,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
             !     print*, 'Nan in sp_th', sp_th, ssrod, i, j ! ZZZ
             ! endif
             ! -----------------------------
-            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
-            ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then
                 val = min((true_ssrod)/r*fact(j), 1.0)
@@ -803,8 +801,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 th = (th - floor(th + 0.5))*2*PI
                 sp_th = atan(ssrod, r)/2. + 0.0000000001
                 ! -----------------------------
-                n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
-                ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
                 if (obs_type == 1) then
                     val = min((true_ssrod)/r*fact(j),1.0)
@@ -1081,7 +1077,7 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
     real :: dx2, dy2, r2, dtheta2, dark, sp_th, ssrod, true_ss, true_ssrod
     real, intent(in) :: ss,  ssrod_ext, mR
     real :: covered_l, covered_r, vision_l, vision_r, in_sight=0., ss_touch=6.8
-    real :: dRodtheta, dRod, rotRod, cone_angle_reduced, cone_slice
+    real :: dRodtheta, dRod, rotRod, cone_slice
     real, allocatable :: edge(:)
     real :: a, b, torque, near2(N), rod_L, min_dist(N)
     real, parameter :: PI = 3.14159265358979323846264
@@ -1325,8 +1321,6 @@ subroutine  get_o_r_rod_differential(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, 
             th = (th - floor(th + 0.5))*2*PI
             sp_th = atan(ssrod, r)/2. + 0.0000000001
             ! -----------------------------
-            n_cone = floor( (th + cone_angle_reduced)/(2.*cone_angle_reduced) * cones )+1
-            ! print*, X(i), Y(i), Theta(i), Xrod(j), Yrod(j), th, n_cone
 
             if (obs_type == 1) then
                 val = min((true_ssrod)/r,1.0)

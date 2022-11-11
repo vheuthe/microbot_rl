@@ -272,7 +272,7 @@ class AgentActiveMatter():
     return actions, logp
 
 
-  def add_environment_response(self, lost, observables, rewards):
+  def add_environment_response(self, lost, observables, rewards, final=False):
     '''
     Update the Agent with the rewards for the last actions and the new states.
 
@@ -291,7 +291,10 @@ class AgentActiveMatter():
         self.finish_trajectory(self.particles.pop(ID_lost))
 
     # Estimate value of new states
-    values = self.critic(observables).numpy().reshape(-1)
+    if final:
+      values = np.zeros(rewards.shape)
+    else:
+      values = self.critic(observables).numpy().reshape(-1)
 
     # For debugging
     if np.isnan(rewards).any() or np.isnan(observables).any() or np.isnan(values).any():
@@ -349,42 +352,27 @@ class AgentActiveMatter():
 
     # just double check ...
     assert len(traj.obs) - 1 == len(traj.val) - 1 == len(traj.act) == len(traj.logp) == len(traj.rew)
+    rews = np.array(traj.rew)
+    vals = np.array(traj.val)
 
-    # as our episodes have infinite horizon, add the value of the last state as last reward
-    # to bootstrap the estimate of the return. The true return can only be calculated if the
-    # episode reaches a final state, which is not possible in this scenario.
-    # (this additional reward is ignored in the calculation of GAE.)
-    if not self.episodic:
-      rews = np.append(traj.rew, traj.val[-1])
-      vals = np.array(traj.val)
-
-      # adds the states (except the last) and actions choosen for those states to the memory
-      self.observables = np.append(self.observables, np.array(traj.obs[:-1]), axis=0)
-      self.actions = np.append(self.actions, traj.act)
-      self.logp = np.append(self.logp, traj.logp)
-    else:
-      # In the episodic case, everything is one state shorter
-      rews = np.array(traj.rew)
-      vals = np.array(traj.val[0:-1])
-
-      # adds the states (except the last) and actions choosen for those states to the memory
-      self.observables = np.append(self.observables, np.array(traj.obs[:-2]), axis=0)
-      self.actions = np.append(self.actions, traj.act[:-1])
-      self.logp = np.append(self.logp, traj.logp[:-1])
+    # adds the states (except the last) and actions choosen for those states to the memory
+    self.observables = np.append(self.observables, np.array(traj.obs[:-1]), axis=0)
+    self.actions = np.append(self.actions, traj.act)
+    self.logp = np.append(self.logp, traj.logp)
 
     # In the case off approx. diff. rewards, the approximated rewards are subtracted here
     # Since this does not change traj.rew, self.pass_rew contains the raw rewards in the end
     if self.approx_flag:
-      rews = rews - self.approx(np.array(traj.obs)).numpy().reshape(-1)
+      rews = rews - self.approx(np.array(traj.obs)[:-1]).numpy().reshape(-1)
 
     # compute Generalized Advantage Estimate to train policy
     # (for details, see https://arxiv.org/abs/1506.02438v6)
-    deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
+    deltas = rews + self.gamma * vals[1:] - vals[:-1]
 
     self.advantage = np.append(self.advantage, discount_cumsum(deltas, self.gamma * self.lam))
 
-    # compute estimated return as target for the value function
-    self.estimated_return = np.append(self.estimated_return, discount_cumsum(rews, self.gamma)[:-1])
+    # compute estimated return (+ bootstrap value) as target for the value function
+    self.estimated_return = np.append(self.estimated_return, discount_cumsum(np.append(rews, vals[-1]), self.gamma)[:-1])
 
     # Append the observables and rewards for all states from which a passive action was chosen
     # in order to train the reward approximater to that data
