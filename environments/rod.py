@@ -34,7 +34,7 @@ class MD_ROD():
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
-                rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120,
+                rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120, final_rew=1000,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
         # The task is always not achieved in the beginning
@@ -82,6 +82,7 @@ class MD_ROD():
         self.close_pen = close_pen                      # factor for penalizing closenes (nearest neighbor)
         self.prox_rew = prox_rew                        # factor for reward for being close to the rod
         self.flag_fix_or = flag_fix_or                  # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
+        self.final_rew = final_rew                      # The reward upon achieved task for truely episodic learning
 
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
@@ -569,11 +570,17 @@ class MD_ROD():
             if cumm_dists < self.n_rod * 6:
 
                 # Particles all get a high reward (10)
-                rewards = np.full_like(self.rewards, 10)
+                rewards = np.full_like(self.rewards, self.final_rew)
 
                 # End the episode
                 self.task_achieved = True
                 return rewards
+
+            import matplotlib.pyplot as plt
+            test_ax = plt.axes()
+            test_ax.scatter(np.real(tar_c), np.imag(tar_c))
+            test_ax.scatter(np.real(rod_c), np.imag(rod_c))
+            test_ax.axis('equal')
 
         # In the initialization, determining this type of reward is not possible
         if not sum(self.old_actions):

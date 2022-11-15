@@ -47,6 +47,8 @@ default_parameters = {
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
     'sparse_rew': False,        # gives only one, random particle a reward every step
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
+    'final_rew': 1000,          # the reward upon achieved task for truely episodic learning
+    'bootstrap': False,         # flag for bootstrapping in episodic tasks
 
     # for primitive reward
     'prim_rew_mode': 'close',   # 'primitive', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
@@ -88,6 +90,7 @@ default_parameters = {
     'train_pause': 60,          # number of simulation frames, after which there is one step of training
     'train_actor': True,        # Flag for whether or not to train the actor (useful for changing reward definitions while training)
     'reinitialize_critic': False,
+    'record_traj': False,       # whether or not the full training trajectory is recorded
 
     'int_steps': 900,           # number of times, the integration is performed in each simulation step
     'dt': 0.001                 # time step of integration in simulations
@@ -167,21 +170,27 @@ def do_task(selected_params, data_dir):
         do_episode_batch(
             agent, parameters, data_dir, 'training',
             parameters['train_ep'], parameters['train_frames'],
-            rec_traj=False, train_agent=True, debugging=False)
+            rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
     else:
         do_episode_batch_episodic(
             agent, parameters, data_dir, 'training',
             parameters['train_ep'], parameters['train_frames'],
-            rec_traj=False, train_agent=True, debugging=False)
+            rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
 
     # Training is done at this point
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # And then evaluation for eval_ep episodes (evaluation batch)
-    do_episode_batch(
-        agent, parameters, data_dir, 'evaluation',
-        parameters['eval_ep'], parameters['eval_frames'],
-        rec_traj=True, train_agent=False, debugging=False)
+    if not parameters["episodic"]:
+        do_episode_batch(
+            agent, parameters, data_dir, 'evaluation',
+            parameters['eval_ep'], parameters['eval_frames'],
+            rec_traj=True, train_agent=False, debugging=False)
+    else:
+        do_episode_batch_episodic(
+            agent, parameters, data_dir, 'evaluation',
+            parameters['eval_ep'], parameters['eval_frames'],
+            rec_traj=True, train_agent=False, debugging=False)
 
 
 def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):

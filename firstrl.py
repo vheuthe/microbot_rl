@@ -81,7 +81,7 @@ class AgentActiveMatter():
   def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
                n_actions, load_models, model_structure, approx_flag=False,
                train_actor=True, reinitialize_critic=False, actor_epochs=10,
-               critic_epochs=1, episodic=False,
+               critic_epochs=1, episodic=False, bootstrap=False
                **unused_parameters):
     '''
     Constructs a new RL Agent.
@@ -107,6 +107,7 @@ class AgentActiveMatter():
     self.critic_epochs = critic_epochs                      # How many epochs in training the critic
     self.actor_epochs = actor_epochs                        # How many epochs in training the actor
     self.episodic = episodic                                # Whether or not the task is episodic
+    self.bootstrap = bootstrap                              # whether or not to bootstrap in episodic tasks
 
     # ------------------------------------------
     if (load_models):
@@ -291,7 +292,7 @@ class AgentActiveMatter():
         self.finish_trajectory(self.particles.pop(ID_lost))
 
     # Estimate value of new states
-    if final:
+    if final and not self.bootstrap:
       values = np.zeros(rewards.shape)
     else:
       values = self.critic(observables).numpy().reshape(-1)
