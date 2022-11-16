@@ -35,15 +35,15 @@ default_parameters = {
     'flag_LOS': False,
 
     # For Rewards
-    'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'WLU_experiment',# Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
+    'mode': 7,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
+    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 100,          # Reward prefactor for rotation rewards for rewards based on forces
     'p_rew_fact': 5,            # Reward prefactor for pushing in long difection
     'rew_cutoff': 60,           # Cutoff for the primitive/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
-    'trans_dist': 100,          # distance, over which the rod should be transportet in mode 7
+    'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
     'sparse_rew': False,        # gives only one, random particle a reward every step
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
@@ -78,12 +78,12 @@ default_parameters = {
     # 'distRod': 1.6,           # is calculated in environments/rod.py from the size and the number of rod particles
     'ext_rod': 1.,
     'cen_rod': 1.,
-    'fr_rod': 10,               # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
+    'fr_rod': 3,                # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD and training part of the simulation
     'episodic': False,          # flag for truely episodic training
-    'train_ep': 100,            # number of episodes conducted during the whole training (replaces n_MD)
-    'eval_ep': 3,               # number of evaluation episodes doen in the end without further training
+    'train_ep': 200,            # number of episodes conducted during the whole training (replaces n_MD)
+    'eval_ep': 5,               # number of evaluation episodes doen in the end without further training
 
     'train_frames': 370,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode

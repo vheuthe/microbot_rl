@@ -576,12 +576,6 @@ class MD_ROD():
                 self.task_achieved = True
                 return rewards
 
-            import matplotlib.pyplot as plt
-            test_ax = plt.axes()
-            test_ax.scatter(np.real(tar_c), np.imag(tar_c))
-            test_ax.scatter(np.real(rod_c), np.imag(rod_c))
-            test_ax.axis('equal')
-
         # In the initialization, determining this type of reward is not possible
         if not sum(self.old_actions):
             rewards = np.zeros(self.particles.shape[0])
