@@ -3,7 +3,6 @@ import os
 import numpy as np
 import tensorflow as tf
 import scipy.signal
-import copy
 import pickle
 
 tf.keras.backend.set_floatx('float32')
@@ -340,7 +339,7 @@ class AgentActiveMatter():
     for timesteps beyond the arbitrary episode horizon (or epoch cutoff).
     '''
 
-    if len(traj.obs) < 2 or (self.episodic and len(traj.obs) < 3):
+    if len(traj.obs) < 2:
       # particle seen only for one frame
       # not sufficient to add (s, a, r, s')
       return

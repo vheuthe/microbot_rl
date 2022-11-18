@@ -387,7 +387,15 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
 
         # Train the agent
         if train_agent and ((step+1) % parameters['train_pause'] == 0 or final):
-            agent.train_step()
+            try:
+                agent.train_step()
+            except ValueError as e:
+                print("Error in train step:", e)
+                print("Observables", agent.observables)
+                print("Estimated Return", agent.estimated_return)
+                print("Step:", step)
+                print("Episode:", i_ep)
+
             agent.initialize(obs)
 
             # Save checkpoints of both actor and critic for evaluation
