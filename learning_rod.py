@@ -44,11 +44,13 @@ default_parameters = {
     'rew_cutoff': 60,           # Cutoff for the primitive/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
+    'trans_dist_ramp': True,    # ramp up the trans_dist from 10 to trans_dist
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
     'sparse_rew': False,        # gives only one, random particle a reward every step
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
     'final_rew': 1000,          # the reward upon achieved task for truely episodic learning
-    'bootstrap': False,         # flag for bootstrapping in episodic tasks
+    'bootstrap': True,          # flag for bootstrapping in episodic tasks
+    'cost_iso_rew': False,      # cost instead of reward in episodic task mode 7
 
     # for primitive reward
     'prim_rew_mode': 'close',   # 'primitive', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
@@ -270,6 +272,10 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, n_s
 
         # Select the right episode length
         n_step_ep = poiss_distr_lengths[i_ep]
+
+        # Ramp up the trans_dist if required (but not in the evaluation)
+        if train_agent and parameters['trans_dist_ramp']:
+            parameters['trans_dist'] = min(10 + i_ep * (parameters['trans_dist'] - 10)/(n_episodes - 10), parameters['trans_dist'])
 
         if rec_traj:
             if debugging:

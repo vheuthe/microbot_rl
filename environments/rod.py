@@ -34,7 +34,7 @@ class MD_ROD():
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
-                rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120, final_rew=1000,
+                rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
         # The task is always not achieved in the beginning
@@ -83,6 +83,7 @@ class MD_ROD():
         self.prox_rew = prox_rew                        # factor for reward for being close to the rod
         self.flag_fix_or = flag_fix_or                  # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
         self.final_rew = final_rew                      # The reward upon achieved task for truely episodic learning
+        self.cost_iso_rew = cost_iso_rew                # Cost instead of reward in episodic task mode 7
 
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
@@ -648,9 +649,15 @@ class MD_ROD():
         if self.mode == 7:
             rewards[self.touch == 1] = rewards[self.touch == 1] + 0.1
 
+        # If required do not use rewards but a cost. This is achieved by subtracting
+        # an estimate of the optimal reward a particle has (from looking at
+        # previous data: the average maximum reward is about 1) from the actual reward,
+        # such that in the optimal case a reward of about 0 is reached
+        if self.cost_iso_rew:
+            rewards = rewards - 1
+
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for lattter two)
-
         perf_rod_ang = np.angle(complex(perf_rod[-1,0] - perf_rod[0,0], perf_rod[-1,1] - perf_rod[0,1]))
 
         self.hyp_rod_ang = hyp_rod_ang
