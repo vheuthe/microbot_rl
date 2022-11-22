@@ -45,6 +45,7 @@ default_parameters = {
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
     'trans_dist_ramp': True,    # ramp up the trans_dist from 10 to trans_dist
+    'max_trans_dist': 100,      # maximum distance ofer which to transport the rod with ramping trans_dist
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
     'sparse_rew': False,        # gives only one, random particle a reward every step
     'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
@@ -275,7 +276,7 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, n_s
 
         # Ramp up the trans_dist if required (but not in the evaluation)
         if train_agent and parameters['trans_dist_ramp']:
-            parameters['trans_dist'] = min(10 + i_ep * (parameters['trans_dist'] - 10)/(n_episodes - 10), parameters['trans_dist'])
+            parameters['trans_dist'] = min(10 + i_ep * (parameters['max_trans_dist'] - 10)/(n_episodes - 10), parameters['max_trans_dist'])
 
         if rec_traj:
             if debugging:
