@@ -85,9 +85,10 @@ default_parameters = {
     'fr_rod': 3,                # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD and training part of the simulation
-    'episodic': False,          # flag for truely episodic training
+    'episodic': True,          # flag for truely episodic training
     'train_ep': 200,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 5,               # number of evaluation episodes doen in the end without further training
+    'episodic_eval': True,      # In case of episodic task, is the evaluation episodic or not?
 
     'train_frames': 370,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
@@ -147,14 +148,15 @@ def do_task(selected_params, data_dir):
     # so one does not have to specify the parameters dependant on the mode.
     if parameters['mode'] == 3:
         parameters['n_obs'] = 2 * parameters['cones']
+        parameters['episodic'] = False
     elif parameters['mode'] == 6:
         parameters['n_obs'] = 2 * parameters['cones'] + 1
         parameters['start_conf'] = 'standard'
+        parameters['episodic'] = False
     elif parameters['mode'] == 7:
         parameters['n_obs'] = 3 * parameters['cones']
         parameters['start_conf'] = 'transportation'
         parameters['rew_mode'] = 'WLU'
-        parameters['episodic'] = True
 
     if parameters['rew_mode'] == 'approx_diff':
         parameters['approx_flag'] = True
@@ -170,13 +172,13 @@ def do_task(selected_params, data_dir):
         json.dump(parameters, param_file, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
     # Now there is training for train_ep episodes (training batch)
-    if not parameters["episodic"]:
-        do_episode_batch(
+    if parameters["episodic"]:
+        do_episode_batch_episodic(
             agent, parameters, data_dir, 'training',
             parameters['train_ep'], parameters['train_frames'],
             rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
     else:
-        do_episode_batch_episodic(
+        do_episode_batch(
             agent, parameters, data_dir, 'training',
             parameters['train_ep'], parameters['train_frames'],
             rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
@@ -185,13 +187,13 @@ def do_task(selected_params, data_dir):
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # And then evaluation for eval_ep episodes (evaluation batch)
-    if not parameters["episodic"]:
-        do_episode_batch(
+    if parameters["episodic"] and parameters["episodic_eval"]:
+        do_episode_batch_episodic(
             agent, parameters, data_dir, 'evaluation',
             parameters['eval_ep'], parameters['eval_frames'],
             rec_traj=True, train_agent=False, debugging=False)
     else:
-        do_episode_batch_episodic(
+        do_episode_batch(
             agent, parameters, data_dir, 'evaluation',
             parameters['eval_ep'], parameters['eval_frames'],
             rec_traj=True, train_agent=False, debugging=False)
@@ -201,6 +203,12 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
     # n_step_ep is the number of simulation steps (observables -> actions -> evolved environment) in one episode
     # n_episodes is the number of episodes to be conducted in this batch
+
+    # Special case: if the task is episodic, we are in the evaluation and ~episodic_eval,
+    # the Flag for episodic is set to False here, so the episodes don't stop when the task
+    # is achieved (this is somewhat hacky...)
+    if parameters["episodic"] and name=='evaluation' and not parameters["episodic_eval"]:
+        parameters["episodic"] = False
 
     # Set up the data storage file in h5 format
     store_file = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
@@ -253,7 +261,7 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
     store_file.close()
 
 
-def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
+def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, _, *, rec_traj=False, train_agent=False, debugging=False):
     '''
     In the episodic case there is no fixed episode length
     but the episode stops with p = 1-gamma every step (same
@@ -366,7 +374,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
         obs, rewards, rod_theta, rod_com = environment.evolve_MD(actions)
 
         # Determine if the episode should end
-        final = environment.task_achieved or step == n_step_ep
+        final = parameters["episodic"] and (environment.task_achieved or step == n_step_ep)
 
         # Add the environment response to the knowledge od the agent
         values = agent.add_environment_response(environment.lost, obs, rewards, final=final)
