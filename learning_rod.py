@@ -61,6 +61,7 @@ default_parameters = {
     'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
     'WLU_noise': 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
     'WLU_rew_mode': 'touch',    # which particles are even considered ("touch"/"close")
+    'WLU_touch_rew': 0.1,       # Reward for touching in case of WLU
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment

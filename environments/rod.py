@@ -35,6 +35,7 @@ class MD_ROD():
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
+                WLU_touch_rew=0.1,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
         # The task is always not achieved in the beginning
@@ -98,6 +99,7 @@ class MD_ROD():
         self.n_ep = train_ep                            # is needed in WLU_mode == 'switch'
         self.WLU_noise = WLU_noise                      # noise in determination of performance and hypPerformance for diff Rews
         self.WLU_rew_mode = WLU_rew_mode                # which particles are considered for WLU
+        self.WLU_touch_rew = WLU_touch_rew              # Rewards for touching in case of WLU
         self.sparse_rew = sparse_rew                    # gives only one, random particle a reward every step
         self.last_rew_part = []                         # needed for first step in sparse_rew
         self.n_rew_frames = n_rew_frames                # number of frames a particle is rewarded in the sparse_rew==true case
@@ -636,7 +638,7 @@ class MD_ROD():
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there.
-        contrib = (performance - hyp_perf)
+        contrib = performance - hyp_perf
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         # Wolpert and Tumer (2001) do not multiply the performance here.
@@ -647,7 +649,7 @@ class MD_ROD():
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
         if self.mode == 7:
-            rewards[self.touch == 1] = rewards[self.touch == 1] + 0.1
+            rewards[self.touch == 1] = rewards[self.touch == 1] + self.WLU_touch_rew
 
         # If required do not use rewards but a cost. This is achieved by subtracting
         # an estimate of the optimal reward a particle has (from looking at
