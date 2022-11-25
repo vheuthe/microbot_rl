@@ -44,7 +44,7 @@ default_parameters = {
     'rew_cutoff': 60,           # Cutoff for the primitive/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
-    'trans_dist_ramp': True,    # ramp up the trans_dist from 10 to trans_dist
+    'trans_dist_ramp': False,   # ramp up the trans_dist from 10 to trans_dist
     'max_trans_dist': 100,      # maximum distance ofer which to transport the rod with ramping trans_dist
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
     'sparse_rew': False,        # gives only one, random particle a reward every step
