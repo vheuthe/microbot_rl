@@ -34,6 +34,10 @@ def serve_experiment():
     # specific experimental parameters have higher precedence
     parameters.update(exp_parameters)
 
+    # Infer some parameters
+    parameters['n_obs'] = 3 * parameters['cones']
+    parameters['start_conf'] = 'transportation'
+
     # dump final configuration
     with open("./parameters.json", 'w', encoding='utf-8') as paramfile:
         json.dump(parameters, paramfile, ensure_ascii=False, indent=4)

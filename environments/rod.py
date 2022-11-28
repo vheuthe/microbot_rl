@@ -196,7 +196,7 @@ class MD_ROD():
 
         # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
         rewards = np.full_like(particles[:,0], np.nan)
-        obs = np.full((particles.shape[0], 10), np.nan)
+        obs = np.full((particles.shape[0], self.n_obs), np.nan)
 
         # Compute observables and rewards from particles and rod
         obs[np.logical_and(~found, ~lost), :], rewards[np.logical_and(~found, ~lost)] = self.get_obs_rewards()
