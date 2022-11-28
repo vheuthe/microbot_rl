@@ -59,7 +59,7 @@ default_parameters = {
     # for diff Reward
     'WLU_prefact': 10,          # Prefactor for WLU rewards (1e4 is good for rotation)
     'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
-    'WLU_noise': 'mixed',      # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
+    'WLU_noise': 'mixed',       # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
     'WLU_rew_mode': 'touch',    # which particles are even considered ("touch"/"close")
     'WLU_touch_rew': 0.1,       # Reward for touching in case of WLU
 
@@ -123,7 +123,7 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     # 8make sure to not use "load_models" for that, otherwise the paths get messed up)
     data_dir = os.path.join(
         job_dir,
-        '_'.join([key + str(val) for key, val in selected_params.items() if not key=="load_models"])
+        '_'.join([key + str(val) for key, val in selected_params.items() if len(job_parameters[key]) > 1 and not key=="load_models"])
     )
 
     do_task(selected_params, data_dir)
