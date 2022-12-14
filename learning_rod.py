@@ -154,8 +154,10 @@ def do_task(selected_params, data_dir):
         parameters['start_conf'] = 'standard'
         parameters['episodic'] = False
     elif parameters['mode'] == 7:
+        if not (parameters['start_conf'] == 'transportation_long' or parameters['start_conf'] == 'transportation_trans'):
+            parameters['start_conf'] = 'transportation'
+
         parameters['n_obs'] = 3 * parameters['cones']
-        parameters['start_conf'] = 'transportation'
         parameters['rew_mode'] = 'WLU'
 
     if parameters['rew_mode'] == 'approx_diff':

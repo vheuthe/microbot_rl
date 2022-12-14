@@ -132,8 +132,10 @@ class MD_ROD():
         elif (self.mode == 6): #push along long direction
             self.n_obs += 1
         elif (self.mode == 7): #transport rod to target
+            if not (self.start_conf == 'transportation_long' \
+                or self.start_conf == 'transportation_trans'):
+                self.start_conf = 'transportation'
             self.n_obs = 3 * cones
-            self.start_conf = 'transportation'
             self.rew_mode = 'WLU'
 
         # target is always initialized to have something for the arguments in get_o_r
@@ -145,8 +147,12 @@ class MD_ROD():
             self.particles, self.rod = self.reinitialize_test_friction()
         elif self.start_conf == 'biased':
             self.particles, self.rod = self.reinitialize_biased()
-        elif self.start_conf == 'transportation':
+        elif self.start_conf == 'transportation' \
+            or self.start_conf == 'transportation_long' \
+            or self.start_conf == 'transportation_trans':
             # If self.mode == 7, reinitialize_random_for_MD also gives a target position
+            # Transversal transportation -> target parallel and in orthogonal direction to rod
+            # Transversal transportation -> target parallel and in orthogonal direction to rod
             self.particles, self.rod, self.target = self.reinitialize_random_for_MD(swirl)
 
         # Old rod and particles are needed for evaluating the rod movement and the partice performance
@@ -253,7 +259,7 @@ class MD_ROD():
             # Adds a target position in the form of another rod at a
             # random angle and a distance self.trans_dist from the origin
 
-            target = self.make_target()
+            target = self.make_target(rod)
 
             return particles, rod, target
 
@@ -296,21 +302,33 @@ class MD_ROD():
         return particles, rod
 
 
-    def make_target(self):
+    def make_target(self, rod):
         '''
         This adds a target rod random angle and distance self.trans_dist to the origin
         '''
-        # Two random angles in the intervall [-pi; pi] for the direction and the orientation of the rod
-        pos_angle = 2 * np.pi * np.random.rand(1) - np.pi
-        or_angle = 2 * np.pi * np.random.rand(1) - np.pi
 
-        # making the position of the target complex
-        cm_comp = self.trans_dist * e ** (1j * pos_angle)
-        target_ends = np.array([cm_comp + self.l_rod/2 * e ** (1j*or_angle), cm_comp - self.l_rod/2 * e ** (1j*or_angle)])
-        target_comp = np.linspace(target_ends[0], target_ends[1], self.n_rod)
+        # Get the complex rod first
+        rod_comp = rod[:,0] + 1j * rod[:,1]
+        if self.start_conf == 'transportation':
+            # Two random angles in the intervall [-pi; pi] for the direction and the orientation of the rod
+            pos_angle = 2 * np.pi * np.random.rand(1) - np.pi
+            or_angle = 2 * np.pi * np.random.rand(1) - np.pi
 
-        # making the position of the target real
-        target = np.zeros((self.n_rod, 2))
+            # making the position of the target complex
+            cm_comp = self.trans_dist * e ** (1j * pos_angle)
+            target_ends = np.array([cm_comp + self.l_rod/2 * e ** (1j*or_angle), cm_comp - self.l_rod/2 * e ** (1j*or_angle)])
+            target_comp = np.linspace(target_ends[0], target_ends[1], self.n_rod)
+
+            # making the position of the target real
+            target = np.zeros((self.n_rod, 2))
+        elif self.start_conf == 'transportation_long':
+            # The target sits in longitudinal direction of the rod
+            target = rod_comp + self.trans_dist * e ** (1j * np.angle(rod_comp[-1] - rod_comp[0]))
+
+        elif self.start_conf == 'transportation_trans':
+            # The target sits in transversal direction of the rod
+            target = rod_comp + self.trans_dist * e ** (1j * (np.angle(rod_comp[-1] - rod_comp[0]) + np.pi/2))
+
         target[:,0] = np.real(target_comp).transpose()
         target[:,1] = np.imag(target_comp).transpose()
 
