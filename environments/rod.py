@@ -592,7 +592,7 @@ class MD_ROD():
             if cumm_dists < self.n_rod * 6:
 
                 # Particles all get a high reward (10)
-                rewards = np.full_like(self.rewards, self.final_rew)
+                rewards = np.full(self.old_part.shape[0], self.final_rew)
 
                 # End the episode
                 self.task_achieved = True

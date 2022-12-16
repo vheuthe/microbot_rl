@@ -120,7 +120,7 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     ))
 
     # Constructs the folder name for the task from the relevant parameters
-    # 8make sure to not use "load_models" for that, otherwise the paths get messed up)
+    # make sure to not use "load_models" for that, otherwise the paths get messed up)
     data_dir = os.path.join(
         job_dir,
         '_'.join([key + str(val) for key, val in selected_params.items() if len(job_parameters[key]) > 1 and not key=="load_models"])
