@@ -309,6 +309,7 @@ class MD_ROD():
 
         # Get the complex rod first
         rod_comp = rod[:,0] + 1j * rod[:,1]
+
         if self.start_conf == 'transportation':
             # Two random angles in the intervall [-pi; pi] for the direction and the orientation of the rod
             pos_angle = 2 * np.pi * np.random.rand(1) - np.pi
@@ -319,8 +320,6 @@ class MD_ROD():
             target_ends = np.array([cm_comp + self.l_rod/2 * e ** (1j*or_angle), cm_comp - self.l_rod/2 * e ** (1j*or_angle)])
             target_comp = np.linspace(target_ends[0], target_ends[1], self.n_rod)
 
-            # making the position of the target real
-            target = np.zeros((self.n_rod, 2))
         elif self.start_conf == 'transportation_long':
             # The target sits in longitudinal direction of the rod
             target_comp = rod_comp + self.trans_dist * e ** (1j * np.angle(rod_comp[-1] - rod_comp[0]))
@@ -329,6 +328,8 @@ class MD_ROD():
             # The target sits in transversal direction of the rod
             target_comp = rod_comp + self.trans_dist * e ** (1j * (np.angle(rod_comp[-1] - rod_comp[0]) + np.pi/2))
 
+        # making the position of the target real
+        target = np.zeros((self.n_rod, 2))
         target[:,0] = np.real(target_comp).transpose()
         target[:,1] = np.imag(target_comp).transpose()
 
