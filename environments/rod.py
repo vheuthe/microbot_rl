@@ -323,11 +323,11 @@ class MD_ROD():
             target = np.zeros((self.n_rod, 2))
         elif self.start_conf == 'transportation_long':
             # The target sits in longitudinal direction of the rod
-            target = rod_comp + self.trans_dist * e ** (1j * np.angle(rod_comp[-1] - rod_comp[0]))
+            target_comp = rod_comp + self.trans_dist * e ** (1j * np.angle(rod_comp[-1] - rod_comp[0]))
 
         elif self.start_conf == 'transportation_trans':
             # The target sits in transversal direction of the rod
-            target = rod_comp + self.trans_dist * e ** (1j * (np.angle(rod_comp[-1] - rod_comp[0]) + np.pi/2))
+            target_comp = rod_comp + self.trans_dist * e ** (1j * (np.angle(rod_comp[-1] - rod_comp[0]) + np.pi/2))
 
         target[:,0] = np.real(target_comp).transpose()
         target[:,1] = np.imag(target_comp).transpose()
