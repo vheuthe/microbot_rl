@@ -90,7 +90,7 @@ default_parameters = {
     'eval_ep': 5,               # number of evaluation episodes doen in the end without further training
     'episodic_eval': True,      # In case of episodic task, is the evaluation episodic or not?
     'termination_mode': "ind",  # changes the condition for when the task is achieved: either the "sum" or the "ind"ividual particles need to be smaller than []
-    'achieved_dist': 6          # minimum distance for task achieved
+    'achieved_dist': 6,         # minimum distance for task achieved
 
     'train_frames': 370,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
     'eval_frames': 1000,        # number of simulation frames done in one evaluation episode
