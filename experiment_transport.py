@@ -212,7 +212,12 @@ def serve_experiment():
 
                 # End the episode, if time ran out or the task is achieved
                 if final:
-                    print("Time ran out or the task was achieved, ending episode")
+                    if environment.task_achieved:
+                        print("The task was achieved, ending episode")
+                    elif update == n_step_ep:
+                        print("Time ran out, ending episode")
+                    else:
+                        print("Neither time ran out nor the task was achieved")
                     agent.save_models('./model')
                     store_file.close()
                     break

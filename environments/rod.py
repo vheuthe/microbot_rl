@@ -35,7 +35,7 @@ class MD_ROD():
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
-                WLU_touch_rew=0.1,
+                WLU_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
         # The task is always not achieved in the beginning
@@ -85,6 +85,8 @@ class MD_ROD():
         self.flag_fix_or = flag_fix_or                  # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
         self.final_rew = final_rew                      # The reward upon achieved task for truely episodic learning
         self.cost_iso_rew = cost_iso_rew                # Cost instead of reward in episodic task mode 7
+        self.termination_mode = termination_mode
+        self.achieved_dist = achieved_dist
 
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
@@ -580,23 +582,9 @@ class MD_ROD():
         # high reward and the episode is stopped.
         if self.mode == 7:
 
-            # Calculate the sum of the rod-target distances
-            r = self.rod
-            t = self.target
-            tar_c = t[:,0] + 1j *  t[:,1]
-            rod_c = r[:,0] + 1j *  r[:,1]
-            cumm_dists = min(sum(abs(tar_c - rod_c)), sum(abs(tar_c - np.flip(rod_c))))
+            self.check_task_achieved()
+            if self.task_achieved:
 
-            # The tolerance for success is a distance of one particle
-            # diameter between all rod and target "particles"
-            if cumm_dists < self.n_rod * 6:
-
-                # Particles all get a high reward (10)
-                rewards = np.full(self.old_part.shape[0], self.final_rew)
-
-                # End the episode
-                self.task_achieved = True
-                return rewards
 
         # In the initialization, determining this type of reward is not possible
         if not sum(self.old_actions):
@@ -985,6 +973,36 @@ class MD_ROD():
             hyp_rod_ang[i] = np.angle(complex(hyp_rod[-1,0,i] - hyp_rod[0,0,i], hyp_rod[-1,1,i] - hyp_rod[0,1,i]))
 
         return hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts
+
+    def check_task_achieved(self):
+
+        assert(self.termination_mode == "sum" or self.termination_mode == "ind", "No termination mode selected")
+
+        # Calculate the sum of the rod-target distances
+        r = self.rod
+        t = self.target
+        tar_c = t[:,0] + 1j *  t[:,1]
+        rod_c = r[:,0] + 1j *  r[:,1]
+
+        # Determine, which way round to consider the target (since there are two possible "orientations")
+        if sum(abs(tar_c - np.flip(rod_c))) < sum(abs(tar_c - rod_c)):
+            rod_c = np.flip(rod_c)
+
+        if self.termination_mode == "sum":
+
+            # The sum of rod to target diatances needs to be small
+            cumm_dists = sum(abs(tar_c - rod_c))
+            if cumm_dists < self.n_rod * self.achieved_dist:
+                self.task_achieved = True
+
+        elif self.termination_mode == "ind":
+
+            # All individual rod particles need to be close to the target
+            if np.all(abs(tar_c - rod_c) < self.achieved_dist):
+                self.task_achieved = True
+
+        else:
+            
 
 #
 # ------------------------------------
