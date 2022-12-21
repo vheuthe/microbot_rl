@@ -583,7 +583,12 @@ class MD_ROD():
         if self.mode == 7:
 
             self.check_task_achieved()
+
             if self.task_achieved:
+
+                # Particles all get a high reward (10)
+                rewards = np.full(self.old_part.shape[0], self.final_rew)
+                return rewards
 
 
         # In the initialization, determining this type of reward is not possible
@@ -1000,8 +1005,6 @@ class MD_ROD():
             # All individual rod particles need to be close to the target
             if np.all(abs(tar_c - rod_c) < self.achieved_dist):
                 self.task_achieved = True
-
-        else:
             
 
 #
