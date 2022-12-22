@@ -40,7 +40,7 @@ def serve_experiment():
 
     # Make up an episode length (need to be poisson distributed somehow)
     n_step_ep = np.random.poisson(lam=np.round(1/(1-parameters["gamma"])), size=1)
-    parameters['n_step_ep'] = n_step_ep
+    parameters['n_step_ep'] = int(n_step_ep)
 
     # dump final configuration
     with open("./parameters.json", 'w', encoding='utf-8') as paramfile:
