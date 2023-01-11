@@ -27,11 +27,12 @@ def serve_experiment():
     # if a model was provided, use corresponding parameters:
     if 'load_models' in exp_parameters and exp_parameters['load_models']:
         with open(exp_parameters['load_models'][:-5] + "parameters.json") as paramfile:
-            parameters = json.load(paramfile)
+            parameters = learning_rod.default_parameters.copy()
+            parameters.update(json.load(paramfile))
     else:
         parameters = learning_rod.default_parameters
 
-    # specific experimental parameters have higher precedence
+    # specific experimental parameters have highest priority
     parameters.update(exp_parameters)
 
     # Infer some parameters
