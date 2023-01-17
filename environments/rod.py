@@ -750,7 +750,7 @@ class MD_ROD():
         experiment_performance = self.det_performance(experiment_rod)
 
         # The hyp_perf are the hypothetical performances that would have been achieved in the absence of particle i
-        # the experiment performance is given here, because that is the baseline
+        # The experiment performance is given here, because that is the baseline
         hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(virtual_performance)
 
         # The contribution of a particle is the difference between the actual performance
@@ -762,7 +762,7 @@ class MD_ROD():
         else:
             contrib = experiment_performance - hyp_perf * experiment_performance/virtual_performance
 
-        # Wolpert and Tumer (2001) do not multiply the performance here.
+        # Wolpert and Tumer (2001) do not multiply with the performance here.
         rewards = self.WLU_prefact * contrib
 
         # To encourage particles to interact with the rods,
@@ -770,7 +770,7 @@ class MD_ROD():
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
         if self.mode == 7:
-            rewards[self.touch == 1] = rewards[self.touch == 1] + 0.1
+            rewards[self.touch == 1] = rewards[self.touch == 1] + self.WLU_touch_rew
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for latter two)
@@ -1005,7 +1005,6 @@ class MD_ROD():
             # All individual rod particles need to be close to the target
             if np.all(abs(tar_c - rod_c) < self.achieved_dist):
                 self.task_achieved = True
-            
 
 #
 # ------------------------------------

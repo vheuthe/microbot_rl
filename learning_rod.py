@@ -65,7 +65,7 @@ default_parameters = {
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
-    'vel_tor': 3.4,             # Velocity during rotation (particles do not stand still)
+    'vel_tor': 2.1,             # Velocity during rotation (particles do not stand still)
     'N': 25,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,
@@ -89,7 +89,7 @@ default_parameters = {
     'train_ep': 200,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 5,               # number of evaluation episodes doen in the end without further training
     'episodic_eval': True,      # In case of episodic task, is the evaluation episodic or not?
-    'termination_mode': "ind",  # changes the condition for when the task is achieved: either the "sum" or the "ind"ividual particles need to be smaller than []
+    'termination_mode': "ind",  # changes the condition for when the task is achieved: either the "sum" or the "ind"ividual particles need to be smaller than achieved_dist
     'achieved_dist': 6,         # minimum distance for task achieved
 
     'train_frames': 370,        # number of simulation frames done in one training episode; each step covers int_steps * dt in time.
