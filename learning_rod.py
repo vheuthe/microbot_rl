@@ -65,7 +65,7 @@ default_parameters = {
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
-    'vel_tor': 2.1,             # Velocity during rotation (particles do not stand still)
+    'vel_tor': 2.3,             # Velocity during rotation (particles do not stand still)
     'N': 25,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,
