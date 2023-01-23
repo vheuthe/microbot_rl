@@ -112,8 +112,9 @@ class AgentActiveMatter():
     if (load_models):
       print('Loading from ' + load_models)
 
-      self.critic = tf.keras.models.load_model(load_models + '_critic/')
-      self.policy = tf.keras.models.load_model(load_models + '_policy/')
+      self.critic = tf.keras.models.load_model(load_models + '_critic/', compile=False)
+      self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
+      self.policy = tf.keras.models.load_model(load_models + '_policy/', compile=False)
 
       if self.reinitialize_critic:
         # Initialize Critic Neural Network new
