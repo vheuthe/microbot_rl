@@ -31,6 +31,7 @@ def serve_experiment():
             parameters.update(json.load(paramfile))
     else:
         parameters = learning_rod.default_parameters
+        parameters['exp_or_sim'] = 'exp'
 
     # specific experimental parameters have highest priority
     parameters.update(exp_parameters)
