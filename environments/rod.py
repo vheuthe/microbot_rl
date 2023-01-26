@@ -588,7 +588,7 @@ class MD_ROD():
                 return rewards
 
         # In the initialization, determining this type of reward is not possible
-        if not sum(self.old_actions):
+        if sum(self.old_actions) <= 0:
             rewards = np.zeros(self.particles.shape[0])
 
             # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
