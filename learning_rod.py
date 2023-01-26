@@ -13,6 +13,9 @@ from firstrl import AgentActiveMatter
 
 default_parameters = {
 
+    # Is this an experiment or a simulation?
+    'exp_or_sim': 'sim',
+
     # RL Agent
     'n_actions': 4,
     'en_coeff': 0.01,
@@ -62,6 +65,7 @@ default_parameters = {
     'WLU_noise': 'mixed',       # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
     'WLU_rew_mode': 'touch',    # which particles are even considered ("touch"/"close")
     'WLU_touch_rew': 0.1,       # Reward for touching in case of WLU
+    'rescale_exp_perf': True,   # Should the experimental performance be rescaled to the resimulated performance?
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
