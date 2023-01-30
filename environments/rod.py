@@ -646,10 +646,7 @@ class MD_ROD():
             virtual_performance = self.det_performance(virtual_rod)
 
         # The hyp_perf are the hypothetical performances that would have been achieved in the absence of particle i
-        if self.exp_or_sim == 'sim':
-            hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(performance)
-        elif self.exp_or_sim == 'exp':
-            hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(virtual_performance)
+        hyp_perf, hyp_rod_ang, hyp_rod, hyp_parts = self.det_hyp_perf(performance)
 
         # The contribution of a particle is the difference between the actual performance
         # and the hypothetical performance if it would not have been there,
