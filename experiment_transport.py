@@ -40,10 +40,7 @@ def serve_experiment():
     parameters['start_conf'] = 'transportation'
 
     # Make up an episode length (need to be poisson distributed somehow)
-    if parameters["episodic"]:
-        n_step_ep = np.random.poisson(lam=np.round(1/(1-parameters["gamma"])), size=1)
-    else:
-        n_step_ep = parameters["train_frames"]
+    n_step_ep = np.random.poisson(lam=np.round(1/(1-parameters["gamma"])), size=1)
     parameters['n_step_ep'] = int(n_step_ep)
 
     # dump final configuration
@@ -143,7 +140,7 @@ def serve_experiment():
                 observables_raw, rewards_raw, found = environment.update(particles, old_actions, rod, lost, update)
 
                 # Is this the final step of the episode? If so, train a last time and end the episode
-                final = (parameters["episodic"] and environment.task_achieved) or update == n_step_ep
+                final = environment.task_achieved or update == n_step_ep
 
                 # remove invalid observables
                 observables = observables_raw[~(inboundary | lost),:]
