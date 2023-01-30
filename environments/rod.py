@@ -696,9 +696,22 @@ class MD_ROD():
 
         # Because that's the only working noise mode for the experiment
         self.WLU_noise = 'mixed'
+        
+        # Mode 7 needs an exception here: If the rod reaches it's target
+        # (within certain limits), all particles get a
+        # high reward and the episode is stopped.
+        if self.mode == 7:
+
+            self.check_task_achieved()
+
+            if self.task_achieved:
+
+                # Particles all get a high reward (10)
+                rewards = np.full(self.old_part.shape[0], self.final_rew)
+                return rewards
 
         # In the initialization, determining this type of reward is not possible
-        if not sum(self.old_actions):
+        if if sum(self.old_actions) <= 0:
             rewards = np.zeros(self.particles.shape[0])
 
             # For saving the hypothetical particle positions I need an N_rod x rod.shape[1] x N array
