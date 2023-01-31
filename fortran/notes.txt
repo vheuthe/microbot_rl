@@ -1,0 +1,12 @@
+Some notes about the fortran stuff:
+
+Variables:
+    - F_proj : forces on the rod projrcted on it's long axis
+    - F_pRX : x component of longitudinal forces on rod
+    - F_pRX : y component of longitudinal forces on Rod
+    - velC_scf : velocity of particle along long axis of rod
+    - velRod_scf : velocity of rod along it's long axis
+
+
+Commands etc.:
+    - .ge. : greater than or equal to
