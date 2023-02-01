@@ -76,12 +76,12 @@ default_parameters = {
 
     # Rod
     'n_rod': 60,                # must be even!
-    'part_size_rod': 0.01,
+    'part_size_rod': 0.01,      # How big do particles see rod particles?
     'mu_K': 1.8,
     'l_rod': 96,                # length of the rod
     # 'distRod': 1.6,           # is calculated in environments/rod.py from the size and the number of rod particles
-    'ext_rod': 1.,
-    'cen_rod': 1.,
+    'ext_rod': 1.,              # how big are rod particles physically?
+    'cen_rod': 1.,              # somehow alters the relative size of the different rod particles
     'fr_rod': 3,                # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD and training part of the simulation

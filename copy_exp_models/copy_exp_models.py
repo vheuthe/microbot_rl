@@ -25,7 +25,7 @@ def copy_models(from_path, to_path):
         # Get the path after from_path (to
         # recreate that structure in the
         # to_path)
-        sub_path = os.path.join(mp.split(os.sep)[0:len(from_path.split(os.sep))])
+        sub_path = os.path.join(*mp.split(os.sep)[len(from_path.split(os.sep)):])
 
         # Check, if the path already exists
         # and if so do not attempt to copy
@@ -49,14 +49,14 @@ def find_models(path):
     # Search for folders being named "model_actor"
     # or "model_critic"
     model_paths = []
-    for root_dir, dirs, files in os.walk(path):
-        print(root_dir, dirs, files)
+    for root_dir, _, files in os.walk(path):
 
         # The path is a valid model, if it has
         # either "model_actor" or "model_critic"
         # in its name and contains "saved_model.pb"
-        if any(dirs.contains("model_")) \
-            and any([f.contains("saved_model.pb") for f in files]):
+        if "model_" in root_dir \
+            and (any(["saved_model.pb" in f for f in files]) \
+                or any(["test.txt" in f for f in files])):
             model_paths.append(root_dir)
 
     return model_paths
