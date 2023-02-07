@@ -17,6 +17,6 @@ with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
     job_parameters = json.load(reader)
 
 # warning: types like strings also have a len()!
-num_tasks = np.product([len(v) for v in job_parameters.values() if type(v) is list])
+num_tasks = int(np.product([len(v) for v in job_parameters.values() if isinstance(v, list)]))
 
-os.system('qsub -N "{}" -t 1-{} -v JOB_DIR="{}" jobscript.sh'.format(job_name, num_tasks, job_dir))
+os.system(f'qsub -N "{job_name}" -t 1-{num_tasks} -v JOB_DIR="{job_dir}" jobscript.sh')
