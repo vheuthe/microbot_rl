@@ -6,18 +6,14 @@ episodes
 import json
 import os
 from pathlib import Path
-import copy_exp_models
 
 
-def eval_exp_models(models_path, eval_path):
+def eval_exp_models(eval_path):
     '''
     This copies all exprimental models from models_path
     to eval_path and evalutes them there by running a
     bunch of evaluation episodes
     '''
-
-    # Copy all experimental models to the evaluation file tree
-    copy_exp_models.copy_models(from_path=models_path, to_path=eval_path)
 
     # Now iterate through all models and evaluate them
     all_models = Path(eval_path).glob(pattern="**/parameters.json")
@@ -50,6 +46,5 @@ def eval_exp_models(models_path, eval_path):
 
 
 if __name__ == "__main__":
-    from_path = "/mnt/share/interactionsetup/Data/2023/01"
     to_path = "/data/scc/veit-lorenz.heuthe/rod_project/exp_trained_models/2023/01"
-    eval_exp_models(models_path=from_path, eval_path=to_path)
+    eval_exp_models(eval_path=to_path)
