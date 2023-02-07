@@ -17,7 +17,7 @@ def eval_exp_models(models_path, eval_path):
     '''
 
     # Copy all experimental models to the evaluation file tree
-    # copy_exp_models.copy_models(from_path=models_path, to_path=eval_path)
+    copy_exp_models.copy_models(from_path=models_path, to_path=eval_path)
 
     # Now iterate through all models and evaluate them
     all_models = Path(eval_path).glob(pattern="**/parameters.json")
