@@ -2,5 +2,5 @@ __pycache__/*
 .vscode
 *.so
 *.pyc
-copy_exp_models/to_folder_test
-copy_exp_models/from_folder_test
+eval_exp_models/to_folder_test
+eval_exp_models/from_folder_test

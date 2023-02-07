@@ -1,13 +1,14 @@
+'''
+This tests create_test_paths
+'''
 import pytest
 import os
 import create_test_paths
 
-# This tests create_test_paths
-
-@pytest.fixture(autouse=True)
-def from_path():
-    from_path = os.path.abspath("./from_folder_test")
-    return from_path
+@pytest.fixture(autouse=True, name="from_path")
+def make_from_path():
+    model_path = os.path.abspath("./from_folder_test")
+    return model_path
 
 def test_from_path_subpaths(from_path):
     '''
@@ -17,7 +18,7 @@ def test_from_path_subpaths(from_path):
     '''
 
     # Make the test_paths
-    create_test_paths.from_path_subpaths(from_path=from_path)
+    create_test_paths.from_path_subpaths(root_path=from_path)
 
     # Make sure all directories are there
     years = ["2023"]

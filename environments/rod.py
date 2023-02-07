@@ -696,7 +696,7 @@ class MD_ROD():
 
         # Because that's the only working noise mode for the experiment
         self.WLU_noise = 'mixed'
-        
+
         # Mode 7 needs an exception here: If the rod reaches it's target
         # (within certain limits), all particles get a
         # high reward and the episode is stopped.
@@ -994,7 +994,7 @@ class MD_ROD():
 
     def check_task_achieved(self):
 
-        assert(self.termination_mode == "sum" or self.termination_mode == "ind", "No termination mode selected")
+        assert self.termination_mode == "sum" or self.termination_mode == "ind", "No termination mode selected"
 
         # Calculate the sum of the rod-target distances
         r = self.rod

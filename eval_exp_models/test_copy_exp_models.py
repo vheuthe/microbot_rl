@@ -1,30 +1,31 @@
-import pytest
+'''
+This tests copy_exp_model: are the folders duplicated
+in the target directory in the right structure?
+Are the files copied with their content?
+'''
 import os
+import pytest
 import copy_exp_models
 import create_test_paths
 
-# This tests copy_exp_model: are the folders duplicated
-# in the target directory in the right structure?
-# Are the files copied with their content?
-
 # Make the from and to paths (as fixtures)
-@pytest.fixture(autouse=True)
-def from_path():
-    from_path = os.path.abspath("./from_folder_test")
-    return from_path
+@pytest.fixture(autouse=True, name="from_path")
+def make_from_path():
+    source_path = os.path.abspath("./from_folder_test")
+    return source_path
 
-@pytest.fixture(autouse=True)
-def to_path():
-    to_path = os.path.abspath("./to_folder_test")
-    return to_path
+@pytest.fixture(autouse=True, name="to_path")
+def make_to_path():
+    dest_path = os.path.abspath("./to_folder_test")
+    return dest_path
 
-@pytest.fixture(autouse=True)
-def from_path_subpaths(from_path):
+@pytest.fixture(autouse=True, name="from_path_subpaths")
+def make_subpaths(from_path):
 
     # Make the from directories first
-    from_path_subpaths = create_test_paths.from_path_subpaths(from_path=from_path)
+    subpaths = create_test_paths.from_path_subpaths(root_path=from_path)
 
-    return from_path_subpaths
+    return subpaths
 
 
 def test_copy_models(from_path, to_path, from_path_subpaths):
