@@ -129,7 +129,7 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     data_dir = os.path.join(
         job_dir,
         '_'.join([key + str(val) for key, val in selected_params.items() \
-            if len(job_parameters[key]) > 1 and not key=="load_models"])
+            if isinstance(val, list) and len(val) > 1 and not key=="load_models"])
     )
 
     do_task(selected_params, data_dir)
