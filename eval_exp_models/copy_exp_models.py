@@ -48,7 +48,7 @@ def copy_models(from_path, to_path):
         # Don't forget the parameters
         if not ((dest_path/sub_path).parent/'parameters.json').is_file():
             shutil.copy((mod_path.parent/'parameters.json'), (dest_path/sub_path).parent)
-            print(f'Copied parameters from {model_path} to {dest_path/sub_path}')
+            print(f'Copied parameters from {Path(model_path).parent} to {(dest_path/sub_path).parent}')
         else:
             print(f'Parameters for {sub_path} already exist in {to_path}')
 
@@ -79,3 +79,9 @@ def find_models(path):
             dirs[:] = []
 
     return model_paths
+
+
+if __name__ == "__main__":
+    scc_path = "/data/scc/veit-lorenz.heuthe/rod_project/exp_trained_models/2023/02"
+    lab_path = "/mnt/share/z/interactionsetup/Data/2023/02"
+    copy_models(from_path=lab_path, to_path=scc_path)

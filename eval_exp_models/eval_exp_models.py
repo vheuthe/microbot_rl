@@ -10,8 +10,7 @@ from pathlib import Path
 
 def eval_exp_models(eval_path):
     '''
-    This copies all exprimental models from models_path
-    to eval_path and evalutes them there by running a
+    This evalutes all experimental models in the scc by running a
     bunch of evaluation episodes
     '''
 
@@ -33,8 +32,10 @@ def eval_exp_models(eval_path):
 
         # Pop out the model structure and the host adress,
         # since they make trouble as they are lists
-        parameters.pop('model_structure')
-        parameters.pop('host_address')
+        if 'model_structure' in parameters:
+            parameters.pop('model_structure')
+        if 'host_address' in parameters:
+            parameters.pop('host_address')
 
         # Save the modified parameters
         with (mod_p).open(mode='w') as paramfile:
