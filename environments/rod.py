@@ -306,7 +306,7 @@ class MD_ROD():
 
     def make_target(self, rod):
         '''
-        This adds a target rod random angle and distance self.trans_dist to the origin
+        This adds a target at a position and orientation depending on start_conf
         '''
 
         # Get the complex rod first
@@ -329,6 +329,14 @@ class MD_ROD():
         elif self.start_conf == 'transportation_trans':
             # The target sits in transversal direction of the rod
             target_comp = rod_comp + self.trans_dist * e ** (1j * (np.angle(rod_comp[-1] - rod_comp[0]) + np.pi/2))
+
+        elif self.start_conf == 'transp_1':
+            # The target is perpendicular to the rod an located at its end
+            target_comp = rod_comp * e ** (1j * np.pi/2) + 1j * self.trans_dist
+
+        elif self.start_conf == 'transp_2':
+            # The target is perpendicular to the rod an located at its end
+            target_comp = rod_comp * e ** (1j * np.pi/2) + self.trans_dist
 
         # making the position of the target real
         target = np.zeros((self.n_rod, 2))
