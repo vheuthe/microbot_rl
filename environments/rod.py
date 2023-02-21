@@ -34,7 +34,7 @@ class MD_ROD():
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
-                rew_cutoff=60, start_conf='standard', trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
+                rew_cutoff=60, start_conf='standard', start_dist_scale=1, trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
                 WLU_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
                 flag_fix_or = 0, train_ep = 100, n_rew_frames=1, **unused_parameters):
 
@@ -94,6 +94,7 @@ class MD_ROD():
         self.prim_rew_mode = prim_rew_mode              # 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
         self.rew_cutoff = rew_cutoff                    # for primitive rewards: the max distance to the rod that still gets rewarded
         self.start_conf = start_conf                    # which configuration to start with
+        self.start_dist_scale = start_dist_scale        # scaling factor for the starting positions of the particles to initialize them far away
         self.WLU_prefact = WLU_prefact                  # prefactor for the differential reward
         self.trans_dist = trans_dist                    # distance over which to transpport the rod in mode 7 (transportation)
         self.target_tol = target_tol                    # allowed residual cummulative distance between target and rod for completion of the task
@@ -144,7 +145,7 @@ class MD_ROD():
         self.target = np.zeros((self.n_rod, 2))
 
         if self.start_conf == 'standard':
-            self.particles, self.rod = self.reinitialize_random_for_MD(swirl)
+            self.particles, self.rod = self.reinitialize_random_for_MD(swirl, distance=self.start_dist)
         elif self.start_conf == 'test_friction':
             self.particles, self.rod = self.reinitialize_test_friction()
         elif self.start_conf == 'biased':
@@ -156,6 +157,9 @@ class MD_ROD():
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             self.particles, self.rod, self.target = self.reinitialize_random_for_MD(swirl)
+
+        # Scale the particle positions in order to be able to initialize them far away
+        self.particles[:,0:2] = self.start_dist_scale * self.particles[:,0:2]
 
         # Old rod and particles are needed for evaluating the rod movement and the partice performance
         self.old_rod = np.zeros(self.rod.shape)
@@ -267,10 +271,11 @@ class MD_ROD():
 
         return particles, rod
 
-  # Initialize with two particles close to the rod and at one end of it (for test_friction)
 
     def reinitialize_test_friction(self):
-        # Initializes with two particles close to the rod at one of its ends
+        '''
+        Initializes with two particles close to the rod at one of its ends
+        '''
         particles = np.array([[-7, -40, np.pi/2-np.pi/4], [7, -40, np.pi/2+np.pi/4]])
 
         rod = np.array([[0.0, (i-(self.n_rod-1)/2)*self.dist_rod] for i in np.arange(self.n_rod)])

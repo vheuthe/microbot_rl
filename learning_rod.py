@@ -69,7 +69,8 @@ default_parameters = {
     'N': 25,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,
-    'start_conf': 'standard',   # 'standard' or 'biased' or 'test_friction' or 'transportation'
+    'start_conf': 'standard',   # 'standard' or 'biased' or 'test_friction' or 'transportation' (regarding the rod)
+    'start_dist_scale': 1,      # scaling factor for the starting positions of the particles to initialize them far away
     'skew': False,              # Flag for if the initialization positions are all on one side
     'Dt': 0.014,                # translational diffusion coefficient
     'Dr': 1.0 / 350.0,          # rotational diffusion coefficient
