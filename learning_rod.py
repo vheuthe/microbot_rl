@@ -161,7 +161,7 @@ def do_task(selected_params, data_dir):
         parameters['start_conf'] = 'standard'
         parameters['episodic'] = False
     elif parameters['mode'] == 7:
-        if not (parameters['start_conf'] == 'transportation_long' or parameters['start_conf'] == 'transportation_trans'):
+        if not parameters['start_conf'] in ['transportation_long', 'transportation_trans', 'transp_1', 'transp_2']:
             parameters['start_conf'] = 'transportation'
 
         parameters['n_obs'] = 3 * parameters['cones']
