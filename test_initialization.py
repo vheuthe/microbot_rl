@@ -19,6 +19,7 @@ def test_initialization():
 
         # Initialize
         def_params['start_dist_scale'] = scale
+        def_params['start_conf'] = "transp_2"
         env = MD_ROD(**def_params)
 
         # Plot
@@ -28,6 +29,11 @@ def test_initialization():
         scale_ax.scatter(env.rod[:,0], env.rod[:,1], color='green')
         scale_ax.quiver(env.particles[:,0], env.particles[:,1], np.cos(env.particles[:,2]), np.sin(env.particles[:,2]))
         scale_ax.axis('square')
+        plt.figure()
+        tar_ax = plt.axes()
+        tar_ax.scatter(env.target[:,0], env.target[:,1], color="blue")
+        tar_ax.scatter(env.rod[:,0], env.rod[:,1], color="green")
+        tar_ax.axis('square')
 
 
 if __name__ == "__main__":

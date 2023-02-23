@@ -30,7 +30,7 @@ class MD_ROD():
                 int_steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
                 fr_rod=10., inert_rod=1., l_rod=100, n_rod=60, ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
                 Dt=0.014, Dr=1.0 / 350.0,
-                obs_type='1overR', cones=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
+                obs_type='1overR', cones=5, n_obs=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
                 data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
@@ -60,6 +60,7 @@ class MD_ROD():
         elif obs_type=='1overR2':
             self.obs_type = 2
         self.cones = cones
+        self.n_obs = n_obs
         self.cone_angle = cone_angle
         self.flag_side = int(flag_side)
         self.flag_LOS = int(flag_LOS)
@@ -126,20 +127,6 @@ class MD_ROD():
         # 3 - rotate rod
         self.rewards = np.zeros(N)
         self.mode = mode
-        if (self.mode == 2): #directional pushing
-            self.n_obs = 2 * cones
-        elif (self.mode == 3):
-            self.n_obs = 2 * cones
-        elif (self.mode == 4): #rotation with direction s
-            self.n_obs = 2 * cones + 1
-        elif (self.mode == 6): #push along long direction
-            self.n_obs += 1
-        elif (self.mode == 7): #transport rod to target
-            if not (self.start_conf == 'transportation_long' \
-                or self.start_conf == 'transportation_trans'):
-                self.start_conf = 'transportation'
-            self.n_obs = 3 * cones
-            self.rew_mode = 'WLU'
 
         # target is always initialized to have something for the arguments in get_o_r
         self.target = np.zeros((self.n_rod, 2))
@@ -150,9 +137,7 @@ class MD_ROD():
             self.particles, self.rod = self.reinitialize_test_friction()
         elif self.start_conf == 'biased':
             self.particles, self.rod = self.reinitialize_biased()
-        elif self.start_conf == 'transportation' \
-            or self.start_conf == 'transportation_long' \
-            or self.start_conf == 'transportation_trans':
+        elif self.mode == 7:
             # If self.mode == 7, reinitialize_random_for_MD also gives a target position
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             # Transversal transportation -> target parallel and in orthogonal direction to rod

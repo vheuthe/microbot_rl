@@ -153,9 +153,11 @@ def do_task(selected_params, data_dir):
 
     # Make sure, that the input dimension and the start_conf is ok (self-consistency),
     # so one does not have to specify the parameters dependant on the mode.
-    if parameters['mode'] == 3:
+    if parameters['mode'] == 2 or parameters['mode'] == 3:
         parameters['n_obs'] = 2 * parameters['cones']
         parameters['episodic'] = False
+    elif parameters['mode'] == 4:
+        parameters['n_obs'] = 2 * parameters['cones'] + 1
     elif parameters['mode'] == 6:
         parameters['n_obs'] = 2 * parameters['cones'] + 1
         parameters['start_conf'] = 'standard'
@@ -164,8 +166,10 @@ def do_task(selected_params, data_dir):
         if not parameters['start_conf'] in ['transportation_long', 'transportation_trans', 'transp_1', 'transp_2']:
             parameters['start_conf'] = 'transportation'
 
+        if not parameters['rew_mode'] in ['WLU', 'WLU_experiment']:
+            parameters['rew_mode'] = 'WLU'
+
         parameters['n_obs'] = 3 * parameters['cones']
-        parameters['rew_mode'] = 'WLU'
 
     if parameters['rew_mode'] == 'approx_diff':
         parameters['approx_flag'] = True
