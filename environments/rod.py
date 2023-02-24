@@ -119,8 +119,8 @@ class MD_ROD():
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
         self.vel_tor = vel_tor
-         self.vel_noise_fact = vel_noise_fact
-         self.rot_noise_fact = rot_noise_fact
+        self.vel_noise_fact = vel_noise_fact
+        self.rot_noise_fact = rot_noise_fact
         self.torque = 1.0 / 350.0 * torque              # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
 
         # type of task.
