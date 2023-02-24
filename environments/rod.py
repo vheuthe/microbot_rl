@@ -28,6 +28,7 @@ from fortran import evolve_rod_rigid as evolve
 class MD_ROD():
     def __init__(self, index=0, N=30, size=10, skew=False,
                 int_steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
+                vel_noise_fact=0.5, rot_noise_fact=0.5,
                 fr_rod=10., inert_rod=1., l_rod=100, n_rod=60, ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type='1overR', cones=5, n_obs=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
@@ -118,6 +119,8 @@ class MD_ROD():
         self.Rr = math.sqrt(2*self.Dr/self.dt)
         self.vel_act = vel_act
         self.vel_tor = vel_tor
+         self.vel_noise_fact = vel_noise_fact
+         self.rot_noise_fact = rot_noise_fact
         self.torque = 1.0 / 350.0 * torque              # this is Dr * Gamma / kT = 1/350 * 10kT / kT (which is Torque)
 
         # type of task.
@@ -372,7 +375,7 @@ class MD_ROD():
                                     X, Y, T, old_ther_noise, old_vel_noise, old_tor_noise,
                                     x_rod, y_rod, self.dist_rod, actions,
                                     self.Rm, self.Rr, self.dt,
-                                    self.torque, self.vel_act, self.vel_tor,
+                                    self.torque, self.vel_act, self.vel_tor, self.vel_noise_fact, self.rot_noise_fact,
                                     self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                     noise_flag, self.N, self.n_rod, self.int_steps)
 
@@ -637,7 +640,7 @@ class MD_ROD():
                                                 X, Y, T, old_ther_noise, old_vel_noise, old_tor_noise,
                                                 x_rod, y_rod, self.dist_rod, action,
                                                 self.Rm, self.Rr, self.dt,
-                                                self.torque, self.vel_act, self.vel_tor,
+                                                self.torque, self.vel_act, self.vel_tor, self.vel_noise_fact, self.rot_noise_fact,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 noise_flag, N, self.n_rod, self.int_steps)
 
@@ -753,7 +756,7 @@ class MD_ROD():
                                             X, Y, T, old_ther_noise, old_vel_noise, old_tor_noise,
                                             x_rod, y_rod, self.dist_rod, action,
                                             self.Rm, self.Rr, self.dt,
-                                            self.torque, self.vel_act, self.vel_tor,
+                                            self.torque, self.vel_act, self.vel_tor, self.vel_noise_fact, self.rot_noise_fact,
                                             self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                             noise_flag, N, self.n_rod, self.int_steps)
 
@@ -967,7 +970,7 @@ class MD_ROD():
                                                 X, Y, T, old_th_n, old_v_n, old_tor_n,
                                                 x_rod, y_rod, self.dist_rod, action,
                                                 self.Rm, self.Rr, self.dt,
-                                                self.torque, self.vel_act, self.vel_tor,
+                                                self.torque, self.vel_act, self.vel_tor, self.vel_noise_fact, self.rot_noise_fact,
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 noise_flag, N, self.n_rod, self.int_steps)
 

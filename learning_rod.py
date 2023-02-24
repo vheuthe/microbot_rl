@@ -66,6 +66,8 @@ default_parameters = {
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
     'vel_tor': 2.3,             # Velocity during rotation (particles do not stand still)
+    'vel_noise_fact': 0.5,      # factor for velocity noise of particles
+    'rot_noise_fact': 0.5,      # factor for angular velocity noise of particles
     'N': 25,                    # Adjusted to optimize training time and match experiment
     'torque': 122,
     'part_size': 0.01,

@@ -2,7 +2,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
                         oldNoise, old_vel_noise, old_tor_noise, &
                         Xrod, Yrod, &
                         distRod, act, Rm, Rr, dt, &
-                        tor, vel_act, vel_tor, &
+                        tor, vel_act, vel_tor, vel_noise_fact, rot_noise_fact, &
                         ext_rod, cen_rod, mu, reproduction, &
                         noiseFlag, N, Nrod, nsteps, &
                         new_XYT, new_XY_rod, part_rod_forces, &
@@ -17,7 +17,7 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
     integer, intent(in) :: act(N), noiseFlag
     integer, intent(in) :: N, Nrod, nsteps
     real,    intent(in) :: Rm, Rr
-    real,    intent(in) :: tor, vel_act, vel_tor, dt, mR, IR
+    real,    intent(in) :: tor, vel_act, vel_tor, dt, mR, IR, vel_noise_fact, rot_noise_fact
     real,    intent(in) :: ext_rod, cen_rod , mu
     logical, intent(in) :: reproduction
     ! shape of rod is determined by factor of size of extremes and center
@@ -111,8 +111,8 @@ subroutine evolve_md_rod(mR, IR, X, Y, Theta, &
     epsRod = etaCol
 
     ! Gaussian width for velocity distribution calculated here.
-    sig_vel_act = vel_act / 2.
-    sig_vel_tor = vel_tor / 2.
+    sig_vel_act = vel_act * vel_noise_fact
+    sig_vel_tor = vel_tor * rot_noise_fact
 
     ! if mu_K > 1 then there is friction alongside rod.
     mu_K = mu
