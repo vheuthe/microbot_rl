@@ -135,7 +135,7 @@ class MD_ROD():
         self.target = np.zeros((self.n_rod, 2))
 
         if self.start_conf == 'standard':
-            self.particles, self.rod = self.reinitialize_random_for_MD(swirl, distance=self.start_dist)
+            self.particles, self.rod = self.reinitialize_random_for_MD(swirl)
         elif self.start_conf == 'test_friction':
             self.particles, self.rod = self.reinitialize_test_friction()
         elif self.start_conf == 'biased':
