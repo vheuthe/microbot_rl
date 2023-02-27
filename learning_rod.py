@@ -119,13 +119,10 @@ def do_array_task(task_id, job_dir): # Copied from Robert
 
     # Choose one set out of all possible parameter combinations
     # (task_id's start at 1!!)
-    if all([len(val)==1 for _, val in job_parameters.items() if type(val) is list]):
-        selected_params = job_parameters.copy()
-    else:
-        selected_params = dict(zip(
-            job_parameters.keys(),
-            [vals.flat[task_id - 1] for vals in np.meshgrid(*job_parameters.values())]
-        ))
+    selected_params = dict(zip(
+        job_parameters.keys(),
+        [val.flat[task_id - 1] if isinstance(val, list) else val.flat[0] for val in np.meshgrid(*job_parameters.values())]
+    ))
 
     # Constructs the folder name for the task from the relevant parameters
     # make sure to not use "load_models" for that, otherwise the paths get messed up)
