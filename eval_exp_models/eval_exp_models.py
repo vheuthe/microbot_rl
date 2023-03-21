@@ -42,7 +42,7 @@ def eval_exp_models(eval_path):
             json.dump(parameters, paramfile, ensure_ascii=False, indent=4)
 
         # Now run call submit_dir to evaluate the model
-        command = f"python submit_dir.py {str(mod_p.parent)}"
+        command = "python submit_dir.py {}".format(str(mod_p.parent))
         os.system(command)
 
 
