@@ -114,15 +114,19 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     '''
 
     # parameter ranges are stored in the job_dir
-    with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
+    with open(os.path.join(job_dir, 'parameters.json'), 'r', encoding="UTF-8") as reader:
         job_parameters = json.load(reader)
 
     # Choose one set out of all possible parameter combinations
-    # (task_id's start at 1!!)
+    # (task_id's start at 1!!). Choose only the list instances in the
+    # values of the parameters, otherwise the meshgrid gets too big
+    screening_params = {key: val for key, val in job_parameters.items() \
+            if isinstance(job_parameters[key], list) and len(job_parameters[key]) > 1 and not key=="load_models"}
     selected_params = dict(zip(
-        job_parameters.keys(),
-        [val.flat[task_id - 1] if isinstance(val, list) else val.flat[0] for val in np.meshgrid(*job_parameters.values())]
+        screening_params.keys(),
+        [val.flat[task_id - 1] if isinstance(val, list) else val.flat[0] for val in np.meshgrid(*screening_params.values())]
     ))
+    job_parameters.update(selected_params)
 
     # Constructs the folder name for the task from the relevant parameters
     # make sure to not use "load_models" for that, otherwise the paths get messed up)
