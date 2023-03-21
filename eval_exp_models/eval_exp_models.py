@@ -20,7 +20,7 @@ def eval_exp_models(eval_path):
 
         # Make sure that model is not evaluated, yet
         if (mod_p.parent/'evaluation.h5').is_file():
-            print(f'Model {mod_p} is already evaluated')
+            print('Model {} is already evaluated'.format(mod_p))
             continue
 
         # Modify the parameters so there is only evaluation
