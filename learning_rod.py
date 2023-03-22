@@ -121,12 +121,17 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     # (task_id's start at 1!!). Choose only the list instances in the
     # values of the parameters, otherwise the meshgrid gets too big
     screening_params = {key: val for key, val in job_parameters.items() \
-            if isinstance(job_parameters[key], list) and len(job_parameters[key]) > 1 and not key=="load_models"}
+            if isinstance(job_parameters[key], list) and len(job_parameters[key]) > 1 and not (key=="load_models" or key=="model_structure")}
+    non_screeening_params = {key: val for key, val in job_parameters.items() \
+            if not isinstance(job_parameters[key], list) \
+                or (isinstance(job_parameters[key], list) \
+                    and len(job_parameters[key]) == 1) \
+                or key=="load_models" or key=="model_structure"}
     selected_params = dict(zip(
         screening_params.keys(),
         [val.flat[task_id - 1] if isinstance(val, list) else val.flat[0] for val in np.meshgrid(*screening_params.values())]
     ))
-    job_parameters.update(selected_params)
+    selected_params.update(non_screeening_params)
 
     # Constructs the folder name for the task from the relevant parameters
     # make sure to not use "load_models" for that, otherwise the paths get messed up)
@@ -166,10 +171,10 @@ def do_task(selected_params, data_dir):
         parameters['start_conf'] = 'standard'
         parameters['episodic'] = False
     elif parameters['mode'] == 7:
-        if not parameters['start_conf'] in ['transportation_long', 'transportation_trans', 'transp_1', 'transp_2']:
+        if parameters['start_conf'] not in ['transportation_long', 'transportation_trans', 'transp_1', 'transp_2']:
             parameters['start_conf'] = 'transportation'
 
-        if not parameters['rew_mode'] in ['WLU', 'WLU_experiment']:
+        if parameters['rew_mode'] not in ['WLU', 'WLU_experiment']:
             parameters['rew_mode'] = 'WLU'
 
         parameters['n_obs'] = 3 * parameters['cones']
