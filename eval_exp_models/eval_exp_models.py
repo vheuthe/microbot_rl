@@ -28,7 +28,7 @@ def eval_exp_models(eval_path):
         # since they are always lists)
         with (mod_p).open(mode='r') as paramfile:
             parameters = json.load(paramfile)
-        parameters.update({'train_ep': 0, 'eval_ep': 8, 'load_models': str(mod_p.parent/'model')})
+        parameters.update({'train_ep': 0, 'eval_ep': 20, 'load_models': str(mod_p.parent/'model')})
 
         # Pop out the model structure and the host adress,
         # since they make trouble as they are lists
@@ -47,5 +47,5 @@ def eval_exp_models(eval_path):
 
 
 if __name__ == "__main__":
-    to_path = "/data/scc/veit-lorenz.heuthe/rod_project/exp_trained_models/2023/01"
+    to_path = "/data/scc/veit-lorenz.heuthe/rod_project/exp_trained_models/2023"
     eval_exp_models(eval_path=to_path)
