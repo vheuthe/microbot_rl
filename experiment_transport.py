@@ -37,11 +37,10 @@ def serve_experiment():
 
     # Infer some parameters
     parameters['n_obs'] = 3 * parameters['cones']
-    parameters['start_conf'] = 'transportation'
 
     # Make up an episode length (need to be poisson distributed somehow)
     if parameters["episodic"]:
-        n_step_ep = np.random.poisson(lam=np.round(1/(1-parameters["gamma"])), size=1)
+        n_step_ep = 3 * np.random.poisson(lam=np.round(1/(1-parameters["gamma"])), size=1)
     else:
         n_step_ep = parameters["train_frames"]
     parameters['n_step_ep'] = int(n_step_ep)
@@ -55,8 +54,8 @@ def serve_experiment():
 
     # --------------------------------------------------------------------------
 
+    # Initiate the agent
     agent = AgentActiveMatter(**parameters)
-    environment = MD_ROD(**parameters)
 
     # create TCP socket for communication
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -67,11 +66,6 @@ def serve_experiment():
     # wait for matlab to connect
     connection, client_address = sock.accept()
     print("Client connected from {}:{}".format(*client_address))
-
-    # The first thing to do is send matlab the target position
-    data_send = environment.target.flatten('F')
-    connection.sendall(struct.pack(str(len(data_send))+"d", *data_send))
-    print("Sent the target position")
 
     # --------------------------------------------------------------------------
 
@@ -118,6 +112,15 @@ def serve_experiment():
                 frame = data_reshaped[is_frame_data, 6]
                 particles = np.nan_to_num(data_reshaped[is_particle_data, 0:3])
                 rod = np.nan_to_num(data_reshaped[is_rod_data, 4:6])
+
+                # In the first update, initiate the environment and send the target position
+                if update == 0:
+                    environment = MD_ROD(**parameters)
+                    environment.rod = rod
+                    environment.target = environment.make_target(rod)
+                    data_send = environment.target.flatten('F')
+                    connection.sendall(struct.pack(str(len(data_send))+"d", *data_send))
+                    print("Sent the target position")
 
                 # The actions are already the old actions!
                 # (since the new actions are not known yet)
