@@ -329,7 +329,7 @@ class MD_ROD():
 
         elif self.start_conf == 'transp_2':
             # The target is perpendicular to the rod an located at its end
-            target_comp = rod_comp * e ** (1j * np.pi/2) + self.trans_dist
+            target_comp = rod_comp * e ** (1j * np.pi/2) + self.trans_dist * e ** (1j * np.angle(rod_comp[-1] - rod_comp[0]))
 
         # making the position of the target real
         target = np.zeros((self.n_rod, 2))
