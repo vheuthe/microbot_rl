@@ -82,6 +82,6 @@ def find_models(path):
 
 
 if __name__ == "__main__":
-    scc_path = "/data/scc/veit-lorenz.heuthe/rod_project/exp_trained_models/2023/02"
-    lab_path = "/mnt/share/interactionsetup/Data/2023/02"
+    scc_path = "/data/scc/veit-lorenz.heuthe/rod_project/exp_trained_models/2023/04"
+    lab_path = "/mnt/share/interactionsetup/Data/2023/04"
     copy_models(from_path=lab_path, to_path=scc_path)

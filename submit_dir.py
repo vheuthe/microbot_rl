@@ -13,7 +13,7 @@ job_dir = sys.argv[1]
 # jobnames need to start with a letter ...
 job_name = 'job_' + os.path.basename(job_dir)
 
-with open(os.path.join(job_dir, 'parameters.json'), 'r') as reader:
+with open(os.path.join(job_dir, 'parameters.json'), 'r', encoding="UTF-8") as reader:
     job_parameters = json.load(reader)
 
 # warning: types like strings also have a len()!

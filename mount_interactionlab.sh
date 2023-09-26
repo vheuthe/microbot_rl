@@ -1,0 +1,1 @@
+sudo mount -t drvfs '\\interactionsetup\Data' /mnt/share/z
