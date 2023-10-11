@@ -33,7 +33,7 @@ class MD_ROD():
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type='1overR', cones=5, n_obs=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
-                data_path=None, rew_mode='WLU', prim_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
+                data_path=None, rew_mode='WLU', team_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', start_dist_scale=1, trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
                 WLU_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
@@ -93,8 +93,8 @@ class MD_ROD():
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
         self.rew_mode = rew_mode                        # 'forces' or 'classic'
-        self.prim_rew_mode = prim_rew_mode              # 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
-        self.rew_cutoff = rew_cutoff                    # for primitive rewards: the max distance to the rod that still gets rewarded
+        self.team_rew_mode = team_rew_mode              # 'team', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
+        self.rew_cutoff = rew_cutoff                    # for team rewards: the max distance to the rod that still gets rewarded
         self.start_conf = start_conf                    # which configuration to start with
         self.start_dist_scale = start_dist_scale        # scaling factor for the starting positions of the particles to initialize them far away
         self.WLU_prefact = WLU_prefact                  # prefactor for the differential reward
@@ -145,6 +145,12 @@ class MD_ROD():
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             self.particles, self.rod, self.target = self.reinitialize_random_for_MD(swirl)
+
+        # If there is only one particle, WLU and WLU_experiment reward modes get changed to
+        # team rewards
+        if self.N == 1 and self.rew_mode in ("WLU", "WLU_experiment"):
+            self.rew_mode = "team"
+            self.team_rew_mode = "team"
 
         # Scale the particle positions in order to be able to initialize them far away
         self.particles[:,0:2] = self.start_dist_scale * self.particles[:,0:2]
@@ -430,13 +436,13 @@ class MD_ROD():
             # Determines the rewards according to the forces and te current mode
             rewards = self.get_forces_rewards(flag_abs=True)
 
-        elif self.rew_mode == 'primitive' or self.rew_mode == 'approx_diff':
+        elif self.rew_mode in ('team', 'approx_diff'):
 
-            # Determines rewards in primitive way (close? rotated?) So far only for rot.
-            # the prim_rew_mode specifies if touching or closeness are decisive.
+            # Determines rewards in team way (close? rotated?) So far only for rot.
+            # the team_rew_mode specifies if touching or closeness are decisive.
             # In the case of approx_diff, an reward estimation during passive actions
             # is subtracted in learning_rod for approximating difference rewards.
-            rewards = self.get_primitive_rewards(prim_rew_mode=self.prim_rew_mode)
+            rewards = self.get_team_rewards(team_rew_mode=self.team_rew_mode)
 
         elif self.rew_mode == 'WLU':
 
@@ -524,7 +530,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_primitive_rewards(self, prim_rew_mode='touch'): # the prim_rew_mode spwcifies if touching or closeness are decisive
+    def get_team_rewards(self, team_rew_mode='touch'): # the team_rew_mode specifies if touching or closeness are decisive
         '''
         This simply rewards every particle that is present within a certain
         area around the rod if the rod has moved or rotated, etc.
@@ -544,7 +550,7 @@ class MD_ROD():
         elif self.mode == 6: # Long. Trans.
             ref_prefactor = self.p_rew_fact
 
-        if prim_rew_mode == 'close':
+        if team_rew_mode == 'close':
             r = self.rod
             p = self.particles
 
@@ -558,11 +564,11 @@ class MD_ROD():
 
             rewards = close_enough * performance * ref_prefactor # The direction of rotation does not matter.
 
-        elif prim_rew_mode == 'touch':
+        elif team_rew_mode == 'touch':
 
             rewards = self.touch * performance * ref_prefactor # The direction of rotation does not matter.
 
-        elif prim_rew_mode == 'primitive':
+        elif team_rew_mode == 'team':
 
             rewards = np.full_like(self.touch, performance * ref_prefactor, dtype=np.double) # Really all particles get rewarded
 

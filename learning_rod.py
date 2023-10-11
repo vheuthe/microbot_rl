@@ -36,12 +36,12 @@ default_parameters = {
 
     # For Rewards
     'mode': 7,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'primitive', 'WLU', 'approx_diff' or 'classic')
+    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'team', 'WLU', 'approx_diff' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 100,          # Reward prefactor for rotation rewards for rewards based on forces
     'p_rew_fact': 5,            # Reward prefactor for pushing in long difection
-    'rew_cutoff': 60,           # Cutoff for the primitive/WLU rewards
+    'rew_cutoff': 60,           # Cutoff for the team/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
     'trans_dist_ramp': False,   # ramp up the trans_dist from 10 to trans_dist
@@ -53,8 +53,8 @@ default_parameters = {
     'bootstrap': True,          # flag for bootstrapping in episodic tasks
     'cost_iso_rew': False,      # cost instead of reward in episodic task mode 7
 
-    # for primitive reward
-    'prim_rew_mode': 'close',   # 'primitive', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
+    # for team reward
+    'team_rew_mode': 'close',   # 'team', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
 
     # for diff Reward
     'WLU_prefact': 10,          # Prefactor for WLU rewards (1e4 is good for rotation)
@@ -120,13 +120,25 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     # Choose one set out of all possible parameter combinations
     # (task_id's start at 1!!). Choose only the list instances in the
     # values of the parameters, otherwise the meshgrid gets too big
+    # Screening parameters are the ones that are given as a list
     screening_params = {key: val for key, val in job_parameters.items() \
-            if isinstance(job_parameters[key], list) and len(job_parameters[key]) > 1 and not (key=="load_models" or key=="model_structure")}
-    non_screeening_params = {key: val for key, val in job_parameters.items() \
-            if not isinstance(job_parameters[key], list) \
-                or (isinstance(job_parameters[key], list) \
-                    and len(job_parameters[key]) == 1) \
+            if isinstance(val, list) and len(val) > 1 \
+                and not (key in ("load_models", "model_structure"))}
+
+    # Non screening parameters are the ones with single values
+    non_screeening_params = {
+        key: val for key, val in job_parameters.items() \
+            if not isinstance(val, list) \
+                or (isinstance(val, list) \
+                    and len(val) == 1) \
                 or key=="load_models" or key=="model_structure"}
+
+    # Make sure that the non screening parameters are not lists
+    non_screeening_params = {
+        key: (val[0] if isinstance(val, list) else val)
+        for key, val in non_screeening_params.items()
+    }
+
     selected_params = dict(zip(
         screening_params.keys(),
         [val.flat[task_id - 1] if isinstance(val, list) else val.flat[0] for val in np.meshgrid(*screening_params.values())]
@@ -454,9 +466,6 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
             return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod
     else:
         return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target
-
-
-
 
 
 class NumpyEncoder(json.JSONEncoder): # Copied from Robert
