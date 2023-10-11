@@ -141,7 +141,7 @@ def do_array_task(task_id, job_dir): # Copied from Robert
 
     selected_params = dict(zip(
         screening_params.keys(),
-        [val.flat[task_id - 1] if isinstance(val, list) else val.flat[0] for val in np.meshgrid(*screening_params.values())]
+        [values.flat[task_id - 1] for values in np.meshgrid(*screening_params.values())]
     ))
     selected_params.update(non_screeening_params)
 
