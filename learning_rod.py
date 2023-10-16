@@ -254,6 +254,9 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
 
     for i_ep in range(0, n_episodes):
 
+        # Print the progress
+        print(f"Episode {i_ep} of {n_episodes} in {name} done")
+
         if rec_traj:
             if debugging:
                 rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
@@ -312,6 +315,9 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, _, 
     store_file = h5py.File(os.path.join(data_dir, name + '.h5'), 'w')
 
     for i_ep in range(0, n_episodes):
+
+        # Print the progress
+        print(f"Episode {i_ep} of {n_episodes} in {name} done")
 
         # Select the right episode length
         n_step_ep = poiss_distr_lengths[i_ep]
