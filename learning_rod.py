@@ -146,7 +146,8 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     selected_params.update(non_screeening_params)
 
     # Problems with the model structure: just copy the model structure from the job_params
-    selected_params["model_structure"] = job_parameters["model_structure"]
+    if "model_structure" in job_parameters.keys():
+        selected_params["model_structure"] = job_parameters["model_structure"]
 
     # Constructs the folder name for the task from the relevant parameters
     # make sure to not use "load_models" for that, otherwise the paths get messed up)
