@@ -17,6 +17,6 @@ with open(os.path.join(job_dir, 'parameters.json'), 'r', encoding="UTF-8") as re
     job_parameters = json.load(reader)
 
 # warning: types like strings also have a len()!
-num_tasks = int(np.product([len(v) for v in job_parameters.values() if isinstance(v, list)]))
+num_tasks = int(np.product([len(v) for k, v in job_parameters.items() if (isinstance(v, list) and not k=="model_structure")]))
 
 os.system('qsub -N "{}" -t 1-{} -v JOB_DIR="{}" jobscript.sh'.format(job_name, num_tasks, job_dir))

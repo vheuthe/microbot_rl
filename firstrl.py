@@ -93,7 +93,7 @@ class AgentActiveMatter():
     '''
 
     # internal knowledge
-    self.optimizer = tf.optimizers.Adam(learning_rate=lr_pi) # optimizer
+    self.optimizer = tf.optimizers.Adam(learning_rate=lr_pi)# optimizer
     self.gamma = gamma                                      # gamma for discount future rewards
     self.lam = lam                                          # lambda for GAE
     self.eps_clip = CL                                      # clipping parameter
