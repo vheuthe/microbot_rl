@@ -34,7 +34,7 @@ class MD_ROD():
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type='1overR', cones=5, n_obs=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
-                data_path=None, rew_mode='CR', team_rew_mode='close', CR_mode = 'non_ex', sparse_rew = False,
+                data_path=None, rew_mode='CR', team_rew_mode='close', CR_mode = 'non_ex',
                 close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, CR_prefact=10000, CR_noise='mixed', CR_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', start_dist_scale=1, trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
                 CR_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
@@ -51,6 +51,9 @@ class MD_ROD():
         self.skew = skew
         self.N = N
         self.size = size
+
+        # Make sure the reward mode is sensible
+        assert rew_mode in ["CR", "team", "torque"], 'Wrong reward mode'
 
         # sight characterization:
         # obs_type -> 1/r, 1/r^2
@@ -107,9 +110,6 @@ class MD_ROD():
         self.CR_noise = CR_noise                        # noise in determination of performance and hypPerformance for diff Rews
         self.CR_rew_mode = CR_rew_mode                  # which particles are considered for CR
         self.CR_touch_rew = CR_touch_rew                # Rewards for touching in case of CR
-        self.sparse_rew = sparse_rew                    # gives only one, random particle a reward every step
-        self.last_rew_part = []                         # needed for first step in sparse_rew
-        self.n_rew_frames = n_rew_frames                # number of frames a particle is rewarded in the sparse_rew==true case
         self.lost = []                                  # no particles lost as default
 
         # parameters of dynamics
@@ -575,29 +575,6 @@ class MD_ROD():
                 rewards = self.get_CR_parallelized()
             else:
                 rewards = self.get_CR()
-
-        # Gives only one, random particle a reward every step
-        if self.sparse_rew:
-
-            # selecting one particle that is rewarded in the next n_rew_frames frames
-            rand_part = random.randrange(self.N)
-
-            # update last_rew_part (all particles that are not lost this frame)
-            self.last_rew_part.extend([num for num in set(self.last_rew_part)])
-            self.last_rew_part.append(rand_part)
-
-            # the particle is non-lost for self.nFramesLost + 1 frames, then it is lost again
-            # toRemove = [num for num in self.last_rew_part if self.last_rew_part.count(num) > self.n_rew_frames + 1]
-
-            # if toRemove: for num in toRemove: self.last_rew_part.remove(num)
-
-            self.last_rew_part = list(num for num in self.last_rew_part if self.last_rew_part.count(num) < self.n_rew_frames + 1)
-
-            # give no reward to the other particles ...
-            rewards[[part_num not in self.last_rew_part for part_num in range(self.N)]] = 0
-
-            # ... and make them all lost
-            self.lost = np.unique(self.last_rew_part)
 
         self.rewards = rewards
 

@@ -48,8 +48,6 @@ default_parameters = {
     'trans_dist_ramp': False,   # ramp up the trans_dist from 10 to trans_dist
     'max_trans_dist': 100,      # maximum distance ofer which to transport the rod with ramping trans_dist
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
-    'sparse_rew': False,        # gives only one, random particle a reward every step
-    'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
     'final_rew': 1000,          # the reward upon achieved task for truely episodic learning
     'bootstrap': True,          # flag for bootstrapping in episodic tasks
     'cost_iso_rew': False,      # cost instead of reward in episodic task mode 7
@@ -348,8 +346,8 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, _, 
 
     for i_ep in range(0, n_episodes):
 
-        # Print the progress
-        print(f"Episode {i_ep} of {n_episodes} in {name} done")
+        # Get the start time
+        ep_start_time = time.time()
 
         # Select the right episode length
         n_step_ep = poiss_distr_lengths[i_ep]
@@ -386,10 +384,19 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, _, 
 
         else:
             # Execute the episode
-            rewards, rod_or, rod_cm, entropies, values, target = \
+            rewards, rod_or, rod_cm, entropies, values, target  = \
                 do_episode(
                     agent, parameters, n_step_ep, data_dir, i_ep,
                     rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+
+        # Get the end time
+        ep_end_time = time.time()
+
+        # Print the progress
+        print(f"Episode {i_ep} of {n_episodes} in {name} done, took {ep_end_time-ep_start_time} seconds")
+
+        # Save the timing
+        elapsed_times = ep_end_time - ep_start_time
 
         # Things that are saved in every episode whatsoever
         store_file.create_dataset('traj{}/rewards'.format(i_ep), compression='gzip', data=rewards)
@@ -397,6 +404,7 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, _, 
         store_file.create_dataset('traj{}/rod_cm'.format(i_ep), compression='gzip', data=rod_cm)
         store_file.create_dataset('traj{}/entropies'.format(i_ep), compression='gzip', data=entropies)
         store_file.create_dataset('traj{}/values'.format(i_ep), compression='gzip', data=values)
+        store_file.create_dataset('traj{}/elapsed_times'.format(i_ep), data=elapsed_times)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
