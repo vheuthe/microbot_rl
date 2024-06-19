@@ -78,7 +78,7 @@ class AgentActiveMatter():
 
 
   def __init__(self, n_obs, lr_pi, lr_v, gamma, CL, en_coeff, lam, target_kl,
-               n_actions, load_models, model_structure, approx_flag=False,
+               n_actions, load_models, model_structure,
                train_actor=True, reinitialize_critic=False, actor_epochs=10,
                critic_epochs=1, episodic=False, bootstrap=False,
                **unused_parameters):
@@ -100,7 +100,6 @@ class AgentActiveMatter():
     self.en_coeff = en_coeff                                # entropy coefficient
     self.target_kl = target_kl                              # target KL divergence for update early stop
     self.particles = []
-    self.approx_flag = approx_flag
     self.train_actor = train_actor                          # Whether or not the actor should be trained
     self.reinitialize_critic = reinitialize_critic          # Whether or not to reinitialize the critic
     self.critic_epochs = critic_epochs                      # How many epochs in training the critic
@@ -137,21 +136,6 @@ class AgentActiveMatter():
       self.n_actions = self.policy.layers[-1].output_shape[1]
       self.reset_memory()
 
-      # Approximator Neural Network (does not get loaded so far, therefore needs iniitialization)
-      self.approx = tf.keras.Sequential(
-        [
-          # Input mask
-          tf.keras.Input(shape=(self.n_obs,)),
-          # Hidden Layers
-          *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
-          # Output Layer defining value of state
-          tf.keras.layers.Dense(1, activation='linear')
-        ]
-      )
-
-      # The approx layer is optimized with a default algorithm, so it can be compiled for speed
-      self.approx.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
-
     else:
       print('Starting new model')
       assert model_structure, 'model structure is not defined!'
@@ -187,21 +171,6 @@ class AgentActiveMatter():
       # The critic layer is optimized with a default algorithm, so it can be compiled for speed
       self.critic.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
 
-      # Approximator Neural Network
-      self.approx = tf.keras.Sequential(
-        [
-          # Input mask
-          tf.keras.Input(shape=(self.n_obs,)),
-          # Hidden Layers
-          *[tf.keras.layers.Dense(size, activation=act) for size, act in model_structure],
-          # Output Layer defining value of state
-          tf.keras.layers.Dense(1, activation='linear')
-        ]
-      )
-
-      # The approx layer is optimized with a default algorithm, so it can be compiled for speed
-      self.approx.compile(optimizer=tf.optimizers.Adam(learning_rate=lr_v), loss='mse')
-
 
   def save_models(self, path):
     '''
@@ -227,8 +196,6 @@ class AgentActiveMatter():
     self.advantage = np.empty((0))
     self.estimated_return = np.empty((0))
     self.actions = np.empty((0), dtype=np.int8)
-    self.pass_obs = np.empty((0,self.n_obs))
-    self.pass_rew = np.empty((0))
 
 
   def initialize(self, observables):
@@ -361,11 +328,6 @@ class AgentActiveMatter():
     self.actions = np.append(self.actions, traj.act)
     self.logp = np.append(self.logp, traj.logp)
 
-    # In the case off approx. diff. rewards, the approximated rewards are subtracted here
-    # Since this does not change traj.rew, self.pass_rew contains the raw rewards in the end
-    if self.approx_flag:
-      rews = rews - self.approx(np.array(traj.obs)[:-1]).numpy().reshape(-1)
-
     # compute Generalized Advantage Estimate to train policy
     # (for details, see https://arxiv.org/abs/1506.02438v6)
     deltas = rews + self.gamma * vals[1:] - vals[:-1]
@@ -374,11 +336,6 @@ class AgentActiveMatter():
 
     # compute estimated return (+ bootstrap value) as target for the value function
     self.estimated_return = np.append(self.estimated_return, discount_cumsum(np.append(rews, vals[-1]), self.gamma)[:-1])
-
-    # Append the observables and rewards for all states from which a passive action was chosen
-    # in order to train the reward approximater to that data
-    self.pass_obs = np.append(self.pass_obs, np.array(traj.obs[0:-1])[np.array(traj.act) == 0, :], axis=0)
-    self.pass_rew = np.append(self.pass_rew, np.array(traj.rew)[np.array(traj.act) == 0], axis=0)
 
 
   def finish_episode(self):
@@ -483,18 +440,6 @@ class AgentActiveMatter():
       print(self.estimated_return)
       self.estimated_return[np.isnan(self.estimated_return)] = 0
     self.critic.fit(x=self.observables, y=self.estimated_return, epochs=self.critic_epochs, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
-
-    # -- APPROXIMATOR FITTING --
-    # Number of epochs is chosen lower than for the critic,
-    # since there is less data with passive actions only.
-    # Fitting is only done, when the approximator is actually used.
-    if self.approx_flag:
-
-      # Since the approx. should not be trained on the reward its own output
-      # is subtracted from, the reward estimates are added again here
-      self.pass_rew = self.pass_rew + self.approx(self.pass_obs).numpy().reshape(-1)
-
-      self.approx.fit(x=self.pass_obs, y=self.pass_rew, epochs=epochs*10, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)], verbose=0)
 
     # clean up
     self.reset_memory()

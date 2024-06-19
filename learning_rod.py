@@ -36,13 +36,13 @@ default_parameters = {
     'flag_LOS': False,
 
     # For Rewards
-    'mode': 7,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'team', 'WLU', 'approx_diff' or 'classic')
+    'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
+    'rew_mode': 'CR',           # Mode of rewards ('team', 'CR' or 'torque')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 100,          # Reward prefactor for rotation rewards for rewards based on forces
     'p_rew_fact': 5,            # Reward prefactor for pushing in long difection
-    'rew_cutoff': 60,           # Cutoff for the team/WLU rewards
+    'rew_cutoff': 60,           # Cutoff for the team/CR rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
     'trans_dist_ramp': False,   # ramp up the trans_dist from 10 to trans_dist
@@ -58,11 +58,11 @@ default_parameters = {
     'team_rew_mode': 'close',   # 'team', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
 
     # for diff Reward
-    'WLU_prefact': 10,          # Prefactor for WLU rewards (1e4 is good for rotation)
-    'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
-    'WLU_noise': 'mixed',       # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
-    'WLU_rew_mode': 'touch',    # which particles are even considered ("touch"/"close")
-    'WLU_touch_rew': 0.1,       # Reward for touching in case of WLU
+    'CR_prefact': 10,           # Prefactor for CR rewards (1e4 is good for rotation)
+    'CR_mode': 'non_ex',        # 'non_ex', 'passive' or 'switch' as clamping parameter
+    'CR_noise': 'mixed',        # noise in determination of performance and hypPerformance for CR reward ('on', 'off', 'mixed', 'no' or 'ideal')
+    'CR_rew_mode': 'touch',     # which particles are even considered ("touch"/"close")
+    'CR_touch_rew': 0.1,        # Reward for touching in case of CR
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
@@ -109,7 +109,7 @@ default_parameters = {
     'parallelize_cr': False,    # whether or not the counterfactuals computation should be parallelized
     'n_processes': 1,           # number of processes in parallelization of counterfactual reward computation
 
-    'eval_only': False    # flag for only running evaluation of runs without overwriting their training files
+    'eval_only': False          # flag for only running evaluation of runs without overwriting their training files
 }
 
 
@@ -201,16 +201,8 @@ def do_task(selected_params, data_dir):
     elif parameters['mode'] == 7:
         if parameters['start_conf'] not in ['transportation_long', 'transportation_trans', 'transp_1', 'transp_2']:
             parameters['start_conf'] = 'transportation'
-
-        if parameters['rew_mode'] not in ['WLU', 'WLU_experiment']:
-            parameters['rew_mode'] = 'WLU'
-
+        parameters['rew_mode'] = 'CR'
         parameters['n_obs'] = 3 * parameters['cones']
-
-    if parameters['rew_mode'] == 'approx_diff':
-        parameters['approx_flag'] = True
-    else:
-        parameters['approx_flag'] = False
 
     # Save the used parameters to a json file for tracability
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf8') as param_file:
@@ -459,7 +451,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
         values = agent.add_environment_response(environment.lost, obs, rewards, final=final)
 
         # Save the important information in the h5 file
-        mean_rew[step] = np.mean(rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1))
+        mean_rew[step] = np.mean(rewards)
         rod_or[step] = rod_theta
         rod_cm[0,step,:] = rod_com
         mean_ent[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
@@ -469,7 +461,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
             # Save the particle positions, actions and rewards and the rod-particle poositions
             particles[step, 3, :] = actions
             particles[step, 0:3, :] = environment.particles.transpose()
-            particles[step, 4, :] = rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1)
+            particles[step, 4, :] = rewards
             rod[step, :, :] = environment.rod.transpose()
 
             if debugging:
