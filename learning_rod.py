@@ -6,6 +6,7 @@ import json
 import numpy as np
 import scipy
 import h5py
+import time
 
 from environments.rod import MD_ROD
 from firstrl import AgentActiveMatter
@@ -88,7 +89,7 @@ default_parameters = {
     'fr_rod': 3,                # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
     # For the MD and training part of the simulation
-    'episodic': True,          # flag for truely episodic training
+    'episodic': True,           # flag for truely episodic training
     'train_ep': 200,            # number of episodes conducted during the whole training (replaces n_MD)
     'eval_ep': 5,               # number of evaluation episodes doen in the end without further training
     'episodic_eval': True,      # In case of episodic task, is the evaluation episodic or not?
@@ -103,14 +104,20 @@ default_parameters = {
     'record_traj': False,       # whether or not the full training trajectory is recorded
 
     'int_steps': 900,           # number of times, the integration is performed in each simulation step
-    'dt': 0.001                 # time step of integration in simulations
+    'dt': 0.001,                # time step of integration in simulations
+
+    'parallelize_cr': False,    # whether or not the counterfactuals computation should be parallelized
+    'n_processes': 1,           # number of processes in parallelization of counterfactual reward computation
+
+    'eval_only': False    # flag for only running evaluation of runs without overwriting their training files
 }
 
 
 def do_array_task(task_id, job_dir): # Copied from Robert
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
-    This is then fed into do_task
+    This is then fed into do_task. The evaluation_only flag is for running the evaluation of a run that
+    got stuck in training or something.
     '''
 
     # parameter ranges are stored in the job_dir
@@ -154,10 +161,14 @@ def do_array_task(task_id, job_dir): # Copied from Robert
     data_dir = os.path.join(
         job_dir,
         '_'.join([key + str(val) for key, val in selected_params.items() \
-            if isinstance(job_parameters[key], list) and len(job_parameters[key]) > 1 and not key=="load_models"])
+            if isinstance(job_parameters[key], list) and len(job_parameters[key]) > 1 and not (key=="load_models" or key=="model_structure")])
     )
 
+    # Time the task execution
+    start_time = time.time()
     do_task(selected_params, data_dir)
+    end_time = time.time()
+    print(f"Training took {end_time-start_time} seconds")
 
 
 def do_task(selected_params, data_dir):
@@ -168,12 +179,13 @@ def do_task(selected_params, data_dir):
     'data_dir', carrying the important parameter (the one that is changed) as its name.
     '''
 
-    # Make the data directory
-    os.makedirs(data_dir, exist_ok=True)
-
     # Use the default parameters but update the specified ones
     parameters = default_parameters.copy()
     parameters.update(selected_params)
+
+    # Make the data directory (don't, if its only evaluation)
+    if not parameters["eval_only"]:
+        os.makedirs(data_dir, exist_ok=True)
 
     # Make sure, that the input dimension and the start_conf is ok (self-consistency),
     # so one does not have to specify the parameters dependant on the mode.
@@ -200,40 +212,53 @@ def do_task(selected_params, data_dir):
     else:
         parameters['approx_flag'] = False
 
-    # Initializing the agent. It's the same agent throughout all the batches in one task.
-    agent = AgentActiveMatter(**parameters)
-    agent.save_models(os.path.join(data_dir, 'model'))
-
     # Save the used parameters to a json file for tracability
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf8') as param_file:
         json.dump(parameters, param_file, ensure_ascii=False, indent=4, cls=NumpyEncoder)
 
+    # If only evaluation should be ran, load the model from the job directory
+    if parameters["eval_only"]:
+        assert "model_policy" in os.listdir(data_dir) \
+            and "model_critic" in os.listdir(data_dir) \
+            and "training.h5" in os.listdir(data_dir), \
+            f"No model to load in {data_dir}"
+        assert "evaluation.h5" not in os.listdir(data_dir), \
+            "Evaluation is already done"
+        parameters["load_models"] = data_dir + "/model"
+
+    # Initializing the agent. It's the same agent throughout all the batches in one task.
+    agent = AgentActiveMatter(**parameters)
+    if not parameters["eval_only"]:
+        agent.save_models(os.path.join(data_dir, 'model'))
+
     # Now there is training for train_ep episodes (training batch)
-    if parameters["episodic"]:
-        do_episode_batch_episodic(
-            agent, parameters, data_dir, 'training',
-            parameters['train_ep'], parameters['train_frames'],
-            rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
-    else:
-        do_episode_batch(
-            agent, parameters, data_dir, 'training',
-            parameters['train_ep'], parameters['train_frames'],
-            rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
+    if parameters['train_ep'] > 0 and not parameters["eval_only"]:
+        if parameters["episodic"]:
+            do_episode_batch_episodic(
+                agent, parameters, data_dir, 'training',
+                parameters['train_ep'], parameters['train_frames'],
+                rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
+        else:
+            do_episode_batch(
+                agent, parameters, data_dir, 'training',
+                parameters['train_ep'], parameters['train_frames'],
+                rec_traj=parameters['record_traj'], train_agent=True, debugging=False)
 
     # Training is done at this point
     agent.save_models(os.path.join(data_dir, 'model'))
 
     # And then evaluation for eval_ep episodes (evaluation batch)
-    if parameters["episodic"] and parameters["episodic_eval"]:
-        do_episode_batch_episodic(
-            agent, parameters, data_dir, 'evaluation',
-            parameters['eval_ep'], parameters['eval_frames'],
-            rec_traj=True, train_agent=False, debugging=False)
-    else:
-        do_episode_batch(
-            agent, parameters, data_dir, 'evaluation',
-            parameters['eval_ep'], parameters['eval_frames'],
-            rec_traj=True, train_agent=False, debugging=False)
+    if parameters['eval_ep'] > 0:
+        if parameters["episodic"] and parameters["episodic_eval"]:
+            do_episode_batch_episodic(
+                agent, parameters, data_dir, 'evaluation',
+                parameters['eval_ep'], parameters['eval_frames'],
+                rec_traj=True, train_agent=False, debugging=False)
+        else:
+            do_episode_batch(
+                agent, parameters, data_dir, 'evaluation',
+                parameters['eval_ep'], parameters['eval_frames'],
+                rec_traj=True, train_agent=False, debugging=False)
 
 
 def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
@@ -255,12 +280,14 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
     rod_cm = store_file.create_dataset('/rod_cm', (n_episodes,n_step_ep,2), dtype='f4', compression='gzip') # rod_com[:,:,0] is x-component and rod_com[:,:,1] is y-component
     entropies = store_file.create_dataset('/entropies', (n_episodes,n_step_ep), dtype='f4', compression='gzip')
     values = store_file.create_dataset('/values', (n_episodes,n_step_ep), dtype='f4', compression='gzip')
+    elapsed_times = store_file.create_dataset('elapsed_times', (n_episodes,1), dtype='f4', compression='gzip')
 
     for i_ep in range(0, n_episodes):
 
-        # Print the progress
-        print(f"Episode {i_ep} of {n_episodes} in {name} done")
+        # Get the start time
+        ep_start_time = time.time()
 
+        # Do the episode
         if rec_traj:
             if debugging:
                 rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
@@ -297,6 +324,15 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
         if parameters['mode'] == 7:
                 tar_name = 'traj{}/target'.format(i_ep)
                 store_file.create_dataset(tar_name, compression='gzip', data=target)
+
+        # Get the end time
+        ep_end_time = time.time()
+
+        # Print the progress
+        print(f"Episode {i_ep} of {n_episodes} in {name} done, took {ep_end_time-ep_start_time} seconds")
+
+        # Save the timing
+        elapsed_times[i_ep,0] = ep_end_time - ep_start_time
 
     store_file.close()
 
