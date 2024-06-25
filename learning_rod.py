@@ -111,7 +111,7 @@ default_parameters = {
 }
 
 
-def do_array_task(task_id, job_dir): # Copied from Robert
+def do_array_task(task_id, job_dir):
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
     This is then fed into do_task. The evaluation_only flag is for running the evaluation of a run that
@@ -514,7 +514,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
         return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target
 
 
-class NumpyEncoder(json.JSONEncoder): # Copied from Robert
+class NumpyEncoder(json.JSONEncoder):
     """Helps parsing integer parameter ranges
 
     See https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
