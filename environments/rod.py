@@ -4,7 +4,7 @@ import math
 from math import e
 from multiprocessing import Pool
 import random
-from fortran import evolve_rod_rigid as evolve
+from fortran import evolve_environment as evolve
 # ---------------------------------------
 
 # ---------------------------------------
