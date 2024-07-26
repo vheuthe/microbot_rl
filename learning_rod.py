@@ -36,18 +36,20 @@ default_parameters = {
     'flag_LOS': False,
 
     # For Rewards
-    'mode': 3,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
-    'rew_mode': 'CR',           # Mode of rewards ('team', 'CR' or 'torque')
+    'mode': 7,                  # 3: normal rotation, 4: rotation in direction s, 2: directional pushing, 6:push along long direction, 7: Rod transportation
+    'rew_mode': 'WLU',          # Mode of rewards ('forces', 'abs_forces', 'team', 'WLU', 'approx_diff' or 'classic')
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 100,          # Reward prefactor for rotation rewards for rewards based on forces
     'p_rew_fact': 5,            # Reward prefactor for pushing in long difection
-    'rew_cutoff': 60,           # Cutoff for the team/CR rewards
+    'rew_cutoff': 60,           # Cutoff for the team/WLU rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7
     'trans_dist_ramp': False,   # ramp up the trans_dist from 10 to trans_dist
     'max_trans_dist': 100,      # maximum distance ofer which to transport the rod with ramping trans_dist
     'target_tol': 120,          # allowed residual cummulative distance between target and rod for completion of the task
+    'sparse_rew': False,        # gives only one, random particle a reward every step
+    'n_rew_frames': 1,          # number of frames one particle is rewarded in the sparse_rew==true mode
     'final_rew': 1000,          # the reward upon achieved task for truely episodic learning
     'bootstrap': True,          # flag for bootstrapping in episodic tasks
     'cost_iso_rew': False,      # cost instead of reward in episodic task mode 7
@@ -56,11 +58,11 @@ default_parameters = {
     'team_rew_mode': 'close',   # 'team', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
 
     # for diff Reward
-    'CR_prefact': 10,           # Prefactor for CR rewards (1e4 is good for rotation)
-    'CR_mode': 'non_ex',        # 'non_ex', 'passive' or 'switch' as clamping parameter
-    'CR_noise': 'mixed',        # noise in determination of performance and hypPerformance for CR reward ('on', 'off', 'mixed', 'no' or 'ideal')
-    'CR_rew_mode': 'touch',     # which particles are even considered ("touch"/"close")
-    'CR_touch_rew': 0.1,        # Reward for touching in case of CR
+    'WLU_prefact': 10,          # Prefactor for WLU rewards (1e4 is good for rotation)
+    'WLU_mode': 'non_ex',       # 'non_ex', 'passive' or 'switch' as clamping parameter
+    'WLU_noise': 'mixed',       # noise in determination of performance and hypPerformance for WLU Reward ('on', 'off', 'mixed', 'no' or 'ideal')
+    'WLU_rew_mode': 'touch',    # which particles are even considered ("touch"/"close")
+    'WLU_touch_rew': 0.1,       # Reward for touching in case of WLU
 
     # Particles
     'vel_act': 7.3,             # Adjusted to optimize training time and match experiment
@@ -86,6 +88,11 @@ default_parameters = {
     'cen_rod': 1.,              # somehow alters the relative size of the different rod particles
     'fr_rod': 3,                # friction of the rod determining, how easily the particles can move it (10 is close to exp.)
 
+    # Obstacles
+    'use_obst': False,          # whether or not to include obstacles
+    'obst_conf': "random",      # configuration of obstacles ('random' or 'wall')
+    'obst_vision': False,       # whether or not the robots can see the obstacles
+
     # For the MD and training part of the simulation
     'episodic': True,           # flag for truely episodic training
     'train_ep': 200,            # number of episodes conducted during the whole training (replaces n_MD)
@@ -107,11 +114,11 @@ default_parameters = {
     'parallelize_cr': False,    # whether or not the counterfactuals computation should be parallelized
     'n_processes': 1,           # number of processes in parallelization of counterfactual reward computation
 
-    'eval_only': False          # flag for only running evaluation of runs without overwriting their training files
+    'eval_only': False    # flag for only running evaluation of runs without overwriting their training files
 }
 
 
-def do_array_task(task_id, job_dir):
+def do_array_task(task_id, job_dir): # Copied from Robert
     '''
     This takes the qsub task_id and with that produces a set of parameters from the json file in job_dir.
     This is then fed into do_task. The evaluation_only flag is for running the evaluation of a run that
@@ -199,8 +206,22 @@ def do_task(selected_params, data_dir):
     elif parameters['mode'] == 7:
         if parameters['start_conf'] not in ['transportation_long', 'transportation_trans', 'transp_1', 'transp_2']:
             parameters['start_conf'] = 'transportation'
-        parameters['rew_mode'] = 'CR'
+
+        if parameters['rew_mode'] not in ['WLU', 'WLU_experiment']:
+            parameters['rew_mode'] = 'WLU'
+
         parameters['n_obs'] = 3 * parameters['cones']
+
+    # Add observables for the obstacles
+    if parameters['use_obst'] and parameters['obst_vision']:
+        parameters['n_obs'] = parameters['n_obs'] + parameters['cones']
+    else:
+        parameters['obst_vision'] = False
+
+    if parameters['rew_mode'] == 'approx_diff':
+        parameters['approx_flag'] = True
+    else:
+        parameters['approx_flag'] = False
 
     # Save the used parameters to a json file for tracability
     with open(os.path.join(data_dir, 'parameters.json'), 'w', encoding='utf8') as param_file:
@@ -252,6 +273,9 @@ def do_task(selected_params, data_dir):
 
 
 def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *, rec_traj=False, train_agent=False, debugging=False):
+    '''
+    Executes a batch of episodes, either training or evaluation
+    '''
 
     # n_step_ep is the number of simulation steps (observables -> actions -> evolved environment) in one episode
     # n_episodes is the number of episodes to be conducted in this batch
@@ -280,26 +304,26 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
         # Do the episode
         if rec_traj:
             if debugging:
-                rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod,\
+                rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, obstacles, particles, rod,\
                 hyp_rod_ang, hyp_perf, perf, perf_rod_ang = \
                     do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
             else:
-                rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, particles, rod = \
+                rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, obstacles, particles, rod = \
                     do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
-            rodName = 'traj{}/rod'.format(i_ep) # name of the dataset in the h5 file has to change for the trajectories
-            partName = 'traj{}/particles'.format(i_ep)
+            rod_name = f'traj{i_ep}/rod' # name of the dataset in the h5 file has to change for the trajectories
+            part_name = f'traj{i_ep}/particles'
 
-            store_file.create_dataset(partName, compression='gzip', data=particles)
-            store_file.create_dataset(rodName, compression='gzip', data=rod)
+            store_file.create_dataset(part_name, compression='gzip', data=particles)
+            store_file.create_dataset(rod_name, compression='gzip', data=rod)
 
             # This is for looking at the hypothetical rods and performances, etc.
             if debugging:
 
-                hyp_rods_name = 'traj{}/hypRods'.format(i_ep)          # hypothetical rods
-                hyp_perf_name = 'traj{}/hypPers'.format(i_ep)          # hypothetical performances
-                perfs_name = 'traj{}/perf'.format(i_ep)                # performance
-                perf_rods_name = 'traj{}/perfRod'.format(i_ep)   # rod, from which the performance was determined
+                hyp_rods_name = f'traj{i_ep}/hypRods'          # hypothetical rods
+                hyp_perf_name = f'traj{i_ep}/hypPers'          # hypothetical performances
+                perfs_name = f'traj{i_ep}/perf'                # performance
+                perf_rods_name = f'traj{i_ep}/perfRod'         # rod, from which the performance was determined
 
                 store_file.create_dataset(hyp_rods_name, compression='gzip', data=hyp_rod_ang)
                 store_file.create_dataset(hyp_perf_name, compression='gzip', data=hyp_perf)
@@ -307,13 +331,18 @@ def do_episode_batch(agent, parameters, data_dir, name, n_episodes, n_step_ep, *
                 store_file.create_dataset(perf_rods_name, compression='gzip', data=perf_rod_ang)
 
         else:
-            rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target = \
+            rewards[i_ep,:], rod_or[i_ep,:], rod_cm[i_ep,:,:], entropies[i_ep,:], values[i_ep,:], target, obstacles = \
                 do_episode(agent, parameters, n_step_ep, data_dir, i_ep, rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
         # In the case of the transportation problem, the target is saved
         if parameters['mode'] == 7:
-                tar_name = 'traj{}/target'.format(i_ep)
+                tar_name = f'traj{i_ep}/target'
                 store_file.create_dataset(tar_name, compression='gzip', data=target)
+
+        # When obstacles are used, their positions are saved
+        if parameters['use_obst']:
+                obst_name = f'traj{i_ep}/obstacles'
+                store_file.create_dataset(obst_name, compression='gzip', data=obstacles)
 
         # Get the end time
         ep_end_time = time.time()
@@ -367,49 +396,50 @@ def do_episode_batch_episodic(agent, parameters, data_dir, name, n_episodes, _, 
                         rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
                 # Things that are saved only if rec_traj and debugging
-                store_file.create_dataset('traj{}/hypRods'.format(i_ep), compression='gzip', data=hyp_rod_ang) # hypothetical rods
-                store_file.create_dataset('traj{}/hypPers'.format(i_ep), compression='gzip', data=hyp_perf) # hypothetical performances
-                store_file.create_dataset('traj{}/perf'.format(i_ep), compression='gzip', data=perf) # performance
-                store_file.create_dataset('traj{}/perfRod'.format(i_ep), compression='gzip', data=perf_rod_ang) # rod, from which the performance was determined
+                store_file.create_dataset(f'traj{i_ep}/hypRods', compression='gzip', data=hyp_rod_ang) # hypothetical rods
+                store_file.create_dataset(f'traj{i_ep}/hypPers', compression='gzip', data=hyp_perf) # hypothetical performances
+                store_file.create_dataset(f'traj{i_ep}/perf', compression='gzip', data=perf) # performance
+                store_file.create_dataset(f'traj{i_ep}/perfRod', compression='gzip', data=perf_rod_ang) # rod, from which the performance was determined
             else:
                 # Execute the episode
-                rewards, rod_or, rod_cm, entropies, values, target, particles, rod = \
+                rewards, rod_or, rod_cm, entropies, values, target, obstacles, particles, rod = \
                     do_episode(
                         agent, parameters, n_step_ep, data_dir, i_ep,
                         rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
 
             # Things that are saved only if rec_traj
-            store_file.create_dataset('traj{}/particles'.format(i_ep), compression='gzip', data=particles)
-            store_file.create_dataset('traj{}/rod'.format(i_ep), compression='gzip', data=rod)
+            store_file.create_dataset(f'traj{i_ep}/particles', compression='gzip', data=particles)
+            store_file.create_dataset(f'traj{i_ep}/rod', compression='gzip', data=rod)
 
         else:
             # Execute the episode
-            rewards, rod_or, rod_cm, entropies, values, target  = \
+            rewards, rod_or, rod_cm, entropies, values, target, obstacles = \
                 do_episode(
                     agent, parameters, n_step_ep, data_dir, i_ep,
                     rec_traj=rec_traj, train_agent=train_agent, debugging=debugging)
+
+        # Things that are saved in every episode whatsoever
+        store_file.create_dataset(f'traj{i_ep}/rewards', compression='gzip', data=rewards)
+        store_file.create_dataset(f'traj{i_ep}/rod_or', compression='gzip', data=rod_or)
+        store_file.create_dataset(f'traj{i_ep}/rod_cm', compression='gzip', data=rod_cm)
+        store_file.create_dataset(f'traj{i_ep}/entropies', compression='gzip', data=entropies)
+        store_file.create_dataset(f'traj{i_ep}/values', compression='gzip', data=values)
+
+        # In the case of the transportation problem, the target is saved
+        if parameters['mode'] == 7:
+                tar_name = f'traj{i_ep}/target'
+                store_file.create_dataset(tar_name, compression='gzip', data=target)
+
+        # When obstacles are used, their positions are saved
+        if parameters['use_obst']:
+                obst_name = f'traj{i_ep}/obstacles'
+                store_file.create_dataset(obst_name, compression='gzip', data=obstacles)
 
         # Get the end time
         ep_end_time = time.time()
 
         # Print the progress
         print(f"Episode {i_ep} of {n_episodes} in {name} done, took {ep_end_time-ep_start_time} seconds")
-
-        # Save the timing
-        elapsed_times = ep_end_time - ep_start_time
-
-        # Things that are saved in every episode whatsoever
-        store_file.create_dataset('traj{}/rewards'.format(i_ep), compression='gzip', data=rewards)
-        store_file.create_dataset('traj{}/rod_or'.format(i_ep), compression='gzip', data=rod_or)
-        store_file.create_dataset('traj{}/rod_cm'.format(i_ep), compression='gzip', data=rod_cm)
-        store_file.create_dataset('traj{}/entropies'.format(i_ep), compression='gzip', data=entropies)
-        store_file.create_dataset('traj{}/values'.format(i_ep), compression='gzip', data=values)
-        store_file.create_dataset('traj{}/elapsed_times'.format(i_ep), data=elapsed_times)
-
-        # In the case of the transportation problem, the target is saved
-        if parameters['mode'] == 7:
-                tar_name = 'traj{}/target'.format(i_ep)
-                store_file.create_dataset(tar_name, compression='gzip', data=target)
 
     store_file.close()
 
@@ -459,7 +489,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
         values = agent.add_environment_response(environment.lost, obs, rewards, final=final)
 
         # Save the important information in the h5 file
-        mean_rew[step] = np.mean(rewards)
+        mean_rew[step] = np.mean(rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1))
         rod_or[step] = rod_theta
         rod_cm[0,step,:] = rod_com
         mean_ent[step] = np.mean(scipy.stats.entropy(np.exp(logp), base=agent.n_actions, axis=1))
@@ -469,7 +499,7 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
             # Save the particle positions, actions and rewards and the rod-particle poositions
             particles[step, 3, :] = actions
             particles[step, 0:3, :] = environment.particles.transpose()
-            particles[step, 4, :] = rewards
+            particles[step, 4, :] = rewards - parameters['approx_flag'] * agent.approx(obs).numpy().reshape(-1)
             rod[step, :, :] = environment.rod.transpose()
 
             if debugging:
@@ -507,14 +537,14 @@ def do_episode(agent, parameters, n_step_ep, data_dir, i_ep, *, rec_traj=False, 
 
     if rec_traj:
         if debugging:
-            return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod, hyp_rod_ang, hyp_perf, perf, perf_rod_ang
+            return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, environment.obstacles, particles, rod, hyp_rod_ang, hyp_perf, perf, perf_rod_ang
         else:
-            return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, particles, rod
+            return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, environment.obstacles, particles, rod
     else:
-        return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target
+        return mean_rew, rod_or, rod_cm, mean_ent, mean_val, environment.target, environment.obstacles
 
 
-class NumpyEncoder(json.JSONEncoder):
+class NumpyEncoder(json.JSONEncoder): # Copied from Robert
     """Helps parsing integer parameter ranges
 
     See https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable
