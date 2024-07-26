@@ -9,3 +9,4 @@ parameters.json
 sketchbook.py
 run_learning_rod.py
 *.h5
+model_*

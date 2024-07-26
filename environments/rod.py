@@ -4,7 +4,7 @@ import math
 from math import e
 from multiprocessing import Pool
 import random
-from fortran import evolve_rod_rigid_obstacles as evolve
+from fortran import evolve_environment as evolve
 # ---------------------------------------
 
 # ---------------------------------------
@@ -27,18 +27,18 @@ from fortran import evolve_rod_rigid_obstacles as evolve
 #===============================================================================
 
 class MD_ROD():
-    def __init__(self, index=0, N=30, size=10, skew=False,
+    def __init__(self, N=30, size=10, skew=False,
                 int_steps=20, vel_act=0.35, vel_tor=0.2, dt=0.2, torque=25.0,
                 vel_noise_fact=0.5, rot_noise_fact=0.5,
                 fr_rod=10., inert_rod=1., l_rod=100, n_rod=60, ext_rod=1.0, cen_rod=1.0, mu_K=0.0,
                 Dt=0.014, Dr=1.0 / 350.0,
                 obs_type='1overR', cones=5, n_obs=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
-                part_size=6.2, part_size_rod=0.0, part_size_touch=6.8, mode=1, swirl=False,
-                data_path=None, rew_mode='WLU', team_rew_mode='close', WLU_mode = 'non_ex', sparse_rew = False,
-                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, WLU_prefact=10000, WLU_noise='mixed', WLU_rew_mode='close',
+                part_size=6.2, part_size_rod=0.0, mode=1, swirl=False,
+                data_path=None, rew_mode='CR', team_rew_mode='close', CR_mode = 'non_ex',
+                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, CR_prefact=10000, CR_noise='mixed', CR_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', start_dist_scale=1, trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
-                WLU_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
-                flag_fix_or = 0, train_ep = 100, n_rew_frames=1, n_processes=1, parallelize_cr=False,
+                CR_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
+                flag_fix_or = 0, train_ep = 100, n_processes=1, parallelize_cr=False,
                 use_obst=False, obst_conf='random', obst_vision=False,
                 **unused_parameters):
 
@@ -101,22 +101,19 @@ class MD_ROD():
 
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
         self.p_rew_fact = p_rew_fact
-        self.rew_mode = rew_mode                        # 'forces' or 'classic'
+        self.rew_mode = rew_mode                        # 'forces' or 'torque'
         self.team_rew_mode = team_rew_mode              # 'team', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
         self.rew_cutoff = rew_cutoff                    # for team rewards: the max distance to the rod that still gets rewarded
         self.start_conf = start_conf                    # which configuration to start with
         self.start_dist_scale = start_dist_scale        # scaling factor for the starting positions of the particles to initialize them far away
-        self.WLU_prefact = WLU_prefact                  # prefactor for the differential reward
+        self.CR_prefact = CR_prefact                    # prefactor for the differential reward
         self.trans_dist = trans_dist                    # distance over which to transpport the rod in mode 7 (transportation)
         self.target_tol = target_tol                    # allowed residual cummulative distance between target and rod for completion of the task
-        self.WLU_mode = WLU_mode                        # non-existing ('non_ex') or 'passive' particles in det_hypPerformance
-        self.n_ep = train_ep                            # is needed in WLU_mode == 'switch'
-        self.WLU_noise = WLU_noise                      # noise in determination of performance and hypPerformance for diff Rews
-        self.WLU_rew_mode = WLU_rew_mode                # which particles are considered for WLU
-        self.WLU_touch_rew = WLU_touch_rew              # Rewards for touching in case of WLU
-        self.sparse_rew = sparse_rew                    # gives only one, random particle a reward every step
-        self.last_rew_part = []                         # needed for first step in sparse_rew
-        self.n_rew_frames = n_rew_frames                # number of frames a particle is rewarded in the sparse_rew==true case
+        self.CR_mode = CR_mode                          # non-existing ('non_ex') or 'passive' particles in det_hypPerformance
+        self.n_ep = train_ep                            # is needed in CR_mode == 'switch'
+        self.CR_noise = CR_noise                        # noise in determination of performance and hypPerformance for diff Rews
+        self.CR_rew_mode = CR_rew_mode                  # which particles are considered for CR
+        self.CR_touch_rew = CR_touch_rew                # Rewards for touching in case of CR
         self.lost = []                                  # no particles lost as default
 
         # parameters of dynamics
@@ -160,9 +157,9 @@ class MD_ROD():
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             self.reinitialize_random_for_MD(swirl)
 
-        # If there is only one particle, WLU and WLU_experiment reward modes get changed to
+        # If there is only one particle, CR and CR_experiment reward modes get changed to
         # team rewards
-        if self.N == 1 and self.rew_mode in ("WLU", "WLU_experiment"):
+        if self.N == 1 and self.rew_mode in ("CR", "CR_experiment"):
             self.rew_mode = "team"
             self.team_rew_mode = "team"
 
@@ -241,93 +238,6 @@ class MD_ROD():
         return obs, rewards, found
 
 
-    def update_ids(self, particles, old_actions, rod, update, ids):
-        '''
-        This is for communicating with the experiment. It mainly
-        deals with lost and found particles. This version relies on
-        ids from Matlab and does not assume the particles are sorted
-        or anything.
-        DOES NOT WORK YET
-        '''
-
-        # Deal with particle tracking: Particles, whichs ids are not
-        # there anymore get marked as lost and keep their position.
-        # They have to be sorted out after agent.add_environment_response
-        # so the rl agent can sort them out, too.
-        # Particles, whichs ids did not show up so far get added at the end
-        # of self.particles, so it's clear to the rl agent that they are new.
-        # Rewards and observables are only calculated for particles that are
-        # not newly found (becauce we need an old position).
-
-        if update == 0:
-            # In the very first update, only observables are calculated
-            # and care must be taken to not have missmatching array shapes
-            self.old_part = particles
-            self.old_rod = rod
-            self.particles = particles
-            lost = np.full(self.particles.shape[0], False)
-            found_long = np.full(self.particles.shape[0], True)
-            self.ids = ids
-            self.old_actions = old_actions
-
-        else:
-            # Preassign defauld lost
-            lost = np.full(self.old_part.shape[0], False)
-
-            # Go through old ids and find the corresponding new id
-            for old_index in range(self.old_part.shape[0]):
-
-                # If the old id is still present, add the new position to self.particles.
-                # If it is not found anymore, its position stays constant and it is marked as lost.
-                new_index = np.argwhere(self.old_ids[old_index] == ids)
-                if new_index:
-                    self.particles[old_index,:] = particles[new_index,:]
-                    self.old_actions[old_index] = old_actions[new_index]
-                    self.ids[old_index] = ids[new_index]
-                else:
-                    lost[old_index] = True
-
-            # Now that all particles that were previously there already are assigned, calculate the new
-            # observables and rewards
-            # Whick partices were not there yet (as logical index in particles, NOT in self.particles)?
-            found_short = [True if not id in self.old_ids else False for id in ids]
-
-            # Add the newly found particles
-            # (make sure all array heights match)
-            self.particles = np.append(self.particles, particles[found_short,:], axis=0)
-            self.ids = np.append(self.ids, ids[found_short], axis=0)
-            self.old_actions = np.append(self.old_actions, old_actions[found_short], axis=0)
-            self.old_part = np.append(self.old_part, particles[found_short,:], axis=0)
-            lost = np.append(lost,
-                             np.full(self.particles.shape[0] - self.old_part.shape[0], False), axis=0)
-            found_long = np.append(
-                np.full(self.old_part.shape[0], False),
-                np.full(self.particles.shape[0]- self.old_part.shape[0], True), axis=0)
-
-        # Which particles are in the boundary?
-        in_boundary = self.old_actions < 0
-
-        # obs and rewards have to be preallocated, because they are longer than get_obs_rewards' output
-        # They have the height of 'particles' but that means they are shorter than self.particles by the
-        # number of lost particles (because the lost ones keep their index)
-        rewards = np.full(particles.shape[0], np.nan)
-        obs = np.full((particles.shape[0], self.n_obs), np.nan)
-
-        # The number of old particles has to be adjusted every update, too (for fortran)
-        self.N = self.particles.shape[0]
-
-        # Compute observables and rewards from particles and rod (but not for found particles)
-        obs, rewards = self.get_obs_rewards()
-        rewards[found_long] = 0
-
-        # Update the 'old' state of the environment. Found particles are included now, lost ones are ommited
-        self.old_rod = self.rod.copy()
-        self.old_part = self.particles[~lost,:]
-        self.old_ids = ids[~lost]
-
-        return obs, rewards, lost, found_long, in_boundary
-
-
     def update_no_training(self, particles, rod, update):
         '''
         This is for communicating with the experiment.
@@ -347,7 +257,7 @@ class MD_ROD():
 
         # We only need observables here so we set the rewarding mode to the
         # most simple scheme
-        self.rew_mode = 'classic'
+        self.rew_mode = 'torque'
         obs, rewards = self.get_obs_rewards()
 
         # Update the old rod
@@ -495,6 +405,7 @@ class MD_ROD():
 
         return
 
+
     def add_obstacles(self):
         '''
         Adds obstacles to the start configuration. Obstacles are immobile objects that can not be
@@ -566,6 +477,7 @@ class MD_ROD():
         self.n_obst = self.obstacles.shape[0]
         return
 
+
     def make_tube(self):
         '''
         Little helper to construct a tube
@@ -619,8 +531,8 @@ class MD_ROD():
         old_tor_noise = np.zeros((self.N, self.int_steps))
 
         # Is there noise at all?
-        # WLU_noise == 'no' means no noise at all, also not in the real simulation steps
-        if self.WLU_noise == 'no':
+        # CR_noise == 'no' means no noise at all, also not in the real simulation steps
+        if self.CR_noise == 'no':
             noise_flag = 0
         else:
             noise_flag = 1
@@ -661,8 +573,8 @@ class MD_ROD():
             assert rot_dir in [-1,1]
             assert old_rot_dir in [-1,1]
 
-        # Now the observables are determined, if rew_mode=='classic' the rewards determined here are used, too
-        obs, rew_classic, self.touch, self.rod_dist = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
+        # Now the observables are determined, if rew_mode=='torque' the rewards determined here are used, too
+        obs, rew_torque, self.touch, self.rod_dist = evolve.get_o_r_rod(p[:,0], p[:,1], p[:,2],
                                           r[:,0], r[:,1], olr[:,0], olr[:,1], tar[:,0], tar[:,1],
                                           x_obst, y_obst,
                                           self.mode, rot_dir, old_rot_dir,
@@ -674,10 +586,10 @@ class MD_ROD():
                                           int(self.obst_vision),
                                           self.n_obs, self.N, self.n_rod, self.n_obst)
 
-        if self.rew_mode == 'classic':
+        if self.rew_mode == 'torque':
 
             # Rewards based on position along and orientation with respect to the rod
-            rewards = rew_classic
+            rewards = rew_torque
 
         elif self.rew_mode == 'forces':
 
@@ -697,44 +609,21 @@ class MD_ROD():
             # is subtracted in learning_rod for approximating difference rewards.
             rewards = self.get_team_rewards(team_rew_mode=self.team_rew_mode)
 
-        elif self.rew_mode == 'WLU':
+        elif self.rew_mode == 'CR':
 
             # Determines the reward according to what would have happened if particle i would not have been there.
-            # (Wonderful Life Utility, WLU)
-            rewards = self.get_WLU()
+            # (Wonderful Life Utility, CR)
+            rewards = self.get_CR()
 
-        elif self.rew_mode == 'WLU_experiment':
+        elif self.rew_mode == 'CR_experiment':
 
             # Determines the reward according to what would have happened if particle i would not have been there.
-            # (Wonderful Life Utility, WLU) It also uses a scaling that makes the experiment and the simulations
+            # (Wonderful Life Utility, CR) It also uses a scaling that makes the experiment and the simulations
             # more compatible
             if self.parallelize_cr:
-                rewards = self.get_WLU_experiment_parallelized()
+                rewards = self.get_CR_experiment_parallelized()
             else:
-                rewards = self.get_WLU_experiment()
-
-        # Gives only one, random particle a reward every step
-        if self.sparse_rew:
-
-            # selecting one particle that is rewarded in the next n_rew_frames frames
-            rand_part = random.randrange(self.N)
-
-            # update last_rew_part (all particles that are not lost this frame)
-            self.last_rew_part.extend([num for num in set(self.last_rew_part)])
-            self.last_rew_part.append(rand_part)
-
-            # the particle is non-lost for self.nFramesLost + 1 frames, then it is lost again
-            # toRemove = [num for num in self.last_rew_part if self.last_rew_part.count(num) > self.n_rew_frames + 1]
-
-            # if toRemove: for num in toRemove: self.last_rew_part.remove(num)
-
-            self.last_rew_part = list(num for num in self.last_rew_part if self.last_rew_part.count(num) < self.n_rew_frames + 1)
-
-            # give no reward to the other particles ...
-            rewards[[part_num not in self.last_rew_part for part_num in range(self.N)]] = 0
-
-            # ... and make them all lost
-            self.lost = np.unique(self.last_rew_part)
+                rewards = self.get_CR_experiment()
 
         self.rewards = rewards
 
@@ -831,7 +720,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_WLU(self):
+    def get_CR(self):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).
@@ -870,13 +759,13 @@ class MD_ROD():
             return rewards
 
         # First up, the performance is determined according to the mode (translation, rotation, etc.)
-        # for the case without noise (WLU_noise = 'off') this is done from a noislessRod determined
+        # for the case without noise (CR_noise = 'off') this is done from a noislessRod determined
         # from the last simulation step without noise
-        if self.WLU_noise == 'on' or self.WLU_noise == 'mixed' or self.WLU_noise == 'ideal' or self.WLU_noise == 'no':
+        if self.CR_noise == 'on' or self.CR_noise == 'mixed' or self.CR_noise == 'ideal' or self.CR_noise == 'no':
 
             perf_rod = self.rod
 
-        elif self.WLU_noise == 'off':
+        elif self.CR_noise == 'off':
             # redo the last simulation step without noise to have a performance
             # that can be compared to the hyp_perf without noise
 
@@ -919,14 +808,14 @@ class MD_ROD():
 
         # Really with performance here? Yes, because otherwise opposing particles get both rewarded even though nothing happens.
         # Wolpert and Tumer (2001) do not multiply the performance here.
-        rewards = self.WLU_prefact * contrib
+        rewards = self.CR_prefact * contrib
 
         # To encourage particles to interact with the rods,
         # all particles touching the rod get a small reward
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
         if self.mode == 7:
-            rewards[self.touch == 1] = rewards[self.touch == 1] + self.WLU_touch_rew
+            rewards[self.touch == 1] = rewards[self.touch == 1] + self.CR_touch_rew
 
         # If required do not use rewards but a cost. This is achieved by subtracting
         # an estimate of the optimal reward a particle has (from looking at
@@ -949,7 +838,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_WLU_experiment(self):
+    def get_CR_experiment(self):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).
@@ -960,7 +849,7 @@ class MD_ROD():
         '''
 
         # Because that's the only working noise mode for the experiment
-        self.WLU_noise = 'mixed'
+        self.CR_noise = 'mixed'
 
         # Mode 7 needs an exception here: If the rod reaches it's target
         # (within certain limits), all particles get a
@@ -1043,14 +932,14 @@ class MD_ROD():
             contrib = experiment_performance - hyp_perf * experiment_performance/virtual_performance
 
         # Wolpert and Tumer (2001) do not multiply with the performance here.
-        rewards = self.WLU_prefact * contrib
+        rewards = self.CR_prefact * contrib
 
         # To encourage particles to interact with the rods,
         # all particles touching the rod get a small reward
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
         if self.mode == 7:
-            rewards[self.touch == 1] = rewards[self.touch == 1] + self.WLU_touch_rew
+            rewards[self.touch == 1] = rewards[self.touch == 1] + self.CR_touch_rew
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for latter two)
@@ -1066,7 +955,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_WLU_experiment_parallelized(self):
+    def get_CR_experiment_parallelized(self):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).
@@ -1078,7 +967,7 @@ class MD_ROD():
         '''
 
         # Because that's the only working noise mode for the experiment
-        self.WLU_noise = 'mixed'
+        self.CR_noise = 'mixed'
 
         # Mode 7 needs an exception here: If the rod reaches it's target
         # (within certain limits), all particles get a
@@ -1186,14 +1075,14 @@ class MD_ROD():
             contrib = experiment_performance - hyp_perf * experiment_performance/virtual_performance
 
         # Wolpert and Tumer (2001) do not multiply with the performance here.
-        rewards = self.WLU_prefact * contrib
+        rewards = self.CR_prefact * contrib
 
         # To encourage particles to interact with the rods,
         # all particles touching the rod get a small reward
         # (should be much smaller than the rewards generated
         # by pushing the rod to the target, 0.1 should be fine)
         if self.mode == 7:
-            rewards[self.touch == 1] = rewards[self.touch == 1] + self.WLU_touch_rew
+            rewards[self.touch == 1] = rewards[self.touch == 1] + self.CR_touch_rew
 
         # For debugging the performance and hyp_perf are saved together with the rod
         # the performance was determined from and the hypothetical rods (just angles in for latter two)
@@ -1298,14 +1187,14 @@ class MD_ROD():
         # 'mixed': noise in determining perf and no noise in determining hypPerf
         # 'ideal': exactly the same noise in both perf and hypPerf calculations
 
-        if self.WLU_noise == 'on':
+        if self.CR_noise == 'on':
             noise_flag = 1
-        elif self.WLU_noise == 'off' or self.WLU_noise == 'mixed' or self.WLU_noise == 'ideal' or self.WLU_noise == 'no':
+        elif self.CR_noise == 'off' or self.CR_noise == 'mixed' or self.CR_noise == 'ideal' or self.CR_noise == 'no':
             noise_flag = 0
 
 
-        # in the WLU_noise 'ideal', the same noise as in the last step is used to determine the hypPerfs
-        if self.WLU_noise == 'ideal':
+        # in the CR_noise 'ideal', the same noise as in the last step is used to determine the hypPerfs
+        if self.CR_noise == 'ideal':
             reproduction = True
             old_ther_noise = self.old_ther_noise
             old_vel_noise = self.old_vel_noise
@@ -1332,13 +1221,13 @@ class MD_ROD():
         distances = self.rod_dist
         touch = self.touch
 
-        # Iterate over every particle, leave out that particle (WLU_mode = 'non_ex')
-        # or make it passive (WLU_mode = 'passive') and simulate one step.
+        # Iterate over every particle, leave out that particle (CR_mode = 'non_ex')
+        # or make it passive (CR_mode = 'passive') and simulate one step.
         for i in range(self.particles.shape[0]):
 
-            if (self.WLU_rew_mode == 'close' and (distances[i] <= self.rew_cutoff)) or (self.WLU_rew_mode == 'touch' and touch[i]):
+            if (self.CR_rew_mode == 'close' and (distances[i] <= self.rew_cutoff)) or (self.CR_rew_mode == 'touch' and touch[i]):
 
-                if self.WLU_mode == 'non_ex':
+                if self.CR_mode == 'non_ex':
                     # Make particle i non-existing
 
                     # Leave out particle i
@@ -1357,7 +1246,7 @@ class MD_ROD():
 
                     N = self.N - 1 # Don't forget the particle number
 
-                elif self.WLU_mode == 'passive':
+                elif self.CR_mode == 'passive':
                     # Make particle i passive
 
                     X = self.old_part[:,0]
@@ -1387,7 +1276,7 @@ class MD_ROD():
                                                 self.ext_rod, self.cen_rod, self.mu_K, reproduction,
                                                 noise_flag, int(self.use_obst), N, self.n_rod, self.n_obst, self.int_steps)
 
-                if self.WLU_mode == "non_ex":
+                if self.CR_mode == "non_ex":
                     hyp_parts[i,:,i] = self.old_part[i,:]
 
                 # Now the hypPerformance in the absence of particle i is determined
@@ -1423,13 +1312,13 @@ class MD_ROD():
         # 'mixed': noise in determining perf and no noise in determining hypPerf
         # 'ideal': exactly the same noise in both perf and hypPerf calculations
 
-        if self.WLU_noise == 'on':
+        if self.CR_noise == 'on':
             noise_flag = 1
-        elif self.WLU_noise == 'off' or self.WLU_noise == 'mixed' or self.WLU_noise == 'ideal' or self.WLU_noise == 'no':
+        elif self.CR_noise == 'off' or self.CR_noise == 'mixed' or self.CR_noise == 'ideal' or self.CR_noise == 'no':
             noise_flag = 0
 
-        # in the WLU_noise 'ideal', the same noise as in the last step is used to determine the hypPerfs
-        if self.WLU_noise == 'ideal':
+        # in the CR_noise 'ideal', the same noise as in the last step is used to determine the hypPerfs
+        if self.CR_noise == 'ideal':
             reproduction = True
             old_ther_noise = self.old_ther_noise
             old_vel_noise = self.old_vel_noise
@@ -1460,12 +1349,12 @@ class MD_ROD():
         distance = self.rod_dist[i]
         touch = self.touch[i]
 
-        # Leave out that particle (WLU_mode = 'non_ex')
-        # or make it passive (WLU_mode = 'passive') and simulate one step.
+        # Leave out that particle (CR_mode = 'non_ex')
+        # or make it passive (CR_mode = 'passive') and simulate one step.
 
-        if (self.WLU_rew_mode == 'close' and (distance <= self.rew_cutoff)) or (self.WLU_rew_mode == 'touch' and touch):
+        if (self.CR_rew_mode == 'close' and (distance <= self.rew_cutoff)) or (self.CR_rew_mode == 'touch' and touch):
 
-            if self.WLU_mode == 'non_ex':
+            if self.CR_mode == 'non_ex':
                 # Make particle i non-existing
 
                 # Leave out particle i
@@ -1484,7 +1373,7 @@ class MD_ROD():
 
                 N = self.N - 1 # Don't forget the particle number
 
-            elif self.WLU_mode == 'passive':
+            elif self.CR_mode == 'passive':
                 # Make particle i passive
 
                 X = self.old_part[:,0]
@@ -1512,7 +1401,7 @@ class MD_ROD():
 
             # If the particle is made to not exist, we have to add it to the
             # hypothetical particles anyway
-            if self.WLU_mode == "non_ex":
+            if self.CR_mode == "non_ex":
                 hyp_parts[i,:] = self.old_part[i,:]
 
             # Now the hypPerformance in the absence of particle i is determined
