@@ -367,7 +367,7 @@ class AgentActiveMatter():
     # For debugging
     if np.isnan(self.advantage).any():
       print("NaNs in train_step in advantages")
-      print(self.advantages)
+      print(self.advantage)
       self.advantage[np.isnan(self.advantage)] = 0
 
 
