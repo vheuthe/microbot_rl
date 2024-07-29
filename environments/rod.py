@@ -157,9 +157,9 @@ class MD_ROD():
             # Transversal transportation -> target parallel and in orthogonal direction to rod
             self.reinitialize_random_for_MD(swirl)
 
-        # If there is only one particle, CR and CR_experiment reward modes get changed to
+        # If there is only one particle, CR reward gets changed to
         # team rewards
-        if self.N == 1 and self.rew_mode in ("CR", "CR_experiment"):
+        if self.N == 1 and self.rew_mode =="CR":
             self.rew_mode = "team"
             self.team_rew_mode = "team"
 
@@ -612,18 +612,12 @@ class MD_ROD():
         elif self.rew_mode == 'CR':
 
             # Determines the reward according to what would have happened if particle i would not have been there.
-            # (Wonderful Life Utility, CR)
-            rewards = self.get_CR()
-
-        elif self.rew_mode == 'CR_experiment':
-
-            # Determines the reward according to what would have happened if particle i would not have been there.
             # (Wonderful Life Utility, CR) It also uses a scaling that makes the experiment and the simulations
             # more compatible
             if self.parallelize_cr:
-                rewards = self.get_CR_experiment_parallelized()
+                rewards = self.get_CR_parallelized()
             else:
-                rewards = self.get_CR_experiment()
+                rewards = self.get_CR()
 
         self.rewards = rewards
 
@@ -838,7 +832,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_CR_experiment(self):
+    def get_CR(self):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).
@@ -955,7 +949,7 @@ class MD_ROD():
         return rewards
 
 
-    def get_CR_experiment_parallelized(self):
+    def get_CR_parallelized(self):
         '''
         Determines the reward for particle i according to how the performance would have
         changed if particle i would not have been present (hypPerformance).

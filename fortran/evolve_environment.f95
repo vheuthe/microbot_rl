@@ -573,14 +573,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
     ! =============================
     ! CONSISTENCY CHECK ON N_OBS ==
     select case (mode)
-        case (1)
-            print*, 'ERROR consistency mode'
-            print*, 'mode ', mode, ' is not defined'
-            STOP
-        case (2)
-            print*, 'ERROR consistency mode'
-            print*, 'mode ', mode, ' is not defined'
-            STOP
         case (3)
             if (.not.(Nobs == (2+obst_flag+flag_side)*cones)) then
                 print*, 'ERROR consistency  Nobs'
@@ -588,14 +580,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                 STOP
             endif
         case (4)
-            print*, 'ERROR consistency mode'
-            print*, 'mode ', mode, ' is not defined'
-            STOP
-        case (5)
-            print*, 'ERROR consistency mode'
-            print*, 'mode ', mode, ' is not defined'
-            STOP
-        case (6)
             print*, 'ERROR consistency mode'
             print*, 'mode ', mode, ' is not defined'
             STOP
@@ -1019,15 +1003,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
 
         ! different reward functions to choose from
         select case (mode)
-            case (1)
-                Rew(i) = reward_move(r/true_ss, dRod, a, b, rotRod, touch(i))
-                !print*, i, 'x ', X(i),'y ', Y(i), ' theta ', a, 'rodtheta ', b,&
-                !       'a-b ', a-b, ' mod2pi ', ((a-b) - floor((a-b)/2.d0/PI+0.5d0)*2*PI), &
-                !       reward_move(r/ss, dRod, a, b, near)
-            case (2)
-                Rew(i) = reward_move_back(r/true_ss, dRod, a, b, touch(i))
-                Obs(i, (2+flag_side)*cones+1) = cos(a)
-                Obs(i, (2+flag_side)+2) = sin(a)
             case (3)
                 ! reward positive irrespective to direction of rotation
                 if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
@@ -1050,19 +1025,6 @@ subroutine  get_o_r_rod(X, Y, Theta, Xrod, Yrod, oldXrod, oldYrod, tar_X, tar_Y,
                     ! Positive reward only if cooperation
                     ! Normalization: Reward is proportional to rod mass
                     Obs(i, (2+flag_side)+1) = rotDir
-                endif
-
-            case (5) ! debug reward for contact
-                Rew(i) = r/true_ss * touch(i)
-
-            case (6) ! reward for pushing along long direction
-                if (sum(Obs(i, ((1+flag_side)*cones+(cones+1)/2):&
-                               ((1+flag_side)*cones+(cones+2)/2))) > 0.) then
-
-                    Rew(i) = reward_push_along(a, dRod, dRodtheta, Rodtheta, touch(i), cmRod, flagFixOr)
-
-                    ! This additional observable gives the relative orientation of the particle to the rod
-                    Obs(i, (2+flag_side)+1) = cos(a-Rodtheta)
                 endif
         end select
 
