@@ -31,17 +31,17 @@ The *do_array_task* or *do_task* functions perform training and save the results
 
 ## Parameters
 There are many parameters to tune the microbot training:
-'mode'
+`mode`
 : Specifies the task the microbots are supposed to solve: 3 corresponds to rod rotation, 4 to rotation in clockwise direction (only supports torque-rewards) and 7 to targeted transport.
-'rew_mode'
+`rew_mode`
 : Specifies the rewarding scheme, can be 'torque', 'team' or 'CR' for torque-based rewards (only work for rotation task, mode=3), team based rewards or counterfactual rewards.
-'CR_mode'
+´CR_mode`
 : 'non_ex' (default) or 'passive' for making the consiered robot either non-existent of passive during resimulation-steps.
-'CR_prefact'
+`CR_prefact`
 : Prefactor for the counterfactual rewards.
-'CR_noise'
+`CR_noise`
 : Whether or not to include noise in the re-simulation steps. 'mixed' is the default which does not include noise in the re-simulatin steps to reduce the variance in the reward signal.
-'team_reward_mode'
+`team_reward_mode`
 : 'team', 'close' or 'touch' determines if all robots ('team'), the ones closer than 'rew_cutoff' to the rod ('close') or only the robots that are touching the rod ('touch') are rewarded in `rew_mode` 'team'.
-CL, gamma, lam, lr_pi, lr_v, target_kl
+`CL`, `gamma`, `lam`, `lr_pi`, `lr_v`, `target_kl`
 : Parameters for tuning the optimization of the actor and critic networks.
