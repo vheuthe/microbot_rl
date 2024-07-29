@@ -41,7 +41,6 @@ default_parameters = {
     'close_pen': 0,             # Prefactor for closeness penalty (closenes to other particles)
     'prox_rew': 0,              # Reward prefactor for proximity reward (prox. to rod)
     'r_rew_fact': 100,          # Reward prefactor for rotation rewards for rewards based on forces
-    'p_rew_fact': 5,            # Reward prefactor for pushing in long difection
     'rew_cutoff': 60,           # Cutoff for the team/CR rewards
     'flag_fix_or': 0,           # Determines, if the direction to move the rod in mode 6 is fixed to the original rod orientation or not.
     'trans_dist': 50,           # distance, over which the rod should be transportet in mode 7

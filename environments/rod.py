@@ -35,7 +35,7 @@ class MD_ROD():
                 obs_type='1overR', cones=5, n_obs=5, cone_angle=np.pi, flag_side=False, flag_LOS=False,
                 part_size=6.2, part_size_rod=0.0, mode=1, swirl=False,
                 data_path=None, rew_mode='CR', team_rew_mode='close', CR_mode = 'non_ex',
-                close_pen=0, prox_rew=0, r_rew_fact=2, p_rew_fact=3, CR_prefact=10000, CR_noise='mixed', CR_rew_mode='close',
+                close_pen=0, prox_rew=0, r_rew_fact=2, CR_prefact=10000, CR_noise='mixed', CR_rew_mode='close',
                 rew_cutoff=60, start_conf='standard', start_dist_scale=1, trans_dist=100, target_tol=120, final_rew=1000, cost_iso_rew=False,
                 CR_touch_rew=0.1, termination_mode="ind", achieved_dist=6,
                 flag_fix_or = 0, train_ep = 100, n_processes=1, parallelize_cr=False,
@@ -100,8 +100,7 @@ class MD_ROD():
         self.achieved_dist = achieved_dist
 
         self.r_rew_fact = r_rew_fact                    # These are factors for the implementation of rewards based on forces
-        self.p_rew_fact = p_rew_fact
-        self.rew_mode = rew_mode                        # 'forces' or 'torque'
+        self.rew_mode = rew_mode                        # 'CR', 'forces' or 'torque'
         self.team_rew_mode = team_rew_mode              # 'team', 'close' or 'touch' determining, whether rewards are given in case of touching or closeness
         self.rew_cutoff = rew_cutoff                    # for team rewards: the max distance to the rod that still gets rewarded
         self.start_conf = start_conf                    # which configuration to start with
@@ -591,17 +590,7 @@ class MD_ROD():
             # Rewards based on position along and orientation with respect to the rod
             rewards = rew_torque
 
-        elif self.rew_mode == 'forces':
-
-            # Determines the rewards according to the forces and the current mode
-            rewards = self.get_forces_rewards(flag_abs=False)
-
-        elif self.rew_mode == 'abs_forces':
-
-            # Determines the rewards according to the forces and te current mode
-            rewards = self.get_forces_rewards(flag_abs=True)
-
-        elif self.rew_mode in ('team', 'approx_diff'):
+        elif self.rew_mode == 'team':
 
             # Determines rewards in team way (close? rotated?) So far only for rot.
             # the team_rew_mode specifies if touching or closeness are decisive.
@@ -624,51 +613,6 @@ class MD_ROD():
         return obs, rewards
 
 
-    def get_forces_rewards(self, flag_abs=False):
-        '''
-        This calculates a reward based on the contribution of each particle to the performance.
-        The contribution of each particle is estimated by evaluating how well the forces the
-        particle exerted on the rod meet the desired outcome.
-        '''
-        r = self.rod
-        olr = self.old_rod
-
-        performance = self.det_performance(self.rod)
-
-        if self.mode == 3: # Rotation
-            d_theta_uncorr = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1])) - \
-                np.angle(complex(olr[-1,0] - olr[0,0], olr[-1,1] - olr[0,1])) # Still can have jumps
-
-            d_theta = d_theta_uncorr - np.floor(d_theta_uncorr/(2 * np.pi) + 0.5) * 2 * np.pi # Now the jumps are corrected
-
-            self.part_perf = self.part_rod_forces[:,2] * np.sign(d_theta) # Performance is proportional torque fr rotation
-
-        elif self.mode == 6: # Longitudinal pushing
-
-            rod_theta = np.angle(complex(r[-1,0] - r[0,0], r[-1,1] - r[0,1]))
-
-            # When rew_mode is 'forces' (not 'abs_forces'), the particle performance are
-            # the forces exerted on the rod in the right direction
-            if not flag_abs:
-
-                part_rod_forces_complex = self.part_rod_forces[:,0] + 1j * self.part_rod_forces[:,1]
-
-                self.part_perf = (part_rod_forces_complex * e ** (-1j*rod_theta)).real # Particle forces in the longitud. direction of the rod
-
-            # When rew_mode is 'abs_forces' (meaning flag_abs=True), the particle
-            # performance is just the sum of the absolute forces a particle exerts on
-            # the rod, meaning it is rewarded more, if it is interacting more.
-            elif flag_abs:
-
-                self.part_perf = np.sum(abs(self.part_rod_forces), axis=1)
-
-
-        rewards = self.p_rew_fact * performance * abs(self.part_perf) # Performance is only rewarded, if the rod has moved
-
-
-        return rewards
-
-
     def get_team_rewards(self, team_rew_mode='touch'): # the team_rew_mode specifies if touching or closeness are decisive
         '''
         This simply rewards every particle that is present within a certain
@@ -686,8 +630,6 @@ class MD_ROD():
 
         if self.mode == 3: # Rotation
             ref_prefactor = self.r_rew_fact
-        elif self.mode == 6: # Long. Trans.
-            ref_prefactor = self.p_rew_fact
 
         if team_rew_mode == 'close':
             r = self.rod
