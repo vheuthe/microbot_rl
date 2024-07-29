@@ -31,10 +31,8 @@ The *do_array_task* or *do_task* functions perform training and save the results
 
 ## Parameters
 There are many parameters to tune the microbot training:
-### `CR_mode`:
-'non_ex' (default) or 'passive' for making the consiered robot either non-existent of passive during resimulation-steps.
-### `CR_prefact`:
-Prefactor for the counterfactual rewards.
+`CR_mode`: 'non_ex' (default) or 'passive' for making the consiered robot either non-existent of passive during resimulation-steps.
+`CR_prefact`: Prefactor for the counterfactual rewards.
 ### `CR_noise`:
 Whether or not to include noise in the re-simulation steps. 'mixed' is the default which does not include noise in the re-simulatin steps to reduce the variance in the reward signal.
 ### `mode`:
