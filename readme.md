@@ -31,31 +31,74 @@ The *do_array_task* or *do_task* functions perform training and save the results
 
 ## Parameters
 There are many parameters to tune the microbot training:
+### General
+`N`: Number of microbots in the swarm.
 
+`mode`: Specifies the task the microbots are supposed to solve: 3 corresponds to rod rotation, 4 to rotation in clockwise direction (only supports torque-rewards) and 7 to targeted transport.
+
+### Rewarding scheme
 `CR_mode`: 'non_ex' (default) or 'passive' for making the consiered robot either non-existent of passive during resimulation-steps.
 
 `CR_prefact`: Prefactor for the counterfactual rewards.
-### `CR_noise`:
-Whether or not to include noise in the re-simulation steps. 'mixed' is the default which does not include noise in the re-simulatin steps to reduce the variance in the reward signal.
-### `mode`:
-Specifies the task the microbots are supposed to solve: 3 corresponds to rod rotation, 4 to rotation in clockwise direction (only supports torque-rewards) and 7 to targeted transport.
-### `mu_k`:
-Coefficient for friction between the robots and the rod. `mu_k`=0: no friction, `mu_k`>1: friction.
-### `N`:
-Number of microbots in the swarm.
-### `obst_conf`:
-Obstacle configuration, either 'random' for a pseudo-random configuration or 'wall' for a wall-shaped obstacle.
-### ´obst_vision`:
-Flag that decides whether or not the microbots can sense the obstacles.
-### `rew_cutoff`:
-Cutoff distance to rod for rewarding in `rew_mode` 'team' or 'CR'.
-### `rew_mode`:
-Specifies the rewarding scheme, can be 'torque', 'team' or 'CR' for torque-based rewards (only work for rotation task, mode=3), team based rewards or counterfactual rewards.
-### `team_reward_mode`:
-'team', 'close' or 'touch' determines if all robots ('team'), the ones closer than 'rew_cutoff' to the rod ('close') or only the robots that are touching the rod ('touch') are rewarded in `rew_mode` 'team'.
-### `use_obst`:
-Flag for including obstacles in the environment.
-### `vel_act`, `vel_tor`, `vel_noise_fact`, `rot_noise_fact`, `torque`, `Dt`, `Dr`:
-Parameters for tuning the motion of the microrobots.
-### `CL`, `gamma`, `lam`, `lr_pi`, `lr_v`, `target_kl`:
+
+`CR_noise`: Whether or not to include noise in the re-simulation steps. 'mixed' is the default which does not include noise in the re-simulatin steps to reduce the variance in the reward signal.
+
+`parallelize_CR`: Flag for parallelizing the counterfactual rewards (using the multiprocessing module in python).
+
+`n_processes`: Number of parallel processes when `parallelize_CR`=`true`.
+
+`rew_cutoff`: Cutoff distance to rod for rewarding in `rew_mode` 'team' or 'CR'.
+
+`rew_mode`: Specifies the rewarding scheme, can be 'torque', 'team' or 'CR' for torque-based rewards (only work for rotation task, mode=3), team based rewards or counterfactual rewards.
+
+`team_reward_mode`: 'team', 'close' or 'touch' determines if all robots ('team'), the ones closer than 'rew_cutoff' to the rod ('close') or only the robots that are touching the rod ('touch') are rewarded in `rew_mode` 'team'.
+
+### MARL algorithm
+`actor_epochs`: Number of epochs in one actor update.
+
+´critic_epochs`: Number of epochs in one critic update.
+
+`load_models`: `None` to initialize models (actor and critic) randomly or specify path to load models from.
+
+`model_structure`: Structure of the neural networks (for both actor and critic). Only specifies hidden layers, since input and output node numbers are determined by the number of actions and the number of observables.
+
+`CL`, `gamma`, `lam`, `lr_pi`, `lr_v`, `target_kl`:
 Parameters for tuning the optimization of the actor and critic networks.
+
+### Training procedure
+`episodic`: Flag for doing truly episodic training (meaning the task can be achieved, which discontinues the episode).
+
+`episodic_eval`: Whether the evaluation should be done truly episodic.
+
+`train_frames`, `eval_frames`: Number of frames in each training/evaluation episode.
+
+`n_train_ep`, `n_eval_ep`: Number of training/evaluation episodes.
+
+`train_pause`: Number of frames before the models are updated.
+
+`train_actor`, `train_critic`: Flags for training actor and critic.
+
+`record_traj`: Whether to recort the positions of each microbot during the whole training.
+
+`eval_only`: Flag for only running evaluation and no training.
+
+### Observables
+`obs_type`: '1overR' or '1overR2' for the sensing of the microbots to decay with 1/R or 1/R^2 (where R is the distance to the sensed object).
+
+`cones`: Number of "vision" cones for each robot.
+
+`cone_angle`: The total perception angle (always to the front).
+
+### Physics of the environment
+`fr_rod`: Friction coefficient of the rod. Determines, how much force is necessary to move/rotate the rod with  a certain velocity.
+
+`mu_k`: Coefficient for friction between the robots and the rod. `mu_k`=0: no friction, `mu_k`>1: friction.
+
+`vel_act`, `vel_tor`, `vel_noise_fact`, `rot_noise_fact`, `torque`, `Dt`, `Dr`: Parameters for tuning the motion of the microrobots.
+
+### Obstacles
+`obst_conf`: Obstacle configuration, either 'random' for a pseudo-random configuration or 'wall' for a wall-shaped obstacle.
+
+´obst_vision`: Flag that decides whether or not the microbots can sense the obstacles.
+
+`use_obst`: Flag for including obstacles in the environment.
