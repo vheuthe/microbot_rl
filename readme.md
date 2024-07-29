@@ -35,7 +35,7 @@ There are many parameters to tune the microbot training:
 : Specifies the task the microbots are supposed to solve: 3 corresponds to rod rotation, 4 to rotation in clockwise direction (only supports torque-rewards) and 7 to targeted transport.
 `rew_mode`
 : Specifies the rewarding scheme, can be 'torque', 'team' or 'CR' for torque-based rewards (only work for rotation task, mode=3), team based rewards or counterfactual rewards.
-´CR_mode`
+`CR_mode`
 : 'non_ex' (default) or 'passive' for making the consiered robot either non-existent of passive during resimulation-steps.
 `CR_prefact`
 : Prefactor for the counterfactual rewards.
