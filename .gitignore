@@ -1,0 +1,12 @@
+__pycache__/*
+.vscode
+*.so
+*.pyc
+eval_exp_models/to_folder_test
+eval_exp_models/from_folder_test
+files_for_testing
+parameters.json
+sketchbook.py
+run_learning_rod.py
+*.h5
+model_*
