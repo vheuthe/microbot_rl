@@ -1,0 +1,19 @@
+{
+    "mode": 3,
+    "gamma": 0.999,
+    "lam": 0.97,
+    "lr_pi": 0.0005,
+    "lr_v": 0.1,
+    "rew_mode": "torque",
+    "team_rew_mode": "team",
+    "train_frames": 370,
+    "eval_frames": 1000,
+    "train_pause": 60,
+    "train_ep": 100,
+    "eval_ep": 10,
+    "N": 30,
+    "fr_rod": 4,
+    "parallelize": 1,
+    "n_processes": 4,
+    "rep": [1, 2, 3]
+}

@@ -1,0 +1,21 @@
+{
+    "episodic" :1,
+    "rew_mode" :"CR_experiment",
+    "CR_touch_rew" :0.1,
+    "train_frames" :1000,
+    "eval_frames" :2000,
+    "trans_dist" :50,
+    "final_rew" :500,
+    "record_traj" :0,
+    "cones" :10,
+    "cone_angle" :6.2832,
+    "lr_v" :0.000005,
+    "gamma" :0.999,
+    "eval_ep" :25,
+    "use_obst" :1,
+    "obst_conf" :"random",
+    "parallelize_cr" :1,
+    "n_processes" :4,
+    "mu_k" :0,
+    "rep" :[1, 2, 3, 4, 5]
+}
