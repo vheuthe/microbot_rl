@@ -1,6 +1,6 @@
 {
     "episodic" :1,
-    "rew_mode" :"CR_experiment",
+    "rew_mode" :"CR",
     "CR_touch_rew" :0.1,
     "train_frames" :1000,
     "eval_frames" :2000,

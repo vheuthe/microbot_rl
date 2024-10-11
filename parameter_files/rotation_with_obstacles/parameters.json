@@ -4,7 +4,7 @@
     "lam": 0.97,
     "lr_pi": 0.0005,
     "lr_v": 0.001,
-    "rew_mode": "CR_experiment",
+    "rew_mode": "CR",
     "CR_prefact": 10,
     "CR_mode": "non_ex",
     "CR_noise": "mixed",
